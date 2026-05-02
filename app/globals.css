@@ -1,0 +1,44 @@
+@import url('https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;600;700;900&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg0: #060A14;
+  --bg1: #0D1426;
+  --bg2: #141e36;
+  --bd: rgba(100,210,255,0.09);
+  --bdh: rgba(100,210,255,0.22);
+  --cy: #22D3EE;
+  --am: #FCD34D;
+  --vi: #A78BFA;
+  --em: #34D399;
+  --ro: #FB7185;
+  --or: #FB923C;
+  --bl: #60A5FA;
+  --tx: #F1F5F9;
+  --mu: #64748B;
+  --di: #94A3B8;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  background: var(--bg0);
+  color: var(--tx);
+  font-family: 'Exo 2', sans-serif;
+  height: 100%;
+}
+
+body {
+  background-image:
+    linear-gradient(rgba(100,210,255,0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(100,210,255,0.022) 1px, transparent 1px);
+  background-size: 38px 38px;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--bg1); }
+::-webkit-scrollbar-thumb { background: var(--bd); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--bdh); }
+
+/* Mono util */
+.mono { font-family: 'JetBrains Mono', monospace; }

@@ -1,0 +1,98 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model AgentRun {
+  id           String   @id @default(cuid())
+  name         String
+  model        String
+  systemPrompt String?
+  goal         String
+  steps        Json[]
+  toolsCalled  Json[]
+  result       String?
+  tokens       Int      @default(0)
+  latencyMs    Int      @default(0)
+  status       String   @default("running")
+  createdAt    DateTime @default(now())
+}
+
+model Tool {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String
+  schema      Json
+  code        String
+  isAgent     Boolean  @default(false)
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ChatSession {
+  id        String    @id @default(cuid())
+  title     String?
+  model     String
+  module    String    @default("studio")
+  messages  Message[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Message {
+  id        String      @id @default(cuid())
+  sessionId String
+  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role      String
+  content   String
+  metadata  Json?
+  createdAt DateTime    @default(now())
+}
+
+model KnowledgeDoc {
+  id        String   @id @default(cuid())
+  title     String
+  content   String
+  category  String
+  tags      String[]
+  blobUrl   String?
+  createdAt DateTime @default(now())
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  title     String
+  content   String
+  type      String   @default("text")
+  blobUrls  String[]
+  tags      String[]
+  generated Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CareerSnapshot {
+  id         String   @id @default(cuid())
+  score      Int
+  breakdown  Json
+  focusAreas String[]
+  nextSteps  String[]
+  analysis   String
+  createdAt  DateTime @default(now())
+}
+
+model Qualification {
+  id          String    @id @default(cuid())
+  name        String
+  category    String
+  status      String    @default("planned")
+  evidence    String?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+}
