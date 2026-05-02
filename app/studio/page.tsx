@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import {
   Send, Bot, User, Zap, Settings, Trash2, Copy, Check,
   ChevronDown, Loader2, Cpu, Brain, Terminal, ChevronRight,
-  AlertCircle, CheckCircle, Tool
+  AlertCircle, CheckCircle
 } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
