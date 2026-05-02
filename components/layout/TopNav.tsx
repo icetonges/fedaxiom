@@ -3,18 +3,15 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Cpu, Sun, Moon, Menu, X,
-  Bot, Rss, BookOpen, FileText, TrendingUp, FolderOpen
-} from "lucide-react";
+import { Cpu, Sun, Moon, Menu, X, Bot, Rss, BookOpen, FileText, TrendingUp, FolderOpen } from "lucide-react";
 
 const NAV_ITEMS = [
-  { href: "/studio",     label: "AI Studio",    icon: Bot        },
-  { href: "/live-feed",  label: "Live Feed",     icon: Rss        },
-  { href: "/knowledge",  label: "Knowledge",     icon: BookOpen   },
-  { href: "/notebook",   label: "Notebook",      icon: FileText   },
-  { href: "/career",     label: "Career",        icon: TrendingUp },
-  { href: "/projects",   label: "Projects",      icon: FolderOpen },
+  { href: "/studio",    label: "AI Studio",  icon: Bot        },
+  { href: "/live-feed", label: "Live Feed",   icon: Rss        },
+  { href: "/knowledge", label: "Knowledge",   icon: BookOpen   },
+  { href: "/notebook",  label: "Notebook",    icon: FileText   },
+  { href: "/career",    label: "Career",      icon: TrendingUp },
+  { href: "/projects",  label: "Projects",    icon: FolderOpen },
 ];
 
 export function TopNav() {
@@ -22,222 +19,144 @@ export function TopNav() {
   const [dark, setDark] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // Apply theme to <html> element
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
   }, [dark]);
 
-  // Close mobile menu on route change
   useEffect(() => { setMobileOpen(false); }, [path]);
-
-  // Close mobile menu on resize
-  useEffect(() => {
-    const handle = () => { if (window.innerWidth > 768) setMobileOpen(false); };
-    window.addEventListener("resize", handle);
-    return () => window.removeEventListener("resize", handle);
-  }, []);
 
   return (
     <>
-      <header className="topnav">
-        {/* Logo */}
-        <Link href="/studio" className="topnav-logo">
-          <div className="logo-icon"><Cpu size={16} /></div>
-          <span className="logo-text">AXIOM</span>
+      <header style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: "0 24px",
+        height: "58px",
+        background: "var(--bg1)",
+        borderBottom: "1px solid var(--bd)",
+        position: "sticky",
+        top: 0,
+        zIndex: 100,
+        boxShadow: "var(--shadow)",
+        gap: "16px",
+      }}>
+
+        {/* LEFT: Logo only */}
+        <Link href="/studio" style={{
+          display: "flex", alignItems: "center", gap: "9px",
+          textDecoration: "none", flexShrink: 0,
+        }}>
+          <div style={{
+            width: "34px", height: "34px", borderRadius: "9px",
+            background: "var(--accent)", display: "flex",
+            alignItems: "center", justifyContent: "center", color: "#fff",
+            flexShrink: 0,
+          }}>
+            <Cpu size={17} />
+          </div>
+          <span style={{
+            fontSize: "1.1rem", fontWeight: 700,
+            color: "var(--tx)", letterSpacing: "0.04em",
+          }}>
+            AXIOM
+          </span>
         </Link>
 
-        {/* Desktop tabs */}
-        <nav className="topnav-tabs">
-          {NAV_ITEMS.map(({ href, label, icon: Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              className={`nav-tab ${path === href || path.startsWith(href + "/") ? "active" : ""}`}
-            >
-              <Icon size={15} />
-              <span>{label}</span>
-            </Link>
-          ))}
-        </nav>
+        {/* RIGHT: Nav tabs + theme toggle */}
+        <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
 
-        {/* Right controls */}
-        <div className="topnav-right">
+          {/* Desktop tabs */}
+          <nav className="desktop-tabs" style={{ display: "flex", alignItems: "center", gap: "2px", marginRight: "8px" }}>
+            {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+              const active = path === href || path.startsWith(href + "/");
+              return (
+                <Link key={href} href={href} style={{
+                  display: "flex", alignItems: "center", gap: "6px",
+                  padding: "8px 14px", borderRadius: "8px",
+                  fontSize: "0.92rem", fontWeight: active ? 600 : 500,
+                  color: active ? "var(--accent)" : "var(--tx2)",
+                  textDecoration: "none",
+                  background: active ? "rgba(79,142,247,0.12)" : "transparent",
+                  border: active ? "1px solid rgba(79,142,247,0.25)" : "1px solid transparent",
+                  transition: "all 0.15s",
+                  whiteSpace: "nowrap",
+                }}>
+                  <Icon size={15} />
+                  {label}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* Theme toggle */}
           <button
-            className="icon-btn"
-            onClick={() => setDark((d) => !d)}
+            onClick={() => setDark(d => !d)}
             title={dark ? "Switch to light mode" : "Switch to dark mode"}
-            aria-label="Toggle theme"
+            style={{
+              width: "38px", height: "38px", borderRadius: "9px",
+              background: "var(--bg2)", border: "1px solid var(--bd)",
+              color: "var(--tx2)", cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              transition: "all 0.15s", flexShrink: 0,
+            }}
           >
             {dark ? <Sun size={17} /> : <Moon size={17} />}
           </button>
+
+          {/* Mobile hamburger */}
           <button
-            className="icon-btn mobile-menu-btn"
-            onClick={() => setMobileOpen((o) => !o)}
-            aria-label="Toggle menu"
+            onClick={() => setMobileOpen(o => !o)}
+            className="mobile-only"
+            style={{
+              width: "38px", height: "38px", borderRadius: "9px",
+              background: "var(--bg2)", border: "1px solid var(--bd)",
+              color: "var(--tx2)", cursor: "pointer",
+              display: "none", alignItems: "center", justifyContent: "center",
+              flexShrink: 0,
+            }}
           >
             {mobileOpen ? <X size={19} /> : <Menu size={19} />}
           </button>
         </div>
       </header>
 
-      {/* Mobile drawer */}
+      {/* Mobile dropdown */}
       {mobileOpen && (
-        <div className="mobile-drawer">
-          {NAV_ITEMS.map(({ href, label, icon: Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              className={`mobile-nav-item ${path === href ? "active" : ""}`}
-              onClick={() => setMobileOpen(false)}
-            >
-              <Icon size={18} />
-              <span>{label}</span>
-            </Link>
-          ))}
+        <div className="mobile-drawer" style={{
+          background: "var(--bg1)",
+          borderBottom: "1px solid var(--bd)",
+          padding: "8px 14px 14px",
+          display: "flex", flexDirection: "column", gap: "2px",
+          position: "sticky", top: "58px", zIndex: 99,
+        }}>
+          {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+            const active = path === href;
+            return (
+              <Link key={href} href={href} onClick={() => setMobileOpen(false)} style={{
+                display: "flex", alignItems: "center", gap: "13px",
+                padding: "13px 14px", borderRadius: "9px",
+                fontSize: "1.05rem", fontWeight: active ? 600 : 500,
+                color: active ? "var(--accent)" : "var(--tx2)",
+                textDecoration: "none",
+                background: active ? "rgba(79,142,247,0.10)" : "transparent",
+              }}>
+                <Icon size={19} />
+                {label}
+              </Link>
+            );
+          })}
         </div>
       )}
 
-      <style jsx>{`
-        /* ── Top nav bar ─────────────────────── */
-        .topnav {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 0 20px;
-          height: 56px;
-          background: var(--bg1);
-          border-bottom: 1px solid var(--bd);
-          position: sticky;
-          top: 0;
-          z-index: 100;
-          box-shadow: var(--shadow);
+      <style>{`
+        @media (max-width: 820px) {
+          .desktop-tabs { display: none !important; }
+          .mobile-only  { display: flex !important; }
         }
-
-        /* ── Logo ────────────────────────────── */
-        .topnav-logo {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          text-decoration: none;
-          margin-right: 16px;
-          flex-shrink: 0;
-        }
-        .logo-icon {
-          width: 32px;
-          height: 32px;
-          border-radius: 8px;
-          background: var(--cy);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #fff;
-        }
-        .logo-text {
-          font-size: 1rem;
-          font-weight: 700;
-          color: var(--tx);
-          letter-spacing: 0.05em;
-        }
-
-        /* ── Desktop tabs ─────────────────────── */
-        .topnav-tabs {
-          display: flex;
-          align-items: center;
-          gap: 2px;
-          flex: 1;
-          overflow-x: auto;
-          scrollbar-width: none;
-        }
-        .topnav-tabs::-webkit-scrollbar { display: none; }
-
-        .nav-tab {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          padding: 7px 13px;
-          border-radius: 8px;
-          font-size: 0.88rem;
-          font-weight: 500;
-          color: var(--tx2);
-          text-decoration: none;
-          white-space: nowrap;
-          transition: all 0.15s;
-          border: 1px solid transparent;
-        }
-        .nav-tab:hover {
-          background: var(--bg2);
-          color: var(--tx);
-        }
-        .nav-tab.active {
-          background: var(--bg2);
-          color: var(--cy);
-          border-color: var(--bd);
-          font-weight: 600;
-        }
-
-        /* ── Right controls ─────────────────── */
-        .topnav-right {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          flex-shrink: 0;
-          margin-left: auto;
-        }
-        .icon-btn {
-          width: 36px;
-          height: 36px;
-          border-radius: 8px;
-          background: var(--bg2);
-          border: 1px solid var(--bd);
-          color: var(--tx2);
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.15s;
-        }
-        .icon-btn:hover { color: var(--tx); border-color: var(--bdh); }
-
-        /* ── Mobile menu button ─────────────── */
-        .mobile-menu-btn { display: none; }
-
-        /* ── Mobile drawer ──────────────────── */
-        .mobile-drawer {
-          display: none;
-          flex-direction: column;
-          background: var(--bg1);
-          border-bottom: 1px solid var(--bd);
-          padding: 8px 12px 16px;
-          gap: 2px;
-          position: sticky;
-          top: 56px;
-          z-index: 99;
-        }
-        .mobile-nav-item {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 12px 14px;
-          border-radius: 8px;
-          font-size: 1rem;
-          font-weight: 500;
-          color: var(--tx2);
-          text-decoration: none;
-          transition: all 0.15s;
-        }
-        .mobile-nav-item:hover { background: var(--bg2); color: var(--tx); }
-        .mobile-nav-item.active { background: var(--bg2); color: var(--cy); font-weight: 600; }
-
-        /* ── Responsive ─────────────────────── */
-        @media (max-width: 768px) {
-          .topnav-tabs { display: none; }
-          .mobile-menu-btn { display: flex; }
-          .mobile-drawer { display: flex; }
-          .topnav { padding: 0 14px; }
-        }
-
-        @media (max-width: 480px) {
-          .logo-text { display: none; }
+        header a:hover {
+          background: var(--bg2) !important;
+          color: var(--tx) !important;
         }
       `}</style>
     </>
