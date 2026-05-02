@@ -1,3 +1,4 @@
+"use client"; // <--- Add this line!
 
 const PROJECTS = [
   { name: "ShangThing",       url: "https://shangthing.vercel.app/",    tech: "Next.js · TypeScript",          desc: "Personal platform and portfolio hub." },
