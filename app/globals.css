@@ -1,63 +1,108 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-/* ── Dark mode (default) ─────────────────────────────── */
+/* ══════════════════════════════════════════════
+   DARK MODE — default
+   ══════════════════════════════════════════════ */
 :root {
-  --bg:       #13151f;
-  --bg1:      #1c1f2e;
-  --bg2:      #252840;
-  --bd:       rgba(255,255,255,0.10);
-  --bdh:      rgba(255,255,255,0.22);
-  --tx:       #e8eaf2;
-  --tx2:      #9da3be;
-  --tx3:      #5c6480;
-  --accent:   #4f8ef7;
-  --accent2:  #38bdf8;
-  --green:    #34d399;
-  --yellow:   #fbbf24;
-  --red:      #f87171;
-  --nav-h:    58px;
-  --radius:   10px;
-  --shadow:   0 2px 20px rgba(0,0,0,0.45);
+  /* Backgrounds */
+  --bg:    #12141f;
+  --bg0:   #12141f;
+  --bg1:   #1c1f30;
+  --bg2:   #252840;
+
+  /* Borders */
+  --bd:    rgba(255,255,255,0.10);
+  --bdh:   rgba(255,255,255,0.22);
+
+  /* Text */
+  --tx:    #eaedf8;
+  --tx2:   #9aa3c0;
+  --tx3:   #5c6480;
+  --mu:    #6b7499;
+  --di:    #9aa3c0;
+
+  /* Accent colours — all pages use these */
+  --accent: #4f8ef7;
+  --cy:     #38bdf8;
+  --bl:     #4f8ef7;
+  --vi:     #818cf8;
+  --em:     #34d399;
+  --am:     #fbbf24;
+  --ro:     #f87171;
+  --or:     #fb923c;
+
+  /* Layout */
+  --nav-h:  58px;
+  --radius: 10px;
+  --shadow: 0 2px 20px rgba(0,0,0,0.45);
 }
 
-/* ── Light mode ──────────────────────────────────────── */
+/* ══════════════════════════════════════════════
+   LIGHT MODE
+   ══════════════════════════════════════════════ */
 [data-theme="light"] {
-  --bg:       #f0f2f8;
-  --bg1:      #ffffff;
-  --bg2:      #e8ebf5;
-  --bd:       rgba(0,0,0,0.10);
-  --bdh:      rgba(0,0,0,0.20);
-  --tx:       #1a1d2e;
-  --tx2:      #4a5068;
-  --tx3:      #8891b0;
-  --accent:   #2563eb;
-  --accent2:  #0284c7;
-  --green:    #059669;
-  --yellow:   #d97706;
-  --red:      #dc2626;
-  --shadow:   0 2px 16px rgba(0,0,0,0.10);
+  --bg:    #f2f4fb;
+  --bg0:   #f2f4fb;
+  --bg1:   #ffffff;
+  --bg2:   #e8ecf7;
+
+  --bd:    rgba(0,0,0,0.10);
+  --bdh:   rgba(0,0,0,0.20);
+
+  --tx:    #13172a;
+  --tx2:   #454c6e;
+  --tx3:   #8891b0;
+  --mu:    #6b7499;
+  --di:    #454c6e;
+
+  --accent: #2563eb;
+  --cy:     #0284c7;
+  --bl:     #2563eb;
+  --vi:     #6d28d9;
+  --em:     #059669;
+  --am:     #b45309;
+  --ro:     #dc2626;
+  --or:     #ea580c;
+
+  --shadow: 0 2px 16px rgba(0,0,0,0.09);
 }
 
-/* ── Reset ───────────────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* ══════════════════════════════════════════════
+   RESET
+   ══════════════════════════════════════════════ */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
-html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+/* Base font: 18px = very readable on all screens */
+html {
+  font-size: 18px;
+  -webkit-text-size-adjust: 100%;
+}
 
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   background: var(--bg);
   color: var(--tx);
-  line-height: 1.65;
+  line-height: 1.7;
   min-height: 100dvh;
-  transition: background 0.2s, color 0.2s;
   -webkit-font-smoothing: antialiased;
+  transition: background 0.2s, color 0.2s;
 }
 
+/* ══════════════════════════════════════════════
+   SCROLLBAR
+   ══════════════════════════════════════════════ */
 ::-webkit-scrollbar        { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track  { background: transparent; }
 ::-webkit-scrollbar-thumb  { background: var(--bd); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--bdh); }
 
+/* ══════════════════════════════════════════════
+   APP SHELL
+   ══════════════════════════════════════════════ */
 #app-shell {
   display: flex;
   flex-direction: column;
@@ -71,14 +116,9 @@ body {
   overflow-y: auto;
 }
 
-.card {
-  background: var(--bg1);
-  border: 1px solid var(--bd);
-  border-radius: var(--radius);
-  padding: 22px;
-  box-shadow: var(--shadow);
-}
-
+/* ══════════════════════════════════════════════
+   MOBILE
+   ══════════════════════════════════════════════ */
 @media (max-width: 640px) {
-  html { font-size: 15px; }
+  html { font-size: 16px; }
 }

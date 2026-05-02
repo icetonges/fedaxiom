@@ -1,79 +1,241 @@
-"use client"; // <--- Add this line!
+import Link from "next/link";
+
 const PROJECTS = [
-  { name: "ShangThing",       url: "https://shangthing.vercel.app/",    tech: "Next.js · TypeScript",       desc: "Personal platform and portfolio hub.",                      live: true  },
-  { name: "FedFM",            url: "https://fedfm.vercel.app/",         tech: "Next.js · AI Summaries",     desc: "Federal news aggregator with AI-powered summarization.",     live: true  },
-  { name: "PalantirLearning", url: "https://palantirthing.vercel.app/", tech: "React · Defense Analytics",  desc: "Defense analytics learning platform inspired by Palantir.",  live: true  },
-  { name: "PeterShang.AI",    url: "https://petershang.vercel.app/",    tech: "Next.js · Gemini AI",        desc: "Personal AI portfolio with Gemini-powered chatbot.",         live: true  },
-  { name: "AIML.Gov",         url: "https://aimlgov.vercel.app/",       tech: "Next.js · Research",         desc: "AI/ML in government — policy, research, and applications.",  live: true  },
-  { name: "MLAIThing",        url: "https://mlaithing.vercel.app/",     tech: "Next.js · ML Experiments",   desc: "ML/AI experiments and prototypes.",                          live: true  },
-  { name: "AXIOM",            url: "#",                                  tech: "Next.js 15 · Gemini · Groq", desc: "Personal AI engineering studio. You are building this now.", live: false },
-]
+  {
+    name: "ShangThing",
+    url: "https://shangthing.vercel.app/",
+    tech: ["Next.js", "TypeScript"],
+    desc: "Personal platform and portfolio hub.",
+    status: "live",
+  },
+  {
+    name: "FedFM",
+    url: "https://fedfm.vercel.app/",
+    tech: ["Next.js", "AI Summaries"],
+    desc: "Federal news aggregator with AI-powered summarization.",
+    status: "live",
+  },
+  {
+    name: "PalantirLearning",
+    url: "https://palantirthing.vercel.app/",
+    tech: ["React", "Defense Analytics"],
+    desc: "Defense analytics learning platform inspired by Palantir.",
+    status: "live",
+  },
+  {
+    name: "PeterShang.AI",
+    url: "https://petershang.vercel.app/",
+    tech: ["Next.js", "Gemini AI"],
+    desc: "Personal AI portfolio with Gemini-powered chatbot.",
+    status: "live",
+  },
+  {
+    name: "AIML.Gov",
+    url: "https://aimlgov.vercel.app/",
+    tech: ["Next.js", "Research"],
+    desc: "AI/ML in government — policy, research, and applications.",
+    status: "live",
+  },
+  {
+    name: "MLAIThing",
+    url: "https://mlaithing.vercel.app/",
+    tech: ["Next.js", "Experiments"],
+    desc: "ML/AI experiments and prototypes.",
+    status: "live",
+  },
+  {
+    name: "AXIOM",
+    url: "#",
+    tech: ["Next.js 15", "Gemini", "Groq"],
+    desc: "This platform — personal AI engineering studio.",
+    status: "building",
+  },
+];
+
+const live = PROJECTS.filter((p) => p.status === "live").length;
+const building = PROJECTS.filter((p) => p.status === "building").length;
 
 export default function ProjectsPage() {
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9, color: "var(--or)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 5 }}>
-          // projects
-        </div>
-        <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 5 }}>
-          Deployed <span style={{ color: "var(--or)" }}>Applications</span>
-        </div>
-        <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: "var(--mu)" }}>
-          {PROJECTS.filter(p => p.live).length} live · 1 in progress
-        </div>
+    <div className="proj-page">
+      {/* Header */}
+      <div className="proj-header">
+        <p className="proj-eyebrow">// PROJECTS</p>
+        <h1 className="proj-title">Deployed Applications</h1>
+        <p className="proj-count">{live} live · {building} in progress</p>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px,1fr))", gap: 14 }}>
-        {PROJECTS.map(p => (
+      {/* Grid */}
+      <div className="proj-grid">
+        {PROJECTS.map((p) => (
           <a
             key={p.name}
             href={p.url}
-            target={p.live ? "_blank" : undefined}
+            target={p.url !== "#" ? "_blank" : undefined}
             rel="noopener noreferrer"
-            style={{ textDecoration: "none" }}
+            className={`proj-card ${p.status === "building" ? "building" : ""}`}
           >
-            <div style={{
-              background: p.live ? "var(--bg1)" : "rgba(251,146,60,0.04)",
-              border: "1px solid " + (p.live ? "var(--bd)" : "rgba(251,146,60,0.28)"),
-              borderRadius: 10, padding: "18px 20px",
-              height: "100%", transition: "all 0.15s",
-            }}
-            onMouseEnter={e => {
-              const el = e.currentTarget as HTMLElement
-              el.style.borderColor = p.live ? "var(--bdh)" : "rgba(251,146,60,0.6)"
-              el.style.background  = p.live ? "var(--bg2)" : "rgba(251,146,60,0.08)"
-            }}
-            onMouseLeave={e => {
-              const el = e.currentTarget as HTMLElement
-              el.style.borderColor = p.live ? "var(--bd)" : "rgba(251,146,60,0.28)"
-              el.style.background  = p.live ? "var(--bg1)" : "rgba(251,146,60,0.04)"
-            }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: p.live ? "var(--tx)" : "var(--or)" }}>
-                  {p.name}
-                </div>
-                <span style={{
-                  fontFamily: "JetBrains Mono, monospace", fontSize: 9, fontWeight: 700,
-                  padding: "2px 6px", borderRadius: 3,
-                  background: p.live ? "rgba(52,211,153,0.12)" : "rgba(251,146,60,0.15)",
-                  color:      p.live ? "var(--em)"              : "var(--or)",
-                }}>{p.live ? "LIVE" : "BUILDING"}</span>
-              </div>
-              <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9, color: "var(--or)", marginBottom: 8 }}>
-                {p.url.replace("https://", "")}
-              </div>
-              <div style={{ fontSize: 12, color: "var(--di)", lineHeight: 1.55, marginBottom: 10 }}>
-                {p.desc}
-              </div>
-              <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9, color: "var(--mu)" }}>
-                {p.tech}
-              </div>
+            <div className="proj-card-top">
+              <span className="proj-name">{p.name}</span>
+              <span className={`proj-badge ${p.status === "building" ? "badge-building" : "badge-live"}`}>
+                {p.status === "building" ? "BUILDING" : "LIVE"}
+              </span>
+            </div>
+
+            <p className="proj-url">
+              {p.url !== "#" ? p.url.replace("https://", "") : "in development"}
+            </p>
+
+            <p className="proj-desc">{p.desc}</p>
+
+            <div className="proj-tags">
+              {p.tech.map((t) => (
+                <span key={t} className="proj-tag">{t}</span>
+              ))}
             </div>
           </a>
         ))}
       </div>
+
+      <style jsx>{`
+        .proj-page {
+          padding: 36px 32px;
+          max-width: 1200px;
+          margin: 0 auto;
+        }
+
+        /* Header */
+        .proj-header { margin-bottom: 36px; }
+
+        .proj-eyebrow {
+          font-size: 0.8rem;
+          font-weight: 600;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          color: var(--accent);
+          margin-bottom: 10px;
+          font-family: 'JetBrains Mono', monospace;
+        }
+
+        .proj-title {
+          font-size: 2rem;
+          font-weight: 700;
+          color: var(--tx);
+          line-height: 1.2;
+          margin-bottom: 10px;
+        }
+
+        .proj-count {
+          font-size: 1rem;
+          color: var(--tx2);
+        }
+
+        /* Grid */
+        .proj-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+          gap: 18px;
+        }
+
+        /* Card */
+        .proj-card {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          background: var(--bg1);
+          border: 1px solid var(--bd);
+          border-radius: 12px;
+          padding: 22px 24px;
+          text-decoration: none;
+          transition: all 0.18s;
+          cursor: pointer;
+        }
+        .proj-card:hover {
+          border-color: var(--accent);
+          background: var(--bg2);
+          transform: translateY(-2px);
+          box-shadow: 0 6px 24px rgba(0,0,0,0.25);
+        }
+        .proj-card.building {
+          border-color: rgba(251, 146, 60, 0.3);
+          background: rgba(251, 146, 60, 0.04);
+        }
+        .proj-card.building:hover {
+          border-color: var(--or);
+        }
+
+        /* Card top row */
+        .proj-card-top {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+        }
+
+        .proj-name {
+          font-size: 1.15rem;
+          font-weight: 700;
+          color: var(--tx);
+        }
+
+        .proj-badge {
+          font-size: 0.65rem;
+          font-weight: 700;
+          letter-spacing: 0.1em;
+          padding: 3px 9px;
+          border-radius: 20px;
+          flex-shrink: 0;
+        }
+        .badge-live {
+          background: rgba(52, 211, 153, 0.15);
+          color: var(--em);
+          border: 1px solid rgba(52, 211, 153, 0.3);
+        }
+        .badge-building {
+          background: rgba(251, 146, 60, 0.15);
+          color: var(--or);
+          border: 1px solid rgba(251, 146, 60, 0.3);
+        }
+
+        /* URL */
+        .proj-url {
+          font-size: 0.82rem;
+          color: var(--accent);
+          font-family: 'JetBrains Mono', monospace;
+          word-break: break-all;
+        }
+
+        /* Description */
+        .proj-desc {
+          font-size: 0.97rem;
+          color: var(--tx2);
+          line-height: 1.6;
+        }
+
+        /* Tech tags */
+        .proj-tags {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+          margin-top: 4px;
+        }
+        .proj-tag {
+          font-size: 0.75rem;
+          padding: 4px 10px;
+          border-radius: 6px;
+          background: var(--bg2);
+          border: 1px solid var(--bd);
+          color: var(--tx2);
+          font-weight: 500;
+        }
+
+        /* Mobile */
+        @media (max-width: 640px) {
+          .proj-page { padding: 24px 16px; }
+          .proj-title { font-size: 1.5rem; }
+          .proj-grid { grid-template-columns: 1fr; }
+        }
+      `}</style>
     </div>
-  )
+  );
 }
