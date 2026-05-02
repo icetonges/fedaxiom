@@ -1,3 +1,4 @@
+
 const PROJECTS = [
   { name: "ShangThing",       url: "https://shangthing.vercel.app/",    tech: "Next.js · TypeScript",          desc: "Personal platform and portfolio hub." },
   { name: "FedFM",            url: "https://fedfm.vercel.app/",         tech: "Next.js · AI Summaries",        desc: "Federal news aggregator with AI-powered summarization." },
