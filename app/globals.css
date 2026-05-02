@@ -4,18 +4,18 @@
   --bg0: #060A14;
   --bg1: #0D1426;
   --bg2: #141e36;
-  --bd: rgba(100,210,255,0.09);
+  --bd:  rgba(100,210,255,0.09);
   --bdh: rgba(100,210,255,0.22);
-  --cy: #22D3EE;
-  --am: #FCD34D;
-  --vi: #A78BFA;
-  --em: #34D399;
-  --ro: #FB7185;
-  --or: #FB923C;
-  --bl: #60A5FA;
-  --tx: #F1F5F9;
-  --mu: #64748B;
-  --di: #94A3B8;
+  --cy:  #22D3EE;
+  --am:  #FCD34D;
+  --vi:  #A78BFA;
+  --em:  #34D399;
+  --ro:  #FB7185;
+  --or:  #FB923C;
+  --bl:  #60A5FA;
+  --tx:  #F1F5F9;
+  --mu:  #64748B;
+  --di:  #94A3B8;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -34,11 +34,7 @@ body {
   background-size: 38px 38px;
 }
 
-/* Scrollbar */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: var(--bg1); }
 ::-webkit-scrollbar-thumb { background: var(--bd); border-radius: 2px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--bdh); }
-
-/* Mono util */
-.mono { font-family: 'JetBrains Mono', monospace; }
