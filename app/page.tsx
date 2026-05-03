@@ -170,34 +170,43 @@ def my_transform(input_dataset: ModelInput, output_dataset: ModelOutput):
   },
 
   {
-    day: 2, title: "Tools & MCP", color: "#818cf8", icon: <Wrench size={16}/>,
-    tagline: "Model Context Protocol — the USB-C standard that lets any AI use any tool",
+    day: 2, title: "Tools, MCP & Best Practices", color: "#818cf8", icon: <Wrench size={16}/>,
+    tagline: "Day 2a: Model Context Protocol — the USB-C standard for AI tools. Day 2b: Tool design best practices — build tools the LLM can actually use reliably",
     whitepapers: [
-      { label: "MCP Specification",          url: "https://spec.modelcontextprotocol.io/" },
-      { label: "A2A Protocol Specification", url: "https://a2a-protocol.org/latest/specification/" },
-      { label: "Function Calling Guide",     url: "https://ai.google.dev/gemini-api/docs/function-calling" },
+      { label: "MCP Specification",                    url: "https://spec.modelcontextprotocol.io/" },
+      { label: "A2A Protocol Specification",           url: "https://a2a-protocol.org/latest/specification/" },
+      { label: "Function Calling Guide (Google)",      url: "https://ai.google.dev/gemini-api/docs/function-calling" },
+      { label: "Tool Use Best Practices (Anthropic)",  url: "https://docs.anthropic.com/en/docs/build-with-claude/tool-use/best-practices-for-tool-definitions" },
     ],
     kaggle: [
-      { label: "Day 2a — Agent Tools & MCP", url: "https://www.kaggle.com/code/kaggle5daysofai/day-2a-agent-tools" },
+      { label: "Day 2a — Agent Tools & MCP",          url: "https://www.kaggle.com/code/kaggle5daysofai/day-2a-agent-tools" },
+      { label: "Day 2b — Agent Tools Best Practices", url: "https://www.kaggle.com/code/kaggle5daysofai/day-2b-agent-tools-best-practices" },
     ],
     concepts: [
       { term: "MCP", def: "Open standard (JSON-RPC 2.0) defining how AI hosts communicate with external tool servers. One agent connects to many MCP servers — no custom code per tool." },
       { term: "MCP Primitives", def: "Tools (callable functions with JSON schema), Resources (readable data via URI), Prompts (reusable parameterized templates). Servers expose any combination." },
       { term: "Transport Layers", def: "stdio = local server run as child process (fast, zero network). SSE over HTTPS = remote cloud-hosted server (shareable, deployable, scalable)." },
+      { term: "Tool Schema Best Practices (2b)", def: "Name tools with clear verbs: search_documents not 'docs'. Describe what it does AND when to use it. Use strict types — no Any. Mark required vs optional params." },
+      { term: "Tool Error Handling (2b)", def: "Never raise exceptions from tools — return structured error dicts: {error: str, hint: str, retryable: bool}. The LLM can reason about errors and retry with corrected args." },
+      { term: "Tool Idempotency & Safety (2b)", def: "Read-only tools: always safe to retry. Write tools: implement idempotency keys or check-before-write. Limit destructive tools to explicit, narrow scopes." },
       { term: "A2A Protocol", def: "Agent-to-Agent: each agent publishes an Agent Card (JSON at /.well-known/agent.json). Orchestrators fetch cards, discover capabilities, send tasks via HTTP." },
-      { term: "Tool Discovery", def: "Agent connects → calls list_tools() → gets full schema manifest → LLM selects tools by description → calls call_tool(name, args) → receives observations." },
     ],
-    code: `# ── MCP SERVER (define once, any host can use it) ────────────────────
-pip install mcp fastmcp
+    code: `# ════════════════════════════════════════════════════════════
+# DAY 2a — MCP SERVER (define once, any host can use it)
+# ════════════════════════════════════════════════════════════
+pip install mcp fastmcp google-adk
 
-# server.py — your tool server
+# server.py — your MCP tool server
 from mcp.server.fastmcp import FastMCP
 
 mcp = FastMCP("company-data-tools")
 
 @mcp.tool()
 def query_database(sql: str, table: str) -> dict:
-    """Execute a read-only SQL query. Use for data retrieval."""
+    """Execute a read-only SQL query against company data.
+    Use for: retrieving orders, products, customers, events.
+    Do NOT use for: INSERT, UPDATE, DELETE operations.
+    """
     # Production: connect to your actual DB
     return {"columns": ["id","name"], "rows": [[1, "Widget A"], [2, "Widget B"]]}
 
@@ -206,7 +215,6 @@ def get_catalog() -> str:
     """Returns available data tables and schemas"""
     return "tables: orders, products, customers, events"
 
-# Run the MCP server
 if __name__ == "__main__":
     mcp.run()          # stdio mode (local)
     # mcp.run("sse")   # SSE mode (remote HTTPS)
@@ -232,15 +240,77 @@ async def create_agent():
     )
     return agent, exit_stack
 
-# ── REMOTE MCP (SSE) ─────────────────────────────────────────────────
-from google.adk.tools.mcp_tool import StreamableHTTPConnectionParams
+# ════════════════════════════════════════════════════════════
+# DAY 2b — TOOL DESIGN BEST PRACTICES
+# ════════════════════════════════════════════════════════════
 
-mcp_tools, _ = await MCPToolset.from_server(
-    connection_params=StreamableHTTPConnectionParams(
-        url="https://your-mcp-server.example.com/mcp",
-        headers={"Authorization": f"Bearer {API_KEY}"},
+# ── BEST PRACTICE 1: Descriptive names + rich docstrings ─────────────
+# BAD:  def docs(q: str) -> dict
+# GOOD:
+def search_knowledge_base(
+    query: str,
+    top_k: int = 5,
+    filter_category: str | None = None,
+) -> dict:
+    """Search the internal knowledge base for relevant documents.
+
+    Use this tool when the user asks a question that requires
+    factual company knowledge, product specs, or policy info.
+
+    Args:
+        query:           Natural-language search query
+        top_k:           Number of results to return (1-20)
+        filter_category: Optional category filter: "policy", "product", "hr"
+
+    Returns:
+        {"results": [{"title": str, "excerpt": str, "score": float}]}
+        {"error": str, "hint": str} on failure
+    """
+    try:
+        results = vector_db.search(query, top_k=top_k, category=filter_category)
+        return {"results": [{"title": r.title, "excerpt": r.text[:400], "score": r.score} for r in results]}
+    except Exception as e:
+        # BEST PRACTICE 2: Structured error return — never raise
+        return {
+            "error": f"Search failed: {str(e)}",
+            "hint": "Try a simpler query or remove the category filter",
+            "retryable": True,
+        }
+
+# ── BEST PRACTICE 3: Idempotent write tools ──────────────────────────
+def create_ticket(
+    title: str,
+    description: str,
+    idempotency_key: str,   # Caller provides UUID — safe to retry
+    priority: str = "medium",
+) -> dict:
+    """Create a support ticket. Idempotent: same key = same ticket."""
+    existing = db.tickets.find_one(idempotency_key=idempotency_key)
+    if existing:
+        return {"ticket_id": existing.id, "status": "already_exists"}
+    ticket = db.tickets.create(
+        title=title, description=description,
+        priority=priority, idempotency_key=idempotency_key,
     )
-)`,
+    return {"ticket_id": ticket.id, "status": "created"}
+
+# ── BEST PRACTICE 4: Tool unit tests ─────────────────────────────────
+import pytest
+
+def test_search_kb_empty_query():
+    result = search_knowledge_base(query="", top_k=5)
+    assert "error" in result   # should fail gracefully
+
+def test_search_kb_returns_structure():
+    result = search_knowledge_base(query="return policy")
+    assert "results" in result
+    assert all("title" in r and "score" in r for r in result["results"])
+
+def test_create_ticket_idempotent():
+    key = "test-idem-001"
+    r1 = create_ticket("Bug report", "desc", idempotency_key=key)
+    r2 = create_ticket("Bug report", "desc", idempotency_key=key)
+    assert r1["ticket_id"] == r2["ticket_id"]   # same result`,
     platforms: [
       { name: "GCP Cloud Run (MCP Server)", color: "#4f8ef7", setup: `# Deploy MCP server to Cloud Run (remote SSE mode)
 # Dockerfile
@@ -1132,7 +1202,7 @@ export default function HomePage() {
 
       {/* ── 5-DAY COURSE GUIDE ────────────────────────────────────────── */}
       <section id="fundamentals" style={{ marginBottom: 64 }}>
-        <SectionHeader icon={<BookOpen size={18}/>} label="5-Day AI Agents Course — Google / Kaggle" title="Comprehensive Knowledge Guide" sub="Each card contains core concepts, working code, platform deployment setups (GCP, Databricks, Palantir, AWS), whitepaper links, and direct Kaggle notebook links" color="#34d399" />
+        <SectionHeader icon={<BookOpen size={18}/>} label="5-Day AI Agents Course — Google / Kaggle" title="Comprehensive Knowledge Guide" sub="11 Kaggle notebooks across 5 days — each card has core concepts, working production code, platform deployment (GCP, Databricks, Palantir, AWS), whitepaper links, and direct notebook links" color="#34d399" />
 
         <div style={{ marginBottom: 14, padding: "12px 16px", borderRadius: 9, background: "rgba(52,211,153,0.07)", border: "1px solid rgba(52,211,153,0.2)", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <BookOpen size={14} style={{ color: "#34d399", flexShrink: 0 }} />
@@ -1170,7 +1240,7 @@ export default function HomePage() {
               <tbody>
                 {[
                   { layer: "Foundation",       day: 1, concept: "Agentic loop, ReAct, tool use, multi-agent architectures", href: "/studio" },
-                  { layer: "Interoperability", day: 2, concept: "MCP (tools/resources/prompts), A2A protocol, transport layers", href: "/studio" },
+                  { layer: "Interoperability", day: 2, concept: "MCP (tools/resources/prompts), A2A protocol, tool design best practices (2b)", href: "/studio" },
                   { layer: "Memory",           day: 3, concept: "Sessions, memory taxonomy, ETL pipeline, RAG retrieval", href: "/knowledge" },
                   { layer: "Quality",          day: 4, concept: "Four Pillars, LLM-as-Judge, OTel observability, flywheel", href: "/studio" },
                   { layer: "Production",       day: 5, concept: "CI/CD gates, guardrails, cost optimisation, A2A at scale", href: "/projects" },

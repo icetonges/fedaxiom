@@ -296,51 +296,51 @@ export default function NotebookPage() {
 
       <style jsx>{`
         .nb-page { display: flex; height: 100%; overflow: hidden; }
-        .nb-sidebar { width: 240px; flex-shrink: 0; border-right: 1px solid var(--bd); display: flex; flex-direction: column; background: var(--bg1); }
+        .nb-sidebar { width: 250px; flex-shrink: 0; border-right: 1px solid var(--bd); display: flex; flex-direction: column; background: var(--bg1); }
         .nb-sidebar-top { display: flex; align-items: center; justify-content: space-between; padding: 16px 14px 12px; border-bottom: 1px solid var(--bd); }
-        .nb-sidebar-title { font-size: 13px; font-weight: 700; color: var(--tx); text-transform: uppercase; letter-spacing: 0.06em; }
-        .nb-new-btn { width: 26px; height: 26px; border-radius: 6px; background: rgba(34,211,238,0.12); border: 1px solid rgba(34,211,238,0.25); color: var(--cy); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .nb-sidebar-title { font-size: 14px; font-weight: 700; color: var(--tx); text-transform: uppercase; letter-spacing: 0.06em; }
+        .nb-new-btn { width: 28px; height: 28px; border-radius: 6px; background: rgba(34,211,238,0.12); border: 1px solid rgba(34,211,238,0.25); color: var(--cy); cursor: pointer; display: flex; align-items: center; justify-content: center; }
         .nb-new-btn:hover { background: rgba(34,211,238,0.2); }
         .nb-note-list { flex: 1; overflow-y: auto; padding: 6px; }
-        .nb-note-item { width: 100%; text-align: left; padding: 9px 10px; border-radius: 8px; background: none; border: none; cursor: pointer; transition: background 0.15s; }
+        .nb-note-item { width: 100%; text-align: left; padding: 10px 11px; border-radius: 8px; background: none; border: 1px solid transparent; cursor: pointer; transition: background 0.15s; }
         .nb-note-item:hover { background: rgba(255,255,255,0.04); }
-        .nb-note-item.active { background: rgba(34,211,238,0.08); border: 1px solid rgba(34,211,238,0.18); }
-        .nb-note-item-title { font-size: 13px; font-weight: 600; color: var(--tx); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .nb-note-item-meta { font-size: 10px; color: var(--mu); margin-top: 2px; display: flex; align-items: center; }
+        .nb-note-item.active { background: rgba(34,211,238,0.08); border-color: rgba(34,211,238,0.18); }
+        .nb-note-item-title { font-size: 14px; font-weight: 600; color: var(--tx); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .nb-note-item-meta { font-size: 12px; color: var(--tx3); margin-top: 3px; display: flex; align-items: center; }
         .nb-editor { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
         .nb-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid var(--bd); gap: 12px; flex-wrap: wrap; }
         .nb-toolbar-left { flex: 1; min-width: 0; }
-        .nb-title { font-size: 18px; font-weight: 700; color: var(--tx); cursor: pointer; display: flex; align-items: center; gap: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .nb-edit-icon { color: var(--mu); opacity: 0; transition: opacity 0.15s; }
+        .nb-title { font-size: 20px; font-weight: 700; color: var(--tx); cursor: pointer; display: flex; align-items: center; gap: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .nb-edit-icon { color: var(--tx3); opacity: 0; transition: opacity 0.15s; }
         .nb-title:hover .nb-edit-icon { opacity: 1; }
-        .nb-title-input { font-size: 18px; font-weight: 700; color: var(--tx); background: none; border: none; border-bottom: 1px solid var(--cy); outline: none; width: 100%; font-family: inherit; }
-        .nb-date { font-size: 11px; color: var(--mu); display: flex; align-items: center; gap: 4px; margin-top: 3px; }
+        .nb-title-input { font-size: 20px; font-weight: 700; color: var(--tx); background: none; border: none; border-bottom: 1px solid var(--cy); outline: none; width: 100%; font-family: inherit; }
+        .nb-date { font-size: 13px; color: var(--tx3); display: flex; align-items: center; gap: 4px; margin-top: 4px; }
         .nb-toolbar-actions { display: flex; align-items: center; gap: 6px; }
-        .nb-tb-btn { width: 32px; height: 32px; border-radius: 8px; background: var(--bg2); border: 1px solid var(--bd); color: var(--di); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.15s; font-size: 12px; }
+        .nb-tb-btn { width: 34px; height: 34px; border-radius: 8px; background: var(--bg2); border: 1px solid var(--bd); color: var(--di); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.15s; font-size: 13px; }
         .nb-tb-btn:hover { background: var(--bg1); color: var(--tx); border-color: var(--bdh); }
         .nb-tb-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-        .nb-tb-btn.recording { background: rgba(251,113,133,0.15); border-color: rgba(251,113,133,0.4); color: var(--ro); width: auto; padding: 0 10px; }
-        .nb-rec-timer { font-size: 11px; font-family: 'JetBrains Mono', monospace; }
-        .nb-save-btn { display: flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 8px; background: rgba(34,211,238,0.12); border: 1px solid rgba(34,211,238,0.28); color: var(--cy); font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; font-family: inherit; }
+        .nb-tb-btn.recording { background: rgba(251,113,133,0.15); border-color: rgba(251,113,133,0.4); color: var(--ro); width: auto; padding: 0 12px; }
+        .nb-rec-timer { font-size: 13px; font-family: 'JetBrains Mono', monospace; }
+        .nb-save-btn { display: flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; background: rgba(34,211,238,0.12); border: 1px solid rgba(34,211,238,0.28); color: var(--cy); font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s; font-family: inherit; }
         .nb-save-btn:hover { background: rgba(34,211,238,0.2); }
-        .nb-tags-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 10px 20px; border-bottom: 1px solid var(--bd); min-height: 40px; }
-        .nb-tag { display: flex; align-items: center; gap: 4px; padding: 3px 8px; background: rgba(34,211,238,0.08); border: 1px solid rgba(34,211,238,0.2); border-radius: 20px; font-size: 11px; color: var(--cy); }
+        .nb-tags-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 10px 20px; border-bottom: 1px solid var(--bd); min-height: 42px; }
+        .nb-tag { display: flex; align-items: center; gap: 4px; padding: 4px 10px; background: rgba(34,211,238,0.08); border: 1px solid rgba(34,211,238,0.2); border-radius: 20px; font-size: 13px; color: var(--cy); }
         .nb-tag button { background: none; border: none; cursor: pointer; color: var(--cy); display: flex; align-items: center; opacity: 0.6; }
         .nb-tag button:hover { opacity: 1; }
-        .nb-tag-input { background: none; border: none; outline: none; font-size: 11px; color: var(--mu); width: 60px; font-family: inherit; }
-        .nb-tag-input::placeholder { color: var(--mu); }
-        .nb-summary { display: flex; align-items: flex-start; gap: 8px; padding: 10px 20px; background: rgba(167,139,250,0.05); border-bottom: 1px solid rgba(167,139,250,0.12); }
-        .nb-sum-icon { color: var(--vi); flex-shrink: 0; margin-top: 1px; }
-        .nb-sum-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--vi); flex-shrink: 0; padding-top: 1px; }
-        .nb-sum-text { font-size: 12px; color: var(--di); line-height: 1.6; }
+        .nb-tag-input { background: none; border: none; outline: none; font-size: 13px; color: var(--tx3); width: 70px; font-family: inherit; }
+        .nb-tag-input::placeholder { color: var(--tx3); }
+        .nb-summary { display: flex; align-items: flex-start; gap: 10px; padding: 12px 20px; background: rgba(167,139,250,0.05); border-bottom: 1px solid rgba(167,139,250,0.12); }
+        .nb-sum-icon { color: var(--vi); flex-shrink: 0; margin-top: 2px; }
+        .nb-sum-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--vi); flex-shrink: 0; padding-top: 1px; white-space: nowrap; }
+        .nb-sum-text { font-size: 14px; color: var(--di); line-height: 1.65; }
         .nb-audio { display: flex; align-items: center; gap: 10px; padding: 10px 20px; border-bottom: 1px solid var(--bd); }
         .nb-audio-icon { color: var(--cy); flex-shrink: 0; }
-        .nb-audio-player { height: 30px; flex: 1; }
-        .nb-audio-dur { font-size: 11px; color: var(--mu); font-family: 'JetBrains Mono', monospace; }
-        .nb-content { flex: 1; padding: 20px; background: transparent; border: none; outline: none; color: var(--tx); font-size: 15px; line-height: 1.8; resize: none; font-family: inherit; }
-        .nb-content::placeholder { color: var(--mu); }
-        .nb-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: var(--mu); }
-        .nb-new-btn-lg { padding: 10px 20px; border-radius: 10px; background: rgba(34,211,238,0.12); border: 1px solid rgba(34,211,238,0.28); color: var(--cy); font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
+        .nb-audio-player { height: 32px; flex: 1; }
+        .nb-audio-dur { font-size: 13px; color: var(--tx3); font-family: 'JetBrains Mono', monospace; }
+        .nb-content { flex: 1; padding: 22px; background: transparent; border: none; outline: none; color: var(--tx); font-size: 16px; line-height: 1.85; resize: none; font-family: inherit; }
+        .nb-content::placeholder { color: var(--tx3); }
+        .nb-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: var(--tx2); font-size: 15px; }
+        .nb-new-btn-lg { padding: 11px 22px; border-radius: 10px; background: rgba(34,211,238,0.12); border: 1px solid rgba(34,211,238,0.28); color: var(--cy); font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit; }
         .spin { animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>

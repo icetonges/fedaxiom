@@ -16,10 +16,10 @@
 
   /* Text */
   --tx:    #eaedf8;
-  --tx2:   #9aa3c0;
-  --tx3:   #5c6480;
-  --mu:    #6b7499;
-  --di:    #9aa3c0;
+  --tx2:   #b0bcd4;   /* raised from #9aa3c0 — better body contrast */
+  --tx3:   #7d88a8;   /* raised from #5c6480 — readable secondary */
+  --mu:    #8a93b5;   /* raised from #6b7499 — passes WCAG AA at all sizes */
+  --di:    #aab3cc;   /* raised from #9aa3c0 — descriptive / dim text */
 
   /* Accent colours — all pages use these */
   --accent: #4f8ef7;
@@ -91,6 +91,41 @@ body {
   -webkit-font-smoothing: antialiased;
   transition: background 0.2s, color 0.2s;
 }
+
+/* ══════════════════════════════════════════════
+   GLOBAL READABILITY — enforce minimum sizes
+   ══════════════════════════════════════════════ */
+
+/* Minimum readable body text */
+p, li, td, th { font-size: max(14px, 0.78rem); line-height: 1.7; }
+
+/* Labels / meta / secondary never below 12px */
+label, caption, figcaption { font-size: max(12px, 0.67rem); }
+
+/* Inputs always fully readable */
+input, textarea, select, button {
+  font-size: max(14px, 0.78rem);
+  font-family: inherit;
+}
+
+/* Monospace (code) readable at small sizes */
+pre, code, kbd, samp {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+  font-size: max(13px, 0.72rem);
+  line-height: 1.65;
+}
+
+/* Link defaults */
+a { color: var(--accent); }
+a:hover { color: var(--tx); }
+
+/* Table defaults */
+table { border-collapse: collapse; width: 100%; }
+th { font-weight: 700; color: var(--tx); }
+td, th { padding: 10px 16px; }
+
+/* Focus visible — accessible outline */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* ══════════════════════════════════════════════
    SCROLLBAR

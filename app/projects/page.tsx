@@ -130,6 +130,7 @@ export default function ProjectsPage() {
         .proj-count {
           font-size: 1rem;
           color: var(--tx2);
+          font-weight: 500;
         }
 
         /* Grid */
@@ -181,10 +182,10 @@ export default function ProjectsPage() {
         }
 
         .proj-badge {
-          font-size: 0.65rem;
+          font-size: 0.72rem;
           font-weight: 700;
-          letter-spacing: 0.1em;
-          padding: 3px 9px;
+          letter-spacing: 0.08em;
+          padding: 3px 10px;
           border-radius: 20px;
           flex-shrink: 0;
         }
@@ -222,8 +223,8 @@ export default function ProjectsPage() {
           margin-top: 4px;
         }
         .proj-tag {
-          font-size: 0.75rem;
-          padding: 4px 10px;
+          font-size: 0.78rem;
+          padding: 4px 11px;
           border-radius: 6px;
           background: var(--bg2);
           border: 1px solid var(--bd);

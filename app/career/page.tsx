@@ -108,7 +108,7 @@ export default function CareerPage() {
             strokeDasharray={`${dash} ${circ}`} strokeDashoffset={circ / 4}
             strokeLinecap="round" />
           <text x={cx} y={cy - 4} textAnchor="middle" fontSize="16" fontWeight="700" fill={color}>{value}</text>
-          <text x={cx} y={cy + 12} textAnchor="middle" fontSize="9" fill="var(--mu)">{label}</text>
+          <text x={cx} y={cy + 12} textAnchor="middle" fontSize="11" fill="var(--di)">{label}</text>
         </svg>
       </div>
     );
@@ -283,65 +283,65 @@ export default function CareerPage() {
       ) : null}
 
       <style jsx>{`
-        .ca-page { padding: 24px; max-width: 860px; margin: 0 auto; }
-        .ca-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
-        .ca-header-inner { display: flex; align-items: center; gap: 12px; }
-        .ca-icon-wrap { width: 40px; height: 40px; border-radius: 10px; background: rgba(52,211,153,0.12); border: 1px solid rgba(52,211,153,0.28); display: flex; align-items: center; justify-content: center; color: var(--em); }
-        .ca-title { font-size: 22px; font-weight: 700; color: var(--tx); }
-        .ca-sub { font-size: 12px; color: var(--mu); margin-top: 2px; }
-        .ca-redo-btn { padding: 8px 16px; border-radius: 8px; background: var(--bg2); border: 1px solid var(--bd); color: var(--di); font-size: 13px; cursor: pointer; font-family: inherit; }
+        .ca-page { padding: 28px 24px; max-width: 900px; margin: 0 auto; }
+        .ca-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 26px; }
+        .ca-header-inner { display: flex; align-items: center; gap: 14px; }
+        .ca-icon-wrap { width: 44px; height: 44px; border-radius: 11px; background: rgba(52,211,153,0.12); border: 1px solid rgba(52,211,153,0.28); display: flex; align-items: center; justify-content: center; color: var(--em); }
+        .ca-title { font-size: 24px; font-weight: 700; color: var(--tx); }
+        .ca-sub { font-size: 14px; color: var(--tx2); margin-top: 3px; }
+        .ca-redo-btn { padding: 9px 18px; border-radius: 8px; background: var(--bg2); border: 1px solid var(--bd); color: var(--di); font-size: 14px; cursor: pointer; font-family: inherit; }
         .ca-redo-btn:hover { border-color: var(--bdh); color: var(--tx); }
         .ca-form { display: flex; flex-direction: column; gap: 16px; }
-        .ca-card { background: var(--bg1); border: 1px solid var(--bd); border-radius: 12px; padding: 18px; }
-        .ca-card-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--em); display: flex; align-items: center; gap: 6px; margin-bottom: 14px; }
-        .ca-card-sub { font-size: 12px; color: var(--mu); margin-bottom: 12px; margin-top: -10px; }
+        .ca-card { background: var(--bg1); border: 1px solid var(--bd); border-radius: 12px; padding: 20px; }
+        .ca-card-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--em); display: flex; align-items: center; gap: 6px; margin-bottom: 16px; }
+        .ca-card-sub { font-size: 14px; color: var(--tx2); margin-bottom: 14px; margin-top: -10px; }
         .ca-row { display: flex; gap: 14px; flex-wrap: wrap; }
         .ca-field { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 6px; }
-        .ca-field label { font-size: 11px; font-weight: 600; color: var(--mu); text-transform: uppercase; letter-spacing: 0.05em; }
-        .ca-input { background: var(--bg2); border: 1px solid var(--bd); border-radius: 8px; padding: 8px 12px; color: var(--tx); font-size: 14px; outline: none; font-family: inherit; transition: border-color 0.15s; }
+        .ca-field label { font-size: 12px; font-weight: 600; color: var(--di); text-transform: uppercase; letter-spacing: 0.05em; }
+        .ca-input { background: var(--bg2); border: 1px solid var(--bd); border-radius: 8px; padding: 9px 13px; color: var(--tx); font-size: 15px; outline: none; font-family: inherit; transition: border-color 0.15s; }
         .ca-input:focus { border-color: var(--em); }
-        .ca-textarea { background: var(--bg2); border: 1px solid var(--bd); border-radius: 8px; padding: 10px 12px; color: var(--tx); font-size: 14px; outline: none; font-family: inherit; resize: vertical; line-height: 1.6; }
+        .ca-textarea { background: var(--bg2); border: 1px solid var(--bd); border-radius: 8px; padding: 10px 13px; color: var(--tx); font-size: 15px; outline: none; font-family: inherit; resize: vertical; line-height: 1.65; }
         .ca-textarea:focus { border-color: var(--em); }
-        .ca-counter { display: flex; align-items: center; gap: 12px; background: var(--bg2); border: 1px solid var(--bd); border-radius: 8px; padding: 6px 12px; width: fit-content; }
+        .ca-counter { display: flex; align-items: center; gap: 14px; background: var(--bg2); border: 1px solid var(--bd); border-radius: 8px; padding: 7px 14px; width: fit-content; }
         .ca-counter button { background: none; border: none; cursor: pointer; color: var(--di); display: flex; align-items: center; }
         .ca-counter button:hover { color: var(--em); }
-        .ca-counter span { font-size: 16px; font-weight: 700; color: var(--tx); min-width: 24px; text-align: center; }
-        .ca-skill-group { margin-bottom: 14px; }
-        .ca-skill-cat { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--mu); display: flex; align-items: center; gap: 4px; margin-bottom: 6px; }
+        .ca-counter span { font-size: 17px; font-weight: 700; color: var(--tx); min-width: 26px; text-align: center; }
+        .ca-skill-group { margin-bottom: 16px; }
+        .ca-skill-cat { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--di); display: flex; align-items: center; gap: 5px; margin-bottom: 8px; }
         .ca-skill-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-        .ca-chip { display: flex; align-items: center; gap: 5px; padding: 5px 11px; border-radius: 20px; background: var(--bg2); border: 1px solid var(--bd); color: var(--di); font-size: 12px; cursor: pointer; transition: all 0.15s; font-family: inherit; }
+        .ca-chip { display: flex; align-items: center; gap: 5px; padding: 6px 13px; border-radius: 20px; background: var(--bg2); border: 1px solid var(--bd); color: var(--di); font-size: 13px; cursor: pointer; transition: all 0.15s; font-family: inherit; }
         .ca-chip.active { background: rgba(52,211,153,0.1); border-color: rgba(52,211,153,0.35); color: var(--em); }
         .ca-chip:hover { border-color: var(--bdh); color: var(--tx); }
-        .ca-error { display: flex; align-items: center; gap: 8px; padding: 12px; background: rgba(251,113,133,0.08); border: 1px solid rgba(251,113,133,0.25); border-radius: 8px; color: var(--ro); font-size: 13px; }
-        .ca-analyze-btn { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 14px; border-radius: 10px; background: linear-gradient(135deg, rgba(52,211,153,0.15), rgba(34,211,238,0.1)); border: 1px solid rgba(52,211,153,0.35); color: var(--em); font-size: 15px; font-weight: 700; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+        .ca-error { display: flex; align-items: center; gap: 8px; padding: 14px; background: rgba(251,113,133,0.08); border: 1px solid rgba(251,113,133,0.25); border-radius: 8px; color: var(--ro); font-size: 14px; }
+        .ca-analyze-btn { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 15px; border-radius: 10px; background: linear-gradient(135deg, rgba(52,211,153,0.15), rgba(34,211,238,0.1)); border: 1px solid rgba(52,211,153,0.35); color: var(--em); font-size: 16px; font-weight: 700; cursor: pointer; transition: all 0.2s; font-family: inherit; }
         .ca-analyze-btn:hover { background: linear-gradient(135deg, rgba(52,211,153,0.25), rgba(34,211,238,0.15)); }
         .ca-analyze-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         /* Results */
         .ca-result { display: flex; flex-direction: column; gap: 16px; }
-        .ca-scores-row { display: flex; align-items: center; gap: 20px; background: var(--bg1); border: 1px solid var(--bd); border-radius: 12px; padding: 20px 24px; }
+        .ca-scores-row { display: flex; align-items: center; gap: 20px; background: var(--bg1); border: 1px solid var(--bd); border-radius: 12px; padding: 22px 26px; }
         .score-ring-wrap { }
-        .ca-level-card { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+        .ca-level-card { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; }
         .ca-level-icon { color: var(--am); }
-        .ca-level-text { font-size: 22px; font-weight: 900; color: var(--tx); }
-        .ca-level-salary { font-size: 13px; color: var(--em); font-weight: 600; }
-        .ca-headline { padding: 16px 20px; background: rgba(34,211,238,0.05); border: 1px solid rgba(34,211,238,0.15); border-radius: 10px; font-size: 15px; color: var(--di); font-style: italic; text-align: center; }
+        .ca-level-text { font-size: 24px; font-weight: 900; color: var(--tx); }
+        .ca-level-salary { font-size: 14px; color: var(--em); font-weight: 600; }
+        .ca-headline { padding: 18px 22px; background: rgba(34,211,238,0.05); border: 1px solid rgba(34,211,238,0.15); border-radius: 10px; font-size: 16px; color: var(--di); font-style: italic; text-align: center; line-height: 1.6; }
         .ca-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
         @media (max-width: 600px) { .ca-two-col { grid-template-columns: 1fr; } }
-        .ca-list-item { display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--bd); font-size: 13px; color: var(--di); line-height: 1.5; }
+        .ca-list-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--bd); font-size: 14px; color: var(--tx2); line-height: 1.6; }
         .ca-list-item:last-child { border-bottom: none; }
-        .ca-li-icon { flex-shrink: 0; margin-top: 2px; }
+        .ca-li-icon { flex-shrink: 0; margin-top: 3px; }
         .strength-icon { color: var(--em); }
         .gap-icon { color: var(--am); }
-        .ca-step { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--bd); }
+        .ca-step { display: flex; gap: 14px; padding: 13px 0; border-bottom: 1px solid var(--bd); }
         .ca-step:last-child { border-bottom: none; }
-        .ca-step-num { width: 24px; height: 24px; border-radius: 50%; background: rgba(34,211,238,0.12); border: 1px solid rgba(34,211,238,0.25); color: var(--cy); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .ca-step-num { width: 26px; height: 26px; border-radius: 50%; background: rgba(34,211,238,0.12); border: 1px solid rgba(34,211,238,0.25); color: var(--cy); font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .ca-step-body { flex: 1; }
-        .ca-step-action { font-size: 14px; color: var(--tx); margin-bottom: 4px; }
-        .ca-step-meta { display: flex; align-items: center; gap: 12px; }
-        .ca-priority { font-size: 11px; font-weight: 700; text-transform: uppercase; }
-        .ca-timeframe { font-size: 11px; color: var(--mu); display: flex; align-items: center; gap: 3px; }
+        .ca-step-action { font-size: 15px; color: var(--tx); margin-bottom: 5px; line-height: 1.55; }
+        .ca-step-meta { display: flex; align-items: center; gap: 14px; }
+        .ca-priority { font-size: 12px; font-weight: 700; text-transform: uppercase; }
+        .ca-timeframe { font-size: 12px; color: var(--tx3); display: flex; align-items: center; gap: 3px; }
         .ca-roles-wrap { display: flex; flex-wrap: wrap; gap: 8px; }
-        .ca-role-chip { display: flex; align-items: center; gap: 6px; padding: 7px 14px; background: var(--bg2); border: 1px solid var(--bd); border-radius: 8px; font-size: 13px; color: var(--di); }
+        .ca-role-chip { display: flex; align-items: center; gap: 7px; padding: 8px 16px; background: var(--bg2); border: 1px solid var(--bd); border-radius: 8px; font-size: 14px; color: var(--tx2); }
         .spin { animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
