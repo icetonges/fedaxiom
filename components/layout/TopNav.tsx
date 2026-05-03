@@ -3,15 +3,16 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Cpu, Sun, Moon, Menu, X, Bot, Rss, BookOpen, FileText, TrendingUp, FolderOpen } from "lucide-react";
+import { Cpu, Sun, Moon, Menu, X, Bot, Rss, BookOpen, FileText, TrendingUp, FolderOpen, Code2 } from "lucide-react";
 
 const NAV_ITEMS = [
-  { href: "/studio",    label: "AI Studio",  icon: Bot        },
-  { href: "/live-feed", label: "Live Feed",   icon: Rss        },
-  { href: "/knowledge", label: "Knowledge",   icon: BookOpen   },
-  { href: "/notebook",  label: "Notebook",    icon: FileText   },
-  { href: "/career",    label: "Career",      icon: TrendingUp },
-  { href: "/projects",  label: "Projects",    icon: FolderOpen },
+  { href: "/studio",        label: "AI Studio",  icon: Bot        },
+  { href: "/live-feed",     label: "Live Feed",   icon: Rss        },
+  { href: "/knowledge",     label: "Knowledge",   icon: BookOpen   },
+  { href: "/notebook",      label: "Notebook",    icon: FileText   },
+  { href: "/career",        label: "Career",      icon: TrendingUp },
+  { href: "/projects",      label: "Projects",    icon: FolderOpen },
+  { href: "/code-analysis", label: "Code Intel",  icon: Code2      },
 ];
 
 // Home route — logo links here
