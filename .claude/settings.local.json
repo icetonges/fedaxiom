@@ -4,7 +4,11 @@
       "Bash(npx tsc *)",
       "Bash(node_modules/.bin/next build *)",
       "Bash(node_modules\\\\.bin\\\\tsc --noEmit)",
-      "Bash(./node_modules/.bin/tsc --noEmit)"
+      "Bash(./node_modules/.bin/tsc --noEmit)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ]
   }
 }

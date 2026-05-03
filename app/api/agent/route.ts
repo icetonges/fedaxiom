@@ -120,22 +120,34 @@ function isConceptualPrompt(prompt: string): boolean {
   return conceptualKeywords.some(k => lower.includes(k));
 }
 
+// Local type for non-streaming Groq completions (avoids SDK namespace issues)
+interface GroqCompletionParams {
+  model: string;
+  messages: Groq.Chat.ChatCompletionMessageParam[];
+  tools?: Groq.Chat.ChatCompletionTool[];
+  tool_choice?: "auto" | "none" | { type: "function"; function: { name: string } };
+  max_tokens?: number;
+  stream?: false;
+}
+
 // Attempt one Groq call; on tool_use_failed, retry without tools
 async function groqWithFallback(
-  groq: Groq,
-  params: Groq.Chat.CompletionCreateParamsNonStreaming,
+  groqClient: Groq,
+  params: GroqCompletionParams,
 ): Promise<Groq.Chat.ChatCompletion> {
   try {
-    return await groq.chat.completions.create(params);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return await (groqClient.chat.completions.create as any)(params);
   } catch (err: unknown) {
     const isToolFail =
       err instanceof Error &&
       (err.message.includes("tool_use_failed") || err.message.includes("Failed to call a function"));
     if (isToolFail) {
       // Retry without tools — model answers directly
-      const { tools: _t, tool_choice: _tc, ...rest } = params as Record<string, unknown>;
+      const { tools: _t, tool_choice: _tc, ...rest } = params;
       void _t; void _tc;
-      return await groq.chat.completions.create(rest as Groq.Chat.CompletionCreateParamsNonStreaming);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return await (groqClient.chat.completions.create as any)(rest);
     }
     throw err;
   }
