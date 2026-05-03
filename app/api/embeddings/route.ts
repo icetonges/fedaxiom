@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     // ─────────────────────────────────────────────────────────────────────
 
     // Demo: generate an answer with Gemini using the query
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const contextNote = docIds && docIds.length > 0
       ? `The user has uploaded ${docIds.length} document(s) to the knowledge base.`

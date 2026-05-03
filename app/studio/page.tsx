@@ -134,11 +134,12 @@ const vectors = data.map(d => d.embedding);`,
     ],
     how: ["Benchmark on YOUR task type — generate 50 representative test cases first", "For agents: prefer strong tool-use models (Claude 3.5, GPT-4o, Gemini 2.0 Flash)", "For reasoning chains: use thinking models (o3, Gemini 2.5 Pro, DeepSeek R1)", "For high-volume: use small fast models (Gemini Flash, Haiku) for intermediate steps", "For cost: match model tier to task importance — don't use GPT-4o to classify intent"],
     code: `const MODELS = {
-  fast_cheap:   "gemini-2.0-flash",       // $0.10/M tok, 1M ctx
-  balanced:     "claude-3-5-sonnet",      // $3/M tok, best tool use
-  reasoning:    "gemini-2.5-pro",         // $1.25/M tok, thinking mode
-  open_source:  "llama-3.3-70b",          // Free on Groq, 128K ctx
-  local:        "ollama/llama3.1:8b",     // Offline, private
+  fast_cheap:   "gemini-2.5-flash",       // Free tier, 1M ctx, best value
+  fast_lite:    "gemini-2.5-flash-lite",  // Fastest + cheapest Gemini
+  reasoning:    "gemini-2.5-pro",         // Most capable, thinking mode
+  open_source:  "llama-3.3-70b-versatile",// Free on Groq, 128K ctx
+  deep_think:   "deepseek-r1-distill-llama-70b", // Chain-of-thought, free Groq
+  local:        "ollama/llama3.2:latest", // Offline, private
 };`,
   },
   {
@@ -418,7 +419,7 @@ const result = await graph.compile().invoke({ messages: [goal] });`,
     ],
     how: ["Equip with: web_search, rag_retrieve, fetch_url, summarize tools only", "System prompt: 'Always cite sources. Cross-check facts across 2+ sources. Output structured findings.'", "Output schema: { findings: string[], sources: URL[], confidence: 'high'|'medium'|'low' }", "Set a research budget: max N tool calls, time limit", "Pass findings to Analysis Agent — don't output directly to end user"],
     code: `const researchAgent = new Agent({
-  model: "gemini-2.0-flash",  // Fast + cheap for search iteration
+  model: "gemini-2.5-flash",  // Fast + free for search iteration
   system: "Research specialist. Always cite sources. Cross-check 2+ sources.",
   tools: [web_search, rag_retrieve, fetch_url, summarize],
   maxSteps: 8,
@@ -593,25 +594,27 @@ const UPDATES: Update[] = [
 interface Message { id: string; role: "user"|"assistant"; content: string; model?: string; }
 
 const CHAT_MODELS = [
-  { id: "gemini-2.0-flash",        label: "Gemini 2.0 Flash",  hex: "#60a5fa", provider: "Google"    },
-  { id: "gemini-2.0-flash-lite",   label: "Gemini Flash Lite", hex: "#22d3ee", provider: "Google"    },
-  { id: "llama-3.3-70b-versatile", label: "Llama 3.3 70B",     hex: "#a78bfa", provider: "Groq"      },
-  { id: "mistral-saba-24b",        label: "Mistral Saba 24B",  hex: "#fb923c", provider: "Groq"      },
-  { id: "gemma2-9b-it",            label: "Gemma 2 9B",        hex: "#34d399", provider: "Groq"      },
-  { id: "qwen-qwq-32b",            label: "Qwen QwQ 32B",      hex: "#fbbf24", provider: "Groq"      },
+  { id: "gemini-2.5-flash",              label: "Gemini 2.5 Flash",   hex: "#34d399", provider: "Google" },
+  { id: "gemini-2.5-flash-lite",         label: "Gemini Flash Lite",  hex: "#22d3ee", provider: "Google" },
+  { id: "llama-3.3-70b-versatile",       label: "Llama 3.3 70B",      hex: "#a78bfa", provider: "Groq"   },
+  { id: "deepseek-r1-distill-llama-70b", label: "DeepSeek R1 70B",    hex: "#f472b6", provider: "Groq"   },
+  { id: "llama-3.1-8b-instant",          label: "Llama 3.1 8B",       hex: "#fb923c", provider: "Groq"   },
+  { id: "gemma2-9b-it",                  label: "Gemma 2 9B",         hex: "#fbbf24", provider: "Groq"   },
 ];
 
-// Chain model sequence: each model sees the original question + all prior responses
+// Chain model sequence: text models run sequentially; embed + image run independently after
 const CHAIN_MODELS_CONFIG = [
-  { id: "gemini-2.5-flash-preview-05-20", label: "Gemini 2.5 Flash",  hex: "#34d399" },
-  { id: "llama-3.3-70b-versatile",        label: "Llama 3.3 70B",     hex: "#a78bfa" },
-  { id: "gemini-2.0-flash",               label: "Gemini 2.0 Flash",  hex: "#60a5fa" },
-  { id: "deepseek-r1-distill-llama-70b",  label: "DeepSeek R1 70B",   hex: "#f472b6" },
-  { id: "mixtral-8x7b-32768",             label: "Mixtral 8×7B",      hex: "#fb923c" },
-  { id: "gemma2-9b-it",                   label: "Gemma 2 9B",        hex: "#fbbf24" },
+  { id: "gemini-2.5-flash",              label: "Gemini 2.5 Flash",  hex: "#34d399", role: "Synthesize", kind: "text"  },
+  { id: "llama-3.3-70b-versatile",       label: "Llama 3.3 70B",     hex: "#a78bfa", role: "Reason",     kind: "text"  },
+  { id: "deepseek-r1-distill-llama-70b", label: "DeepSeek R1 70B",   hex: "#f472b6", role: "Deep Think", kind: "text"  },
+  { id: "gemini-2.5-flash-lite",         label: "Gemini Flash Lite", hex: "#22d3ee", role: "Refine",     kind: "text"  },
+  { id: "llama-3.1-8b-instant",          label: "Llama 3.1 8B",      hex: "#fb923c", role: "Condense",   kind: "text"  },
+  { id: "gemma2-9b-it",                  label: "Gemma 2 9B",        hex: "#fbbf24", role: "Polish",     kind: "text"  },
+  { id: "text-embedding-004",            label: "Gemini Embedding",  hex: "#818cf8", role: "Vectorize",  kind: "embed" },
+  { id: "imagen-4.0-fast-generate-001",  label: "Imagen 4 Fast",     hex: "#e879f9", role: "Visualize",  kind: "image" },
 ];
 
-interface ChainPanel { modelId: string; label: string; hex: string; content: string; active: boolean; done: boolean; }
+interface ChainPanel { modelId: string; label: string; hex: string; role: string; kind: "text"|"embed"|"image"; content: string; active: boolean; done: boolean; }
 interface ChainEntry { id: string; userContent: string; panels: ChainPanel[]; }
 
 const CHAT_STARTERS = [
@@ -688,7 +691,7 @@ function ChatTab({ initialMessage }: { initialMessage?: string }) {
 
     const entryId = crypto.randomUUID();
     const panels: ChainPanel[] = CHAIN_MODELS_CONFIG.map(cm => ({
-      modelId: cm.id, label: cm.label, hex: cm.hex, content: "", active: false, done: false,
+      modelId: cm.id, label: cm.label, hex: cm.hex, role: cm.role, kind: cm.kind as "text"|"embed"|"image", content: "", active: false, done: false,
     }));
     setChainEntries(e => [...e, { id: entryId, userContent: content, panels }]);
 
@@ -785,7 +788,7 @@ function ChatTab({ initialMessage }: { initialMessage?: string }) {
             {CHAIN_MODELS_CONFIG.map(cm => (
               <div key={cm.id} className="chain-dot" style={{ background: cm.hex }} title={cm.label} />
             ))}
-            <span className="chain-badge-label">6 models in sequence</span>
+            <span className="chain-badge-label">6 text · embed · imagen</span>
           </div>
         )}
 
@@ -808,7 +811,7 @@ function ChatTab({ initialMessage }: { initialMessage?: string }) {
             </p>
             <p className="chat-empty-sub">
               {chainMode
-                ? "Your question flows through Gemini 2.5 Flash → Llama 3.3 → Gemini 2.0 → DeepSeek R1 → Mixtral → Gemma2"
+                ? "Text chain: Gemini 2.5 Flash → Llama 3.3 → DeepSeek R1 → Flash Lite → Llama 3.1 8B → Gemma2  +  Embedding analysis  +  Imagen 4"
                 : `${CHAT_MODELS.length} models · streaming · system prompt control`}
             </p>
             <div className="starters">
@@ -865,20 +868,38 @@ function ChatTab({ initialMessage }: { initialMessage?: string }) {
                   <div className="chain-panel-header">
                     <div className="chain-panel-dot" style={{ background: panel.hex }} />
                     <span className="chain-panel-label" style={{ color: panel.hex }}>{panel.label}</span>
+                    <span className="chain-panel-role" style={{ borderColor: panel.hex + "44", color: panel.hex }}>
+                      {panel.role}
+                    </span>
                     {panel.active && <Loader2 size={10} className="spin" style={{ color: panel.hex, marginLeft: "auto" }} />}
                     {panel.done && <CheckCircle size={10} style={{ color: panel.hex, marginLeft: "auto", opacity: 0.7 }} />}
-                    {panel.content && panel.done && (
+                    {panel.content && panel.done && panel.kind !== "image" && (
                       <button className="copy-msg" style={{ position: "static", opacity: 1, marginLeft: 4 }} onClick={() => copy(panel.modelId + entry.id, panel.content)}>
                         {copied === panel.modelId + entry.id ? <Check size={9} /> : <Copy size={9} />}
                       </button>
                     )}
                   </div>
                   <div className="chain-panel-body">
-                    {panel.content
-                      ? <span className="chain-panel-text">{panel.content}</span>
-                      : panel.active
-                        ? <span className="caret" style={{ color: panel.hex }}>▋</span>
-                        : <span className="chain-panel-wait">Waiting…</span>}
+                    {/* Image panel: render base64 img or message */}
+                    {panel.kind === "image" && panel.content ? (
+                      panel.content.startsWith("__IMAGE__") ? (
+                        <img
+                          src={panel.content.slice(9)}
+                          alt="Imagen 4 generated visual"
+                          style={{ width: "100%", borderRadius: 6, display: "block" }}
+                        />
+                      ) : (
+                        <span className="chain-panel-text">{panel.content}</span>
+                      )
+                    ) : panel.kind === "embed" && panel.content ? (
+                      <span className="chain-panel-text chain-panel-mono">{panel.content}</span>
+                    ) : panel.content ? (
+                      <span className="chain-panel-text">{panel.content}</span>
+                    ) : panel.active ? (
+                      <span className="caret" style={{ color: panel.hex }}>▋</span>
+                    ) : (
+                      <span className="chain-panel-wait">Waiting…</span>
+                    )}
                   </div>
                 </div>
               ))}
@@ -891,7 +912,7 @@ function ChatTab({ initialMessage }: { initialMessage?: string }) {
 
       <div className="chat-input-bar">
         <textarea ref={inputRef} className="chat-input" rows={1}
-          placeholder={chainMode ? "Ask anything — all 6 models will answer in sequence…" : "Ask anything about AI engineering…"}
+          placeholder={chainMode ? "Ask anything — 6 text models + embedding + Imagen run in sequence…" : "Ask anything about AI engineering…"}
           value={input} onChange={e => setInput(e.target.value)}
           onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }} />
         <button className="chat-send" onClick={() => send()} disabled={!input.trim() || streaming}>
@@ -907,8 +928,8 @@ function ChatTab({ initialMessage }: { initialMessage?: string }) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 const SANDBOX_MODELS = [
-  { id: "llama-3.3-70b-versatile", label: "Llama 3.3 70B",   color: "var(--vi)" },
-  { id: "mistral-saba-24b",        label: "Mistral Saba 24B", color: "var(--or)" },
+  { id: "llama-3.3-70b-versatile",       label: "Llama 3.3 70B",    color: "var(--vi)" },
+  { id: "deepseek-r1-distill-llama-70b", label: "DeepSeek R1 70B",  color: "var(--ro)" },
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1101,6 +1122,8 @@ const SANDBOX_TOOLS = [
   { id: "weather",           name: "Weather",        hex: "#34d399", icon: <CloudSun size={11} /> },
   { id: "summarize_url",     name: "Summarize URL",  hex: "#a78bfa", icon: <FileText size={11} /> },
   { id: "analyze_data",      name: "Analyze Data",   hex: "#fb923c", icon: <BarChart2 size={11} /> },
+  { id: "embed_text",        name: "Embed Text",     hex: "#818cf8", icon: <Layers size={11} /> },
+  { id: "generate_image",    name: "Imagen 4",       hex: "#e879f9", icon: <Sparkles size={11} /> },
 ];
 
 function SandboxTab({ initialGoal }: { initialGoal?: string }) {
@@ -1642,8 +1665,10 @@ export default function StudioPage() {
         .chain-panel-header { display: flex; align-items: center; gap: 6px; padding: 7px 10px; border-bottom: 1px solid var(--bd); background: rgba(255,255,255,0.02); flex-shrink: 0; }
         .chain-panel-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
         .chain-panel-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; }
-        .chain-panel-body { flex: 1; padding: 9px 11px; overflow-y: auto; max-height: 220px; }
+        .chain-panel-role { font-size: 9px; font-weight: 600; padding: 1px 6px; border-radius: 3px; border: 1px solid; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.85; white-space: nowrap; }
+        .chain-panel-body { flex: 1; padding: 9px 11px; overflow-y: auto; max-height: 240px; }
         .chain-panel-text { font-size: 12px; line-height: 1.7; color: var(--tx); white-space: pre-wrap; word-break: break-word; }
+        .chain-panel-mono { font-family: monospace; font-size: 11px; line-height: 1.6; }
         .chain-panel-wait { font-size: 11px; color: var(--mu); font-style: italic; }
 
         /* ── Sandbox & A2A shared ─────────────────────────────────────── */

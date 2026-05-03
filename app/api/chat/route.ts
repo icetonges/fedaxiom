@@ -9,19 +9,13 @@ const GROQ_MODELS = new Set([
   "llama-3.3-70b-versatile",
   "llama-3.1-8b-instant",
   "deepseek-r1-distill-llama-70b",
-  "mixtral-8x7b-32768",
   "gemma2-9b-it",
-  "mistral-saba-24b",
-  "qwen-qwq-32b",
 ]);
 
 const GEMINI_MODELS = new Set([
   "gemini-2.5-flash",
-  "gemini-2.5-flash-preview-05-20",
-  "gemini-2.0-flash",
-  "gemini-2.0-flash-lite",
-  "gemini-1.5-flash",
-  "gemini-1.5-flash-8b",
+  "gemini-2.5-flash-lite",
+  "gemini-2.5-pro",
 ]);
 
 type ChatMessage = { role: "user" | "assistant" | "system"; content: string };
@@ -88,7 +82,7 @@ async function streamGemini(
 }
 
 export async function POST(req: NextRequest) {
-  const { messages, model = "gemini-2.0-flash", systemPrompt } = await req.json() as {
+  const { messages, model = "gemini-2.5-flash", systemPrompt } = await req.json() as {
     messages: ChatMessage[];
     model?: string;
     systemPrompt?: string;
@@ -104,8 +98,8 @@ export async function POST(req: NextRequest) {
         } else if (GEMINI_MODELS.has(model)) {
           await streamGemini(messages, model, systemPrompt, controller, encoder);
         } else {
-          // Default fallback to Gemini 2.0 Flash
-          await streamGemini(messages, "gemini-2.0-flash", systemPrompt, controller, encoder);
+          // Default fallback to Gemini 2.5 Flash
+          await streamGemini(messages, "gemini-2.5-flash", systemPrompt, controller, encoder);
         }
       } catch (err) {
         controller.enqueue(encodeChunk(encoder, `\n\n⚠️ Error: ${err}`));

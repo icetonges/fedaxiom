@@ -6,7 +6,7 @@ if (!process.env.GEMINI_API_KEY) {
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
 
-export function getGeminiModel(modelId = "gemini-2.0-flash") {
+export function getGeminiModel(modelId = "gemini-2.5-flash") {
   return genAI.getGenerativeModel({ model: modelId })
 }
 
@@ -15,7 +15,7 @@ export function getGeminiModel(modelId = "gemini-2.0-flash") {
  */
 export async function geminiChat(
   messages: { role: string; content: string }[],
-  modelId = "gemini-2.0-flash",
+  modelId = "gemini-2.5-flash",
   systemPrompt?: string,
 ): Promise<string> {
   const model = genAI.getGenerativeModel({
@@ -37,7 +37,7 @@ export async function geminiChat(
  */
 export async function geminiStream(
   messages: { role: string; content: string }[],
-  modelId = "gemini-2.0-flash",
+  modelId = "gemini-2.5-flash",
   systemPrompt?: string,
 ) {
   const model = genAI.getGenerativeModel({

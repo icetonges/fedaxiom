@@ -110,7 +110,7 @@ export default function NotebookPage() {
             role: "user",
             content: `Summarize this note in 1-2 concise sentences, extracting the key insight:\n\n${activeNote.content}`
           }],
-          model: "gemini-2.0-flash",
+          model: "gemini-2.5-flash",
           systemPrompt: "You are a concise note summarizer. Return only the summary, no preamble.",
         }),
       });
