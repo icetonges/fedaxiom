@@ -601,6 +601,19 @@ const CHAT_MODELS = [
   { id: "qwen-qwq-32b",            label: "Qwen QwQ 32B",      hex: "#fbbf24", provider: "Groq"      },
 ];
 
+// Chain model sequence: each model sees the original question + all prior responses
+const CHAIN_MODELS_CONFIG = [
+  { id: "gemini-2.5-flash-preview-05-20", label: "Gemini 2.5 Flash",  hex: "#34d399" },
+  { id: "llama-3.3-70b-versatile",        label: "Llama 3.3 70B",     hex: "#a78bfa" },
+  { id: "gemini-2.0-flash",               label: "Gemini 2.0 Flash",  hex: "#60a5fa" },
+  { id: "deepseek-r1-distill-llama-70b",  label: "DeepSeek R1 70B",   hex: "#f472b6" },
+  { id: "mixtral-8x7b-32768",             label: "Mixtral 8×7B",      hex: "#fb923c" },
+  { id: "gemma2-9b-it",                   label: "Gemma 2 9B",        hex: "#fbbf24" },
+];
+
+interface ChainPanel { modelId: string; label: string; hex: string; content: string; active: boolean; done: boolean; }
+interface ChainEntry { id: string; userContent: string; panels: ChainPanel[]; }
+
 const CHAT_STARTERS = [
   "Explain RAG vs fine-tuning — when do I use each?",
   "Write a minimal ReAct agent in TypeScript",
@@ -609,8 +622,10 @@ const CHAT_STARTERS = [
   "Compare Gemini 2.5 Pro vs Claude 3.7 Sonnet for production agents",
 ];
 
-function ChatTab() {
+function ChatTab({ initialMessage }: { initialMessage?: string }) {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [chainEntries, setChainEntries] = useState<ChainEntry[]>([]);
+  const [chainMode, setChainMode] = useState(false);
   const [input, setInput] = useState("");
   const [model, setModel] = useState(CHAT_MODELS[0].id);
   const [system, setSystem] = useState("You are AXIOM — an expert AI engineering mentor. Be precise, technical, and teach through real examples.");
@@ -619,16 +634,26 @@ function ChatTab() {
   const [copied, setCopied] = useState<string|null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const didAutoSend = useRef(false);
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, chainEntries]);
 
-  const send = async (text?: string) => {
+  // Auto-send when arriving from "Ask AI Mentor" in Blueprint
+  useEffect(() => {
+    if (initialMessage && !didAutoSend.current && !streaming) {
+      didAutoSend.current = true;
+      sendSingle(initialMessage);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialMessage]);
+
+  const sendSingle = async (text?: string) => {
     const content = (text ?? input).trim();
     if (!content || streaming) return;
     const userMsg: Message = { id: crypto.randomUUID(), role: "user", content };
     const asstId = crypto.randomUUID();
     setMessages(m => [...m, userMsg, { id: asstId, role: "assistant", content: "", model }]);
-    setInput("");
+    if (!text) setInput("");
     setStreaming(true);
     try {
       const res = await fetch("/api/chat", {
@@ -639,21 +664,81 @@ function ChatTab() {
           model, systemPrompt: system,
         }),
       });
-      if (!res.ok) throw new Error(`${res.status}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const reader = res.body?.getReader();
       const dec = new TextDecoder();
       let full = "";
       while (reader) {
         const { done, value } = await reader.read();
         if (done) break;
-        for (const line of dec.decode(value).split("\n"))
+        for (const line of dec.decode(value, { stream: true }).split("\n"))
           if (line.startsWith("0:")) try { full += JSON.parse(line.slice(2)); } catch { /* skip */ }
         setMessages(m => m.map(msg => msg.id === asstId ? { ...msg, content: full } : msg));
       }
     } catch (err) {
-      setMessages(m => m.map(msg => msg.id === asstId ? { ...msg, content: `Error: ${err}` } : msg));
+      setMessages(m => m.map(msg => msg.id === asstId ? { ...msg, content: `⚠️ Error: ${err}` } : msg));
     } finally { setStreaming(false); }
   };
+
+  const sendChain = async (text?: string) => {
+    const content = (text ?? input).trim();
+    if (!content || streaming) return;
+    if (!text) setInput("");
+    setStreaming(true);
+
+    const entryId = crypto.randomUUID();
+    const panels: ChainPanel[] = CHAIN_MODELS_CONFIG.map(cm => ({
+      modelId: cm.id, label: cm.label, hex: cm.hex, content: "", active: false, done: false,
+    }));
+    setChainEntries(e => [...e, { id: entryId, userContent: content, panels }]);
+
+    try {
+      const res = await fetch("/api/chain", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: [{ role: "user", content }], systemPrompt: system }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const reader = res.body!.getReader();
+      const dec = new TextDecoder();
+      let buf = "";
+
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const ev = JSON.parse(line.slice(6));
+            if (ev.type === "model_start") {
+              setChainEntries(es => es.map(e => e.id !== entryId ? e : {
+                ...e, panels: e.panels.map(p => p.modelId === ev.modelId ? { ...p, active: true } : p),
+              }));
+            } else if (ev.type === "chunk") {
+              setChainEntries(es => es.map(e => e.id !== entryId ? e : {
+                ...e, panels: e.panels.map(p => p.modelId === ev.modelId ? { ...p, content: p.content + ev.delta } : p),
+              }));
+            } else if (ev.type === "model_done") {
+              setChainEntries(es => es.map(e => e.id !== entryId ? e : {
+                ...e, panels: e.panels.map(p => p.modelId === ev.modelId ? { ...p, active: false, done: true } : p),
+              }));
+            }
+          } catch { /* skip bad JSON */ }
+        }
+      }
+    } catch (err) {
+      setChainEntries(es => es.map(e => e.id !== entryId ? e : {
+        ...e, panels: e.panels.map(p => p.active ? { ...p, active: false, content: p.content + `\n\n⚠️ ${err}` } : p),
+      }));
+    } finally { setStreaming(false); }
+  };
+
+  const send = (text?: string) => chainMode ? sendChain(text) : sendSingle(text);
 
   const copy = (id: string, text: string) => {
     navigator.clipboard.writeText(text);
@@ -661,20 +746,51 @@ function ChatTab() {
     setTimeout(() => setCopied(null), 1500);
   };
 
+  const clearAll = () => { setMessages([]); setChainEntries([]); };
+
   const sel = CHAT_MODELS.find(m => m.id === model)!;
+  const isEmpty = chainMode ? chainEntries.length === 0 : messages.length === 0;
 
   return (
     <div className="chat-wrap">
       <div className="chat-toolbar">
-        <div className="model-select-wrap">
-          <div className="mdot" style={{ background: sel.hex }} />
-          <select className="model-select" value={model} onChange={e => setModel(e.target.value)}>
-            {CHAT_MODELS.map(m => <option key={m.id} value={m.id}>{m.label} ({m.provider})</option>)}
-          </select>
-          <ChevronDown size={11} className="select-arr" />
+        {/* Mode toggle */}
+        <div className="chain-toggle">
+          <button
+            className={`chain-toggle-btn${!chainMode ? " active" : ""}`}
+            onClick={() => setChainMode(false)}
+          >Single</button>
+          <button
+            className={`chain-toggle-btn${chainMode ? " active" : ""}`}
+            onClick={() => setChainMode(true)}
+          >
+            <Zap size={10} /> Chain
+          </button>
         </div>
+
+        {/* Model selector — only in single mode */}
+        {!chainMode && (
+          <div className="model-select-wrap">
+            <div className="mdot" style={{ background: sel.hex }} />
+            <select className="model-select" value={model} onChange={e => setModel(e.target.value)}>
+              {CHAT_MODELS.map(m => <option key={m.id} value={m.id}>{m.label} ({m.provider})</option>)}
+            </select>
+            <ChevronDown size={11} className="select-arr" />
+          </div>
+        )}
+
+        {/* Chain badge — shows all 6 model dots */}
+        {chainMode && (
+          <div className="chain-badge">
+            {CHAIN_MODELS_CONFIG.map(cm => (
+              <div key={cm.id} className="chain-dot" style={{ background: cm.hex }} title={cm.label} />
+            ))}
+            <span className="chain-badge-label">6 models in sequence</span>
+          </div>
+        )}
+
         <button className="chat-cfg-btn" onClick={() => setShowSys(s => !s)}>System prompt</button>
-        <button className="chat-cfg-btn" onClick={() => setMessages([])} disabled={!messages.length}>Clear</button>
+        <button className="chat-cfg-btn" onClick={clearAll} disabled={isEmpty}>Clear</button>
       </div>
 
       {showSys && (
@@ -684,11 +800,17 @@ function ChatTab() {
       )}
 
       <div className="messages">
-        {messages.length === 0 && (
+        {isEmpty && (
           <div className="chat-empty">
             <Bot size={28} style={{ color: "#60a5fa", opacity: 0.45 }} />
-            <p className="chat-empty-title">AI Engineering Mentor</p>
-            <p className="chat-empty-sub">{CHAT_MODELS.length} models · streaming · system prompt control</p>
+            <p className="chat-empty-title">
+              {chainMode ? "Chain of 6 AI Models" : "AI Engineering Mentor"}
+            </p>
+            <p className="chat-empty-sub">
+              {chainMode
+                ? "Your question flows through Gemini 2.5 Flash → Llama 3.3 → Gemini 2.0 → DeepSeek R1 → Mixtral → Gemma2"
+                : `${CHAT_MODELS.length} models · streaming · system prompt control`}
+            </p>
             <div className="starters">
               {CHAT_STARTERS.map(q => (
                 <button key={q} className="starter-btn" onClick={() => { setInput(q); inputRef.current?.focus(); }}>{q}</button>
@@ -696,7 +818,9 @@ function ChatTab() {
             </div>
           </div>
         )}
-        {messages.map(msg => (
+
+        {/* ── Single mode messages ── */}
+        {!chainMode && messages.map(msg => (
           <div key={msg.id} className={`msg msg-${msg.role}`}>
             <div className="msg-av">
               {msg.role === "user" ? <User size={11} /> : <Bot size={11} />}
@@ -718,16 +842,60 @@ function ChatTab() {
             </div>
           </div>
         ))}
+
+        {/* ── Chain mode entries ── */}
+        {chainMode && chainEntries.map(entry => (
+          <div key={entry.id} className="chain-entry">
+            {/* User bubble */}
+            <div className="msg msg-user">
+              <div className="msg-av"><User size={11} /></div>
+              <div className="msg-bdy">
+                <div className="msg-txt">{entry.userContent}</div>
+              </div>
+            </div>
+
+            {/* 6 model panels grid */}
+            <div className="chain-grid">
+              {entry.panels.map((panel) => (
+                <div
+                  key={panel.modelId}
+                  className={`chain-panel${panel.active ? " chain-panel-active" : ""}${panel.done ? " chain-panel-done" : ""}`}
+                  style={{ "--panel-hex": panel.hex } as React.CSSProperties}
+                >
+                  <div className="chain-panel-header">
+                    <div className="chain-panel-dot" style={{ background: panel.hex }} />
+                    <span className="chain-panel-label" style={{ color: panel.hex }}>{panel.label}</span>
+                    {panel.active && <Loader2 size={10} className="spin" style={{ color: panel.hex, marginLeft: "auto" }} />}
+                    {panel.done && <CheckCircle size={10} style={{ color: panel.hex, marginLeft: "auto", opacity: 0.7 }} />}
+                    {panel.content && panel.done && (
+                      <button className="copy-msg" style={{ position: "static", opacity: 1, marginLeft: 4 }} onClick={() => copy(panel.modelId + entry.id, panel.content)}>
+                        {copied === panel.modelId + entry.id ? <Check size={9} /> : <Copy size={9} />}
+                      </button>
+                    )}
+                  </div>
+                  <div className="chain-panel-body">
+                    {panel.content
+                      ? <span className="chain-panel-text">{panel.content}</span>
+                      : panel.active
+                        ? <span className="caret" style={{ color: panel.hex }}>▋</span>
+                        : <span className="chain-panel-wait">Waiting…</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+
         <div ref={bottomRef} />
       </div>
 
       <div className="chat-input-bar">
         <textarea ref={inputRef} className="chat-input" rows={1}
-          placeholder="Ask anything about AI engineering…"
+          placeholder={chainMode ? "Ask anything — all 6 models will answer in sequence…" : "Ask anything about AI engineering…"}
           value={input} onChange={e => setInput(e.target.value)}
           onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }} />
         <button className="chat-send" onClick={() => send()} disabled={!input.trim() || streaming}>
-          {streaming ? <Loader2 size={14} className="spin" /> : <Send size={14} />}
+          {streaming ? <Loader2 size={14} className="spin" /> : chainMode ? <Zap size={14} /> : <Send size={14} />}
         </button>
       </div>
     </div>
@@ -784,10 +952,12 @@ function BlockDetail({ block, onPractice }: { block: Block | null; onPractice?: 
         ))}
       </div>
       {onPractice && (
-        <button className="practice-btn" style={{ borderColor: block.color, color: block.color }}
-          onClick={() => onPractice(`Help me build and understand: ${block.name}. ${block.what.slice(0,120)}`)}>
-          <Zap size={11} /> Practice in Sandbox
-        </button>
+        <div style={{ display: "flex", gap: 8, padding: "0 16px 12px" }}>
+          <button className="practice-btn" style={{ flex: 1, borderColor: block.color, color: block.color }}
+            onClick={() => onPractice(`Explain ${block.name} to me as an AI engineering mentor. Cover: what it is, why it matters, how it fits into a real AI system, and walk me through building a minimal working example.`)}>
+            <Bot size={11} /> Ask AI Mentor
+          </button>
+        </div>
       )}
 
       <div className="detail-body">
@@ -1289,7 +1459,7 @@ export default function StudioPage() {
 
   const handlePractice = (goal: string) => {
     setPracticeGoal(goal);
-    setTab("sandbox");
+    setTab("chat");  // conceptual questions → Chat, not Sandbox
   };
 
   const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
@@ -1324,7 +1494,7 @@ export default function StudioPage() {
       {/* Content */}
       <div className="content">
         {tab === "blueprint" && <BlueprintTab selectedBlock={selectedBlock} onSelect={setSelectedBlock} onPractice={handlePractice} />}
-        {tab === "chat"      && <ChatTab />}
+        {tab === "chat"      && <ChatTab initialMessage={practiceGoal} />}
         {tab === "sandbox"   && <SandboxTab initialGoal={practiceGoal} />}
         {tab === "a2a"       && <A2ATab />}
         {tab === "updates"   && <UpdatesTab onGoBlueprint={() => setTab("blueprint")} />}
@@ -1453,6 +1623,28 @@ export default function StudioPage() {
         .chat-input::placeholder { color: var(--mu); }
         .chat-send { width: 38px; height: 38px; border-radius: 9px; background: var(--cy); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--bg0); flex-shrink: 0; align-self: flex-end; transition: opacity 0.2s; }
         .chat-send:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* ── Chain mode ─────────────────────────────────────────────────── */
+        .chain-toggle { display: flex; background: var(--bg2); border: 1px solid var(--bd); border-radius: 7px; overflow: hidden; flex-shrink: 0; }
+        .chain-toggle-btn { padding: 5px 11px; border: none; background: none; color: var(--mu); font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 5px; transition: all 0.15s; }
+        .chain-toggle-btn.active { background: rgba(167,139,250,0.15); color: var(--vi); }
+        .chain-toggle-btn:hover:not(.active) { color: var(--di); }
+        .chain-badge { display: flex; align-items: center; gap: 5px; padding: 4px 10px; background: rgba(167,139,250,0.08); border: 1px solid rgba(167,139,250,0.2); border-radius: 7px; }
+        .chain-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+        .chain-badge-label { font-size: 10px; color: var(--vi); font-weight: 600; white-space: nowrap; margin-left: 3px; }
+        .chain-entry { display: flex; flex-direction: column; gap: 8px; }
+        .chain-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        @media (max-width: 900px) { .chain-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 600px) { .chain-grid { grid-template-columns: 1fr; } }
+        .chain-panel { border-radius: 9px; border: 1px solid var(--bd); background: var(--bg1); overflow: hidden; display: flex; flex-direction: column; transition: border-color 0.2s; }
+        .chain-panel-active { border-color: var(--panel-hex, var(--vi)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--panel-hex, var(--vi)) 18%, transparent); }
+        .chain-panel-done { border-color: var(--bd); }
+        .chain-panel-header { display: flex; align-items: center; gap: 6px; padding: 7px 10px; border-bottom: 1px solid var(--bd); background: rgba(255,255,255,0.02); flex-shrink: 0; }
+        .chain-panel-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+        .chain-panel-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; }
+        .chain-panel-body { flex: 1; padding: 9px 11px; overflow-y: auto; max-height: 220px; }
+        .chain-panel-text { font-size: 12px; line-height: 1.7; color: var(--tx); white-space: pre-wrap; word-break: break-word; }
+        .chain-panel-wait { font-size: 11px; color: var(--mu); font-style: italic; }
 
         /* ── Sandbox & A2A shared ─────────────────────────────────────── */
         .sandbox-layout, .a2a-layout { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
