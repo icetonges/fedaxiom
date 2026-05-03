@@ -10,7 +10,15 @@
       "WebFetch(domain:www.npmjs.com)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "WebFetch(domain:ai.google.dev)",
-      "WebFetch(domain:console.groq.com)"
+      "WebFetch(domain:console.groq.com)",
+      "WebFetch(domain:google.github.io)",
+      "WebFetch(domain:adk.dev)",
+      "WebFetch(domain:codelabs.developers.google.com)",
+      "WebFetch(domain:www.kdnuggets.com)",
+      "WebFetch(domain:blog.google)",
+      "WebFetch(domain:medium.com)",
+      "WebFetch(domain:zorrocheng-mc.github.io)",
+      "WebFetch(domain:sharehub.zorro.hk)"
     ]
   }
 }
