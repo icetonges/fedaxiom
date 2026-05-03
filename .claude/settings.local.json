@@ -23,7 +23,8 @@
       "Bash(xargs grep *)",
       "Bash(node_modules\\\\.bin\\\\tsc --noEmit --skipLibCheck)",
       "Bash(./node_modules/.bin/tsc --noEmit --skipLibCheck)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "WebFetch(domain:roadmap.sh)"
     ]
   }
 }
