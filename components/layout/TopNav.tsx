@@ -14,6 +14,9 @@ const NAV_ITEMS = [
   { href: "/projects",  label: "Projects",    icon: FolderOpen },
 ];
 
+// Home route — logo links here
+const HOME_HREF = "/";
+
 export function TopNav() {
   const path = usePathname();
   const [dark, setDark] = useState(true);
@@ -42,22 +45,24 @@ export function TopNav() {
         gap: "16px",
       }}>
 
-        {/* LEFT: Logo only */}
-        <Link href="/studio" style={{
+        {/* LEFT: Logo → home page */}
+        <Link href={HOME_HREF} style={{
           display: "flex", alignItems: "center", gap: "9px",
           textDecoration: "none", flexShrink: 0,
         }}>
           <div style={{
             width: "34px", height: "34px", borderRadius: "9px",
-            background: "var(--accent)", display: "flex",
-            alignItems: "center", justifyContent: "center", color: "#fff",
-            flexShrink: 0,
+            background: "linear-gradient(135deg, var(--bl) 0%, var(--vi) 100%)",
+            display: "flex", alignItems: "center", justifyContent: "center", color: "#fff",
+            flexShrink: 0, boxShadow: "0 2px 8px rgba(79,142,247,0.35)",
           }}>
             <Cpu size={17} />
           </div>
           <span style={{
-            fontSize: "1.1rem", fontWeight: 700,
-            color: "var(--tx)", letterSpacing: "0.04em",
+            fontSize: "1.1rem", fontWeight: 800,
+            background: "linear-gradient(90deg, var(--bl), var(--vi))",
+            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+            letterSpacing: "0.06em",
           }}>
             AXIOM
           </span>
