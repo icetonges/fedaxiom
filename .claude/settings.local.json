@@ -26,7 +26,13 @@
       "Bash(npm run *)",
       "WebFetch(domain:roadmap.sh)",
       "Bash(dir \"C:\\\\Users\\\\Peter-HP\\\\git peter note\\\\ClaudeCode\\\\axiom\\\\tender-mirzakhani-08fca3\\\\node_modules\\\\lucide-react\")",
-      "Bash(echo \"exit:$?\")"
+      "Bash(echo \"exit:$?\")",
+      "Bash(node node_modules/typescript/bin/tsc --noEmit)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(git pull *)",
+      "Bash(git stash *)"
     ]
   }
 }

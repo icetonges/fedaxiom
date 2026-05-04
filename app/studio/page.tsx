@@ -23,6 +23,7 @@ interface Block {
   id: string; pillar: PillarId; name: string; color: string;
   status: "live" | "beta" | "soon"; isNew?: boolean;
   what: string; why: string; vs: Difference[]; how: string[]; code?: string;
+  useCases?: string[]; pros?: string[]; cons?: string[]; whenTo?: string;
 }
 interface Update {
   id: string; date: string; type: "model" | "tool" | "framework" | "suggestion";
@@ -518,6 +519,842 @@ for (const [v, prompt] of Object.entries(variants)) {
 }`,
   },
 
+  // ── NEW: ORCHESTRATION FRAMEWORKS ────────────────────────────────────────
+  {
+    id: "langchain", pillar: "orchestration", name: "LangChain", color: "var(--or)", status: "live", isNew: true,
+    what: "A Python/JS framework that chains LLM calls, tools, memory, and retrievers into composable pipelines using a unified interface.",
+    why: "Reduces boilerplate for connecting LLMs to data sources and tools; its massive ecosystem of integrations (200+ providers) means most connectors already exist out of the box.",
+    useCases: [
+      "Building a customer-support bot that retrieves docs via RAG, calls CRM APIs, and logs conversations",
+      "Creating a multi-step document analysis pipeline that extracts, summarizes, and classifies contracts",
+      "Rapid-prototyping an agent that uses web search + calculator + code execution in sequence",
+    ],
+    pros: [
+      "Enormous ecosystem: integrations for virtually every LLM, vector store, and tool",
+      "LCEL (LangChain Expression Language) makes composing chains declarative and inspectable",
+      "LangSmith tracing ships with the library for free observability",
+    ],
+    cons: [
+      "Heavy abstraction layers make debugging cryptic when chains fail mid-execution",
+      "Frequent breaking changes across versions have burned many production teams",
+      "Overkill for simple single-call tasks — adds latency and dependency weight",
+    ],
+    whenTo: "Use LangChain when you need rapid integration across many providers and tolerate abstraction complexity; avoid it for latency-critical paths or when you control a single LLM provider end-to-end.",
+    vs: [
+      { concept: "LlamaIndex", thisIs: "LangChain is a general-purpose agent/chain orchestration framework with broad tool integrations", thatIs: "LlamaIndex is specialized for data ingestion, indexing, and retrieval-centric workflows" },
+      { concept: "Raw OpenAI SDK", thisIs: "LangChain adds memory, chaining, and tool routing on top of LLM calls", thatIs: "The raw SDK gives direct API access with no orchestration overhead" },
+    ],
+    how: [
+      "Install: pip install langchain langchain-openai",
+      "Define a prompt template with ChatPromptTemplate.from_messages()",
+      "Pipe template | ChatOpenAI() | StrOutputParser() using LCEL",
+      "Add tools via create_react_agent() or create_tool_calling_agent()",
+      "Trace execution in LangSmith by setting LANGCHAIN_TRACING_V2=true",
+    ],
+    code: `from langchain_openai import ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate
+
+prompt = ChatPromptTemplate.from_messages([
+    ("system", "You are a helpful assistant."),
+    ("user", "{input}")
+])
+chain = prompt | ChatOpenAI(model="gpt-4o")
+result = chain.invoke({"input": "Explain RAG in one sentence"})`,
+  },
+  {
+    id: "llamaindex", pillar: "orchestration", name: "LlamaIndex", color: "var(--or)", status: "live", isNew: true,
+    what: "A data framework for connecting LLMs to external knowledge sources through structured ingestion, indexing, and query pipelines.",
+    why: "Abstracts the full RAG lifecycle — chunking, embedding, storing, retrieving, and synthesizing — with first-class support for complex document structures like tables, PDFs, and code.",
+    useCases: [
+      "Building an enterprise knowledge assistant over thousands of PDFs and Confluence pages",
+      "Constructing a multi-document QA system that synthesizes answers across sources with citations",
+      "Creating a structured analytics agent that queries SQL + vector stores in a single pipeline",
+    ],
+    pros: [
+      "Best-in-class document loaders and node parsers handle complex formats (tables, nested PDFs)",
+      "Workflow and AgentWorkflow APIs provide event-driven, resumable agent orchestration",
+      "First-party integrations with most vector DBs, embedding models, and LLM providers",
+    ],
+    cons: [
+      "Query pipeline API has changed significantly between major versions causing migration pain",
+      "Lower-level control requires understanding many abstractions (nodes, indexes, retrievers, synthesizers)",
+      "Less mature for tool-heavy agent use cases compared to LangChain's agent ecosystem",
+    ],
+    whenTo: "Use LlamaIndex when retrieval quality and document ingestion fidelity are the core concern; avoid it when your app is primarily about tool-calling agents with minimal RAG.",
+    vs: [
+      { concept: "LangChain", thisIs: "LlamaIndex is optimized for data indexing, retrieval pipelines, and knowledge-heavy agents", thatIs: "LangChain is optimized for general-purpose chaining, tool use, and multi-provider integrations" },
+      { concept: "Raw vector DB SDK", thisIs: "LlamaIndex manages the full RAG lifecycle from ingestion to synthesis", thatIs: "A raw vector DB SDK only handles storage and similarity search" },
+    ],
+    how: [
+      "pip install llama-index llama-index-llms-openai llama-index-embeddings-openai",
+      "Load documents with SimpleDirectoryReader or specialized loaders",
+      "Build a VectorStoreIndex from documents — chunking and embedding happen automatically",
+      "Query with index.as_query_engine() for RAG or index.as_chat_engine() for conversation",
+      "Use SubQuestionQueryEngine or RouterQueryEngine for multi-document reasoning",
+    ],
+    code: `from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
+
+docs = SimpleDirectoryReader("./data").load_data()
+index = VectorStoreIndex.from_documents(docs)
+engine = index.as_query_engine()
+response = engine.query("What are the key findings?")
+print(response)`,
+  },
+  {
+    id: "semantic-kernel", pillar: "orchestration", name: "Semantic Kernel", color: "var(--or)", status: "live", isNew: true,
+    what: "Microsoft's open-source SDK for integrating LLMs into .NET, Python, and Java applications using a plugin-based architecture with first-class enterprise features.",
+    why: "Designed for enterprises already in the Microsoft ecosystem, it connects Azure OpenAI, Copilot, and existing C# business logic via typed plugins and planners.",
+    useCases: [
+      "Adding AI capabilities to a C# enterprise app without rewriting in Python",
+      "Building a Microsoft 365 Copilot extension that reasons over SharePoint and Outlook data",
+      "Creating an auto-planning agent that selects and sequences enterprise API plugins to fulfill requests",
+    ],
+    pros: [
+      "First-class .NET/C# support — unique among major agent frameworks",
+      "Tight Azure OpenAI and Microsoft Copilot Studio integration",
+      "Kernel Function decorators make exposing existing business logic as AI tools trivial",
+    ],
+    cons: [
+      "Python SDK lags behind the C# SDK in features and documentation quality",
+      "Planner quality is inconsistent — auto-generated plans often require hand-tuning",
+      "Smaller community and fewer third-party integrations compared to LangChain",
+    ],
+    whenTo: "Use Semantic Kernel when building enterprise .NET applications or extending Microsoft Copilot; avoid it for greenfield Python-first agent projects where LangChain/LlamaIndex ecosystems are richer.",
+    vs: [
+      { concept: "LangChain", thisIs: "Semantic Kernel is enterprise/Microsoft-oriented with strong .NET and Azure support", thatIs: "LangChain is Python/JS-first with a broader third-party integration ecosystem" },
+      { concept: "Azure OpenAI SDK", thisIs: "Semantic Kernel adds planning, memory, and plugin orchestration on top of LLM calls", thatIs: "The Azure OpenAI SDK provides raw API access without orchestration abstractions" },
+    ],
+    how: [
+      "pip install semantic-kernel or dotnet add package Microsoft.SemanticKernel",
+      "Instantiate Kernel and add a chat completion service (Azure or OpenAI)",
+      "Define plugins with @kernel_function decorator or KernelFunction.from_method()",
+      "Invoke functions directly or use FunctionChoiceBehavior.Auto() for auto tool-calling",
+      "Add memory via VectorStoreTextSearch for RAG within the kernel pipeline",
+    ],
+    code: `import asyncio
+from semantic_kernel import Kernel
+from semantic_kernel.connectors.ai.open_ai import OpenAIChatCompletion
+
+kernel = Kernel()
+kernel.add_service(OpenAIChatCompletion(ai_model_id="gpt-4o"))
+
+@kernel.function(name="get_weather", description="Get weather for a city")
+def get_weather(city: str) -> str:
+    return f"Sunny, 22°C in {city}"
+
+async def main():
+    result = await kernel.invoke(get_weather, city="Paris")
+    print(result)
+asyncio.run(main())`,
+  },
+  {
+    id: "dspy", pillar: "orchestration", name: "DSPy — Stanford", color: "var(--or)", status: "live", isNew: true,
+    what: "Stanford's framework for programming LLM pipelines declaratively using typed signatures and automatically optimizing prompts via compiled teleprompters instead of hand-written instructions.",
+    why: "Replaces fragile hand-crafted prompts with a compiler that finds optimal instructions and few-shot examples by running the pipeline against a training set — prompts as code, not art.",
+    useCases: [
+      "Auto-optimizing a RAG pipeline's retrieval and answer generation prompts against a QA dataset",
+      "Building a multi-hop reasoning chain where each step's prompt is optimized jointly",
+      "Fine-tuning-free improvement of an existing LLM pipeline by compiling better few-shot examples",
+    ],
+    pros: [
+      "Prompt optimization is systematic and reproducible — backed by metrics, not intuition",
+      "Signatures provide a typed interface that makes pipeline logic inspectable and testable",
+      "Compiles work at the module level — optimize a sub-module without changing the whole pipeline",
+    ],
+    cons: [
+      "Requires a labeled evaluation set to optimize against — cold-start cost is significant",
+      "Optimization runs (MIPROv2, BootstrapFewShot) are expensive in LLM API calls",
+      "Mental model is very different from LangChain/LlamaIndex — steep learning curve",
+    ],
+    whenTo: "Use DSPy when you have evaluation data and want systematic prompt improvement over time; avoid it for one-off prototypes or when you lack ground-truth labels to compile against.",
+    vs: [
+      { concept: "LangChain", thisIs: "DSPy compiles and optimizes prompts automatically using a training loop", thatIs: "LangChain executes hand-written prompts without automated optimization" },
+      { concept: "Fine-tuning", thisIs: "DSPy optimizes prompts and few-shot examples without changing model weights", thatIs: "Fine-tuning updates model weights on domain-specific data" },
+    ],
+    how: [
+      "pip install dspy-ai",
+      "Define a Signature class with input/output fields and docstring describing the task",
+      "Build modules with dspy.ChainOfThought(Signature) or dspy.ReAct(Signature, tools=[])",
+      "Define a metric function and create a MIPROv2 or BootstrapFewShot optimizer",
+      "Run optimizer.compile(module, trainset=trainset) and save the compiled program",
+    ],
+    code: `import dspy
+
+dspy.configure(lm=dspy.LM("openai/gpt-4o"))
+
+class QA(dspy.Signature):
+    """Answer questions with short factual responses."""
+    question: str = dspy.InputField()
+    answer: str = dspy.OutputField()
+
+cot = dspy.ChainOfThought(QA)
+result = cot(question="What is the capital of France?")
+print(result.answer)`,
+  },
+  {
+    id: "dify", pillar: "orchestration", name: "Dify", color: "var(--or)", status: "live", isNew: true,
+    what: "An open-source LLM application development platform with a visual workflow builder, built-in RAG, agent orchestration, and one-click deployment to API or web app.",
+    why: "Bridges the gap between no-code (for rapid prototyping) and pro-code (for customization) — teams can build, test, and ship LLM apps without separate backend infrastructure.",
+    useCases: [
+      "Deploying an internal knowledge base chatbot backed by company docs without writing backend code",
+      "Building a multi-step content generation workflow with human review checkpoints via visual canvas",
+      "Rapidly A/B testing different prompts and models on the same workflow using the built-in playground",
+    ],
+    pros: [
+      "Visual workflow canvas makes complex pipelines understandable to non-engineers",
+      "Self-hostable with Docker — data stays on-premises, critical for enterprise compliance",
+      "Built-in dataset management, annotation tools, and model performance monitoring",
+    ],
+    cons: [
+      "Visual workflows become hard to version-control and diff in Git",
+      "Complex branching logic is less expressive than code-based frameworks",
+      "Plugin ecosystem is growing but narrower than LangChain's integration library",
+    ],
+    whenTo: "Use Dify when your team includes non-engineers who need to own AI workflows, or when you want an all-in-one platform; avoid it when your agent logic requires complex programmatic control flow.",
+    vs: [
+      { concept: "LangChain", thisIs: "Dify is a full-stack platform with UI, deployment, and monitoring built in", thatIs: "LangChain is a code library that requires you to build your own deployment and UI" },
+      { concept: "Flowise", thisIs: "Dify includes dataset management, annotations, and enterprise auth alongside the visual builder", thatIs: "Flowise is a lighter visual LangChain builder focused purely on flow construction" },
+    ],
+    how: [
+      "Self-host with docker compose up -d using the official docker-compose.yaml",
+      "Create a new Workflow or Chatflow app from the dashboard",
+      "Add nodes: LLM, Knowledge Retrieval, Tool, Code, HTTP Request, Condition",
+      "Connect your knowledge base by uploading docs and selecting a chunking/embedding strategy",
+      "Publish as API endpoint or embedded web widget with one click",
+    ],
+  },
+
+  // ── NEW: A2A FRAMEWORKS ───────────────────────────────────────────────────
+  {
+    id: "crewai", pillar: "a2a_fw", name: "CrewAI", color: "var(--am)", status: "live", isNew: true,
+    what: "A Python framework for orchestrating role-based multi-agent teams where each agent has a defined role, goal, backstory, and toolset, collaborating on shared tasks.",
+    why: "Models real-world team dynamics — a 'researcher' feeds a 'writer' who is reviewed by an 'editor' — making complex multi-agent workflows intuitive to design and debug.",
+    useCases: [
+      "Automating a content pipeline with a research agent, writer agent, and SEO editor agent",
+      "Running competitive analysis where specialist agents cover market, tech, and financial dimensions",
+      "Building a software development crew: architect agent designs, coder agent implements, QA agent tests",
+    ],
+    pros: [
+      "Role + goal + backstory prompting pattern produces highly focused agent behavior",
+      "Built-in sequential and hierarchical process modes cover most multi-agent topologies",
+      "Flows API (v0.11+) adds deterministic state machines on top of crew collaboration",
+    ],
+    cons: [
+      "Agents can get stuck in loops or produce verbose intermediate outputs with high token cost",
+      "Less flexible than LangGraph for custom dynamic topologies that don't fit crew metaphors",
+      "Inter-agent communication is text-only by default — no structured typed messages",
+    ],
+    whenTo: "Use CrewAI when your problem maps naturally to a team of specialists with defined roles; avoid it when you need precise control over agent communication protocols or real-time streaming.",
+    vs: [
+      { concept: "AutoGen", thisIs: "CrewAI uses structured role/goal/backstory definitions with a managed execution loop", thatIs: "AutoGen uses conversational multi-agent chat patterns with more flexible turn-taking" },
+      { concept: "LangGraph", thisIs: "CrewAI is a high-level framework with opinionated crew/task/agent abstractions", thatIs: "LangGraph is a low-level graph runtime for custom stateful agent topologies" },
+    ],
+    how: [
+      "pip install crewai crewai-tools",
+      "Define agents with Agent(role=, goal=, backstory=, tools=, llm=)",
+      "Define tasks with Task(description=, expected_output=, agent=)",
+      "Assemble with Crew(agents=[], tasks=[], process=Process.sequential)",
+      "Run with crew.kickoff(inputs={}) and inspect crew.usage_metrics",
+    ],
+    code: `from crewai import Agent, Task, Crew, Process
+
+researcher = Agent(role="Researcher", goal="Find key facts",
+                   backstory="Expert analyst", verbose=True)
+writer = Agent(role="Writer", goal="Write a summary",
+               backstory="Technical writer")
+task1 = Task(description="Research AI trends in 2025", agent=researcher,
+             expected_output="Bullet list of trends")
+task2 = Task(description="Write a blog post from the research", agent=writer,
+             expected_output="500-word post")
+crew = Crew(agents=[researcher, writer], tasks=[task1, task2],
+            process=Process.sequential)
+result = crew.kickoff()`,
+  },
+  {
+    id: "autogen", pillar: "a2a_fw", name: "AutoGen / AG2", color: "var(--am)", status: "live", isNew: true,
+    what: "A Microsoft/AG2 framework for building multi-agent systems where agents communicate via structured conversation turns, supporting human-in-the-loop, code execution, and nested agent chats.",
+    why: "Treats agent collaboration as a conversation protocol, making it natural to mix LLM agents, human proxies, and tool-executing agents in the same chat thread.",
+    useCases: [
+      "Data science automation where a planner agent writes code and an executor agent runs it iteratively",
+      "Research assistant that alternates between a critic agent and a writer agent until quality passes",
+      "Customer escalation system where AI handles routine cases and routes to a human-proxy agent",
+    ],
+    pros: [
+      "ConversableAgent abstraction cleanly unifies human, LLM, and tool-executing participants",
+      "Built-in code execution sandbox with Docker support for safe iterative code generation",
+      "GroupChat supports complex topologies: round-robin, selector, or custom speaker selection",
+    ],
+    cons: [
+      "Conversation-based state management becomes hard to reason about in long multi-turn sessions",
+      "AG2 fork (community) and Microsoft's AutoGen main have diverged — ecosystem fragmentation risk",
+      "Token costs escalate quickly as full conversation history is passed to each agent turn",
+    ],
+    whenTo: "Use AutoGen when code generation + execution feedback loops or human-in-the-loop workflows are central; avoid it when you need deterministic, graph-controlled execution flow.",
+    vs: [
+      { concept: "CrewAI", thisIs: "AutoGen centers on conversational message-passing between heterogeneous agent types", thatIs: "CrewAI centers on role-defined agents executing structured tasks in a managed crew" },
+      { concept: "LangGraph", thisIs: "AutoGen is conversation-first with implicit state in message history", thatIs: "LangGraph is graph-first with explicit typed state passed between nodes" },
+    ],
+    how: [
+      "pip install pyautogen (AutoGen) or pip install ag2 (AG2 fork)",
+      "Define ConversableAgent instances with llm_config and system_message",
+      "Use UserProxyAgent with code_execution_config for sandboxed code running",
+      "Initiate chat with agent_a.initiate_chat(agent_b, message=..., max_turns=N)",
+      "For group chats, wrap agents in GroupChat + GroupChatManager",
+    ],
+    code: `from autogen import AssistantAgent, UserProxyAgent
+
+assistant = AssistantAgent("assistant",
+    llm_config={"model": "gpt-4o"})
+user_proxy = UserProxyAgent("user_proxy",
+    code_execution_config={"use_docker": False},
+    human_input_mode="NEVER")
+user_proxy.initiate_chat(assistant,
+    message="Write and run a Python script to plot sin(x)")`,
+  },
+  {
+    id: "mcp", pillar: "a2a_fw", name: "MCP — Model Context Protocol", color: "var(--am)", status: "live", isNew: true,
+    what: "Anthropic's open standard protocol that defines a universal interface for LLMs to discover and call external tools, resources, and prompts via a client-server architecture.",
+    why: "Replaces bespoke tool integrations with a standardized plug-and-play protocol — any MCP server (filesystem, database, API) works with any MCP-compatible client without custom glue code.",
+    useCases: [
+      "Connecting Claude Desktop to a local filesystem MCP server for file read/write access",
+      "Building a company-wide tool registry where any LLM client can discover and invoke approved APIs",
+      "Giving a coding agent access to GitHub, Postgres, and Slack through three separate MCP servers simultaneously",
+    ],
+    pros: [
+      "Standardized schema means one MCP server can be reused across Claude, Cursor, Zed, and other clients",
+      "Transport flexibility: stdio for local tools, SSE/HTTP for remote services",
+      "Built-in capability negotiation — clients and servers advertise what they support",
+    ],
+    cons: [
+      "Relatively new (late 2024) — tooling, auth standards, and server quality vary widely",
+      "Stateful SSE connections add operational complexity compared to simple REST tool calls",
+      "Security surface is large — a malicious or misconfigured MCP server has broad system access",
+    ],
+    whenTo: "Use MCP when building reusable tool integrations that multiple LLM clients should share; avoid it for one-off single-agent tools where a simple function definition is sufficient.",
+    vs: [
+      { concept: "OpenAI Function Calling", thisIs: "MCP is a transport-level protocol for tool discovery and invocation across any LLM client", thatIs: "OpenAI Function Calling is a model-specific JSON schema convention tied to the OpenAI API" },
+      { concept: "A2A Protocol", thisIs: "MCP connects LLM clients to tools and data sources (model-to-tool)", thatIs: "A2A Protocol connects autonomous agents to other autonomous agents (agent-to-agent)" },
+    ],
+    how: [
+      "Install an MCP SDK: npm install @modelcontextprotocol/sdk or pip install mcp",
+      "Create an MCP server that registers tools with @server.call_tool() and resources with @server.list_resources()",
+      "Run the server over stdio (local) or SSE (remote HTTP endpoint)",
+      "Configure the client (e.g., Claude Desktop claude_desktop_config.json) to point to the server",
+      "The LLM automatically discovers available tools and calls them using the MCP protocol",
+    ],
+    code: `from mcp.server.fastmcp import FastMCP
+
+mcp = FastMCP("My Tools")
+
+@mcp.tool()
+def get_stock_price(ticker: str) -> str:
+    """Get the current stock price for a ticker symbol."""
+    return f"{ticker}: $142.50"  # replace with real API
+
+if __name__ == "__main__":
+    mcp.run(transport="stdio")`,
+  },
+  {
+    id: "a2a-protocol", pillar: "a2a_fw", name: "A2A Protocol — Google", color: "var(--am)", status: "beta", isNew: true,
+    what: "Google's open protocol for standardizing how autonomous AI agents discover, communicate with, and delegate tasks to other agents across organizational and vendor boundaries.",
+    why: "Enables an 'agent internet' where a travel-booking agent can delegate to a hotel agent (built by a different company) without custom integration — interoperability by design.",
+    useCases: [
+      "Enterprise workflows where an internal orchestrator delegates sub-tasks to vendor-specific agents",
+      "Travel booking agent that calls airline, hotel, and car-rental agents from different providers",
+      "AI marketplace where third-party agents register Agent Cards and are discoverable by orchestrators",
+    ],
+    pros: [
+      "Agent Card system enables decentralized agent discovery without a central registry",
+      "HTTP + JSON-based — fits naturally into existing API infrastructure",
+      "Backed by Google with growing adoption across Vertex AI and ADK",
+    ],
+    cons: [
+      "Protocol is early-stage (2025) — spec changes are frequent and tooling is immature",
+      "Trust and authorization between agents from different orgs is not fully solved",
+      "Overlap and tension with MCP creates ecosystem confusion about which protocol to use where",
+    ],
+    whenTo: "Use A2A when building multi-vendor or cross-organizational agent networks where agents need to delegate to each other; avoid it for single-org deployments where simpler direct API calls suffice.",
+    vs: [
+      { concept: "MCP", thisIs: "A2A is for agent-to-agent task delegation across trust boundaries", thatIs: "MCP is for connecting an LLM to tools and data sources within a single agent" },
+      { concept: "REST API", thisIs: "A2A adds agent capability discovery, task lifecycle management, and identity to HTTP calls", thatIs: "A plain REST API is a stateless request/response interface with no agent semantics" },
+    ],
+    how: [
+      "Define an Agent Card JSON describing the agent's capabilities, skills, and endpoint URL",
+      "Expose a /.well-known/agent.json endpoint so other agents can discover your agent",
+      "Implement /tasks endpoint to receive Task objects with message, context, and artifacts",
+      "Return Task status updates (submitted → working → completed) with output artifacts",
+      "Use Google ADK or adk-python to scaffold A2A-compliant agents quickly",
+    ],
+  },
+
+  // ── NEW: KNOWLEDGE LAYER ──────────────────────────────────────────────────
+  {
+    id: "hybrid-search", pillar: "knowledge", name: "Hybrid Search / RRF", color: "var(--em)", status: "live", isNew: true,
+    what: "A retrieval strategy that combines dense vector similarity search with sparse keyword search (BM25), merging results using Reciprocal Rank Fusion (RRF) for higher recall than either alone.",
+    why: "Dense search excels at semantic similarity but misses exact keyword matches; BM25 excels at keyword recall but misses paraphrases — hybrid combines both strengths without needing to pick one.",
+    useCases: [
+      "Legal document search where users query both natural language and exact clause references like 'Section 12.3'",
+      "E-commerce product search that handles both semantic queries and exact SKU/model number lookups",
+      "Enterprise knowledge base where acronyms and proper nouns need exact-match alongside semantic retrieval",
+    ],
+    pros: [
+      "Consistently outperforms either pure vector or pure BM25 search on standard RAG benchmarks",
+      "RRF merging requires no training — it's a parameter-free rank fusion algorithm",
+      "Available natively in most modern vector DBs (Weaviate, Qdrant, Elasticsearch, pgvector)",
+    ],
+    cons: [
+      "Requires maintaining both a vector index and an inverted index, doubling storage overhead",
+      "Alpha weighting between dense/sparse signals needs tuning per dataset",
+      "Latency is higher than single-modality search due to parallel query execution",
+    ],
+    whenTo: "Use hybrid search as the default retrieval strategy for production RAG; only use pure vector search when storage/latency is critically constrained and queries are exclusively semantic.",
+    vs: [
+      { concept: "Pure Vector Search", thisIs: "Hybrid search combines semantic and keyword signals for higher recall", thatIs: "Pure vector search only matches by embedding proximity, missing exact keyword hits" },
+      { concept: "Reranking", thisIs: "Hybrid search broadens the candidate pool by combining two retrieval signals", thatIs: "Reranking re-scores an existing candidate pool for higher precision" },
+    ],
+    how: [
+      "Enable BM25 indexing alongside vector indexing in your vector DB (e.g., Qdrant sparse vectors, Weaviate BM25)",
+      "Run dense query (embedding similarity) and sparse query (BM25) in parallel",
+      "Apply RRF: score(d) = Σ 1/(k + rank_i(d)) where k=60 is the standard constant",
+      "Sort merged results by RRF score and return top-K for context injection",
+      "Tune alpha weight between dense/sparse using held-out eval set and NDCG metric",
+    ],
+    code: `# RRF merging in Python
+def reciprocal_rank_fusion(result_sets: list[list[str]], k: int = 60):
+    scores = {}
+    for results in result_sets:
+        for rank, doc_id in enumerate(results):
+            scores[doc_id] = scores.get(doc_id, 0) + 1 / (k + rank + 1)
+    return sorted(scores.items(), key=lambda x: x[1], reverse=True)`,
+  },
+  {
+    id: "reranking", pillar: "knowledge", name: "Reranking / Cross-encoder", color: "var(--em)", status: "live", isNew: true,
+    what: "A second-pass relevance scoring step that takes top-K retrieved candidates and re-scores them using a cross-encoder model that jointly encodes query + document for higher precision.",
+    why: "Bi-encoder retrieval (fast, scalable) is approximate; cross-encoders are slower but produce superior relevance judgments by attending to query-document interactions — the combination beats either alone.",
+    useCases: [
+      "Improving a RAG pipeline's answer quality by reranking top-50 chunks down to top-5 before injection",
+      "Search engine result reordering where initial recall is broad but final ranking must be precise",
+      "Multi-document QA where retrieved chunks need relevance ranking before synthesis",
+    ],
+    pros: [
+      "Cross-encoders significantly outperform bi-encoder ranking on BEIR and MTEB benchmarks",
+      "Cohere Rerank and Jina Reranker APIs make production deployment trivial",
+      "Reduces context window waste by filtering low-relevance chunks before LLM sees them",
+    ],
+    cons: [
+      "Adds latency (50-200ms) and cost to every retrieval call",
+      "Cross-encoders cannot pre-compute embeddings — O(N) inference for N candidates",
+      "Effectiveness degrades if initial retrieval recall is too low (reranking can't recover missing docs)",
+    ],
+    whenTo: "Add reranking when retrieval precision matters more than latency, especially with large chunk pools; skip it for real-time applications where sub-100ms total latency is required.",
+    vs: [
+      { concept: "Bi-encoder / Embedding Retrieval", thisIs: "Cross-encoder reranking jointly encodes query+document for precise relevance scoring", thatIs: "Bi-encoder retrieval encodes query and document independently — fast but approximate" },
+      { concept: "Hybrid Search", thisIs: "Reranking increases precision by re-scoring an existing candidate set", thatIs: "Hybrid search increases recall by combining multiple retrieval signals" },
+    ],
+    how: [
+      "Retrieve top-50 to top-100 candidates using your primary retriever (vector/hybrid)",
+      "Call a cross-encoder API (Cohere Rerank, Jina Reranker) or local model (cross-encoder/ms-marco-MiniLM)",
+      "Pass (query, document) pairs — the model returns relevance scores for each pair",
+      "Re-sort candidates by reranker score and select top-K for context injection",
+      "Monitor reranker latency and cache results for repeated identical queries",
+    ],
+    code: `import cohere
+
+co = cohere.Client(api_key="...")
+
+results = co.rerank(
+    model="rerank-v3.5",
+    query="What is the refund policy?",
+    documents=["30-day returns accepted.", "No refunds on digital goods.", "Contact support."],
+    top_n=2
+)
+for r in results.results:
+    print(r.index, r.relevance_score)`,
+  },
+  {
+    id: "graphrag", pillar: "knowledge", name: "GraphRAG — Microsoft", color: "var(--em)", status: "live", isNew: true,
+    what: "Microsoft's RAG approach that builds a knowledge graph of entities and relationships from documents, enabling graph traversal and community summarization alongside vector retrieval.",
+    why: "Standard RAG answers local questions well but fails at 'global' queries requiring synthesis across an entire corpus — GraphRAG's community summaries and graph traversal address this gap.",
+    useCases: [
+      "Analyzing an entire research corpus to find emerging themes and cross-paper relationships",
+      "Enterprise knowledge management where understanding entity relationships (people, projects, products) matters",
+      "Intelligence analysis over large document sets requiring 'what connects X to Y' reasoning",
+    ],
+    pros: [
+      "Dramatically better at global summarization queries that span an entire corpus",
+      "Explicit entity-relationship graph enables multi-hop reasoning unavailable in vector RAG",
+      "Community detection (Leiden algorithm) creates hierarchical topic summaries automatically",
+    ],
+    cons: [
+      "Indexing is extremely expensive — building the graph requires many LLM calls per document",
+      "Not suited for simple FAQ or local retrieval tasks where standard RAG is faster and cheaper",
+      "Graph quality depends heavily on entity extraction quality — noisy documents produce noisy graphs",
+    ],
+    whenTo: "Use GraphRAG for whole-corpus analysis and relationship discovery over large document sets; avoid it for low-latency Q&A over well-structured docs where standard RAG is 10x cheaper.",
+    vs: [
+      { concept: "Standard RAG", thisIs: "GraphRAG builds a knowledge graph enabling global synthesis and multi-hop reasoning", thatIs: "Standard RAG retrieves local passages relevant to a query without cross-document reasoning" },
+      { concept: "Knowledge Base", thisIs: "GraphRAG auto-generates a structured knowledge graph from unstructured text at index time", thatIs: "A knowledge base is a manually or semi-manually curated structured information store" },
+    ],
+    how: [
+      "pip install graphrag and run graphrag init --root ./data to scaffold config",
+      "Place source documents in ./data/input/ and configure settings.yaml (LLM, embeddings)",
+      "Run graphrag index --root ./data to build the knowledge graph (expensive LLM calls)",
+      "Query with graphrag query --method global for corpus-wide synthesis or --method local for targeted retrieval",
+      "Explore the generated Parquet artifacts (entities, relationships, communities) for custom retrieval logic",
+    ],
+  },
+
+  // ── NEW: AGENT SKILLS ─────────────────────────────────────────────────────
+  {
+    id: "episodic-memory", pillar: "skills", name: "Long-term / Episodic Memory", color: "var(--vi)", status: "live", isNew: true,
+    what: "The ability of an agent to store, retrieve, and reason over past interactions and experiences beyond the current context window, enabling personalization and learning over time.",
+    why: "Context windows reset between sessions — episodic memory persists user preferences, past decisions, and learned facts to a durable store, making agents feel coherent and personalized across days.",
+    useCases: [
+      "Personal assistant that remembers user preferences, ongoing projects, and past conversations across sessions",
+      "Customer service agent that recalls a user's issue history and resolution status from prior tickets",
+      "Coding agent that remembers project-specific conventions, past bugs, and architectural decisions",
+    ],
+    pros: [
+      "Enables genuine personalization without reprocessing full history in every prompt",
+      "Selective memory retrieval is more token-efficient than loading entire conversation history",
+      "Supports agent learning — past mistakes and successes can inform future decisions",
+    ],
+    cons: [
+      "Memory retrieval quality directly limits agent quality — stale or wrong memories cause errors",
+      "Privacy and data retention complexity: what to store, for how long, and who can access it",
+      "Memory consolidation (deciding what to keep vs. forget) is an unsolved research problem",
+    ],
+    whenTo: "Add episodic memory when your agent needs to serve the same users repeatedly over days/weeks; skip it for stateless single-session tasks where working memory in the context window suffices.",
+    vs: [
+      { concept: "Working Memory", thisIs: "Episodic memory persists across sessions in durable storage and is retrieved selectively", thatIs: "Working memory is the active context window content — transient, lost when session ends" },
+      { concept: "RAG Pipeline", thisIs: "Episodic memory stores personal interaction history and learned user-specific facts", thatIs: "RAG retrieves from a shared document knowledge base not specific to individual users" },
+    ],
+    how: [
+      "Choose a memory backend: vector store for semantic recall, key-value store for factual recall, or both",
+      "After each session, extract memory-worthy facts using an LLM extraction pass",
+      "Store with user_id scope and timestamp for TTL and privacy management",
+      "At session start, retrieve relevant memories via semantic search over past interactions",
+      "Inject retrieved memories into system prompt: 'What I know about you: ...' section",
+    ],
+    code: `# Using mem0 library for episodic memory
+from mem0 import Memory
+
+m = Memory()
+# Store memories from a conversation
+m.add("User prefers concise bullet-point answers", user_id="alice")
+m.add("User is working on a FastAPI microservices project", user_id="alice")
+# Retrieve relevant memories for next session
+relevant = m.search("What kind of project is this user working on?", user_id="alice")
+print(relevant)`,
+  },
+
+  // ── NEW: AGENT CORE ───────────────────────────────────────────────────────
+  {
+    id: "structured-output", pillar: "core", name: "Structured Output / JSON Mode", color: "var(--bl)", status: "live", isNew: true,
+    what: "A model capability that constrains LLM output to a valid JSON structure matching a developer-defined schema, eliminating parse errors and enabling type-safe downstream processing.",
+    why: "Free-form LLM text is unreliable for programmatic consumption — structured output guarantees that the model returns exactly the fields and types your code expects, every time.",
+    useCases: [
+      "Extracting structured entities (name, date, amount) from unstructured invoice text",
+      "Generating typed tool call arguments that are directly passed to function signatures",
+      "Building a classification API that returns a guaranteed enum value, confidence score, and reasoning",
+    ],
+    pros: [
+      "Eliminates JSON parse errors and the regex hacks needed to extract data from free text",
+      "Pydantic/zod schema validation integrates naturally — define once, validate automatically",
+      "Enables reliable pipeline chaining where each step's output is the next step's typed input",
+    ],
+    cons: [
+      "Constrained decoding can reduce model creativity — not suitable for open-ended generation",
+      "Very complex schemas can degrade output quality as the model struggles to satisfy all constraints",
+      "Not all providers support native structured output — some fall back to prompt-based JSON extraction",
+    ],
+    whenTo: "Use structured output whenever LLM responses feed into code logic, databases, or APIs; use free-form text only for human-facing content like summaries and explanations.",
+    vs: [
+      { concept: "Tool Use / Function Calling", thisIs: "Structured output constrains the entire response to a JSON schema", thatIs: "Function calling selects and parameterizes a specific function to invoke — a special case of structured output" },
+      { concept: "Prompt-based JSON extraction", thisIs: "Structured output uses constrained decoding to guarantee valid JSON at the model level", thatIs: "Prompt-based extraction asks the model to produce JSON in prose, which can silently fail" },
+    ],
+    how: [
+      "Define a Pydantic model or JSON Schema describing the expected output structure",
+      "Pass schema to the API: OpenAI response_format={type: json_schema}, Anthropic tool use pattern",
+      "Parse the response directly — no regex or error-prone string manipulation needed",
+      "Use instructor library for a unified Pydantic-first interface across multiple providers",
+      "Validate and handle schema violations explicitly even with constrained decoding as a safety net",
+    ],
+    code: `from openai import OpenAI
+from pydantic import BaseModel
+
+client = OpenAI()
+
+class Invoice(BaseModel):
+    vendor: str
+    amount: float
+    currency: str
+    due_date: str
+
+completion = client.beta.chat.completions.parse(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": "Extract: Invoice from Acme Corp, $1,250.00 USD due 2025-06-01"}],
+    response_format=Invoice,
+)
+print(completion.choices[0].message.parsed)`,
+  },
+  {
+    id: "multimodal-input", pillar: "core", name: "Multimodal Input", color: "var(--bl)", status: "live", isNew: true,
+    what: "The ability of an LLM or agent to accept and reason over multiple input modalities simultaneously — text, images, audio, video, and documents — within a single inference call.",
+    why: "Real-world information doesn't live only in text; multimodal models unlock use cases like analyzing screenshots, reading charts, processing voice, and understanding document layouts natively.",
+    useCases: [
+      "Document processing agent that reads scanned PDFs with mixed text, tables, and diagrams",
+      "Customer support bot that accepts screenshots of error messages for visual debugging",
+      "Quality control system that analyzes product photos against specification documents simultaneously",
+    ],
+    pros: [
+      "Eliminates preprocessing pipelines (OCR, transcription) for many document types",
+      "Reasoning over image + text together produces better results than text-only with extracted content",
+      "Native audio/video input (Gemini 1.5+) enables real-time conversation and video analysis",
+    ],
+    cons: [
+      "Image tokens are expensive — a high-res image can cost 1,000+ tokens",
+      "Vision quality varies significantly between models for charts, handwriting, and low-res images",
+      "Audio/video modalities are only available on a subset of frontier models (not all providers)",
+    ],
+    whenTo: "Use multimodal input when source data contains non-text information that is hard to faithfully convert to text; fall back to text-only when costs or model availability are constraints.",
+    vs: [
+      { concept: "OCR + Text Pipeline", thisIs: "Multimodal input lets the model see images directly, preserving layout and visual context", thatIs: "OCR extracts text from images but loses visual structure, diagrams, and spatial relationships" },
+      { concept: "Embedding-based Image Search", thisIs: "Multimodal input enables reasoning and QA over specific images in context", thatIs: "Image embeddings enable semantic search over image collections without per-image reasoning" },
+    ],
+    how: [
+      "Pass image as base64 or URL in the content array: [{type: image_url, image_url: {url: ...}}]",
+      "For PDFs, use provider-native document APIs (Anthropic Files API, OpenAI vision) or convert to images",
+      "For audio, use Whisper for transcription or native audio input on Gemini/GPT-4o Audio",
+      "Size images appropriately — most vision models perform well at 768-1024px; avoid unnecessarily high-res",
+      "Test vision accuracy on your specific document types — chart/table understanding varies widely by model",
+    ],
+    code: `from anthropic import Anthropic
+import base64
+
+client = Anthropic()
+with open("chart.png", "rb") as f:
+    image_data = base64.b64encode(f.read()).decode()
+
+response = client.messages.create(
+    model="claude-opus-4-5",
+    max_tokens=1024,
+    messages=[{"role": "user", "content": [
+        {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": image_data}},
+        {"type": "text", "text": "Summarize the key trend shown in this chart."}
+    ]}]
+)
+print(response.content[0].text)`,
+  },
+
+  // ── NEW: LIVE TOOLS ───────────────────────────────────────────────────────
+  {
+    id: "sql-tool", pillar: "tools", name: "SQL Database Query Tool", color: "var(--cy)", status: "live", isNew: true,
+    what: "A tool that allows an LLM agent to generate, execute, and interpret SQL queries against relational databases to answer data questions or perform data operations.",
+    why: "Most business data lives in SQL databases; giving agents SQL access transforms them from knowledge retrievers into live data analysts capable of ad-hoc reporting and data manipulation.",
+    useCases: [
+      "Natural language BI assistant that translates 'What were last quarter's top 10 customers?' into SQL",
+      "Automated data quality agent that detects anomalies by querying metrics tables on a schedule",
+      "Customer support agent that looks up real-time order status, inventory, and account data",
+    ],
+    pros: [
+      "Unlocks structured business data without building custom API endpoints for every query pattern",
+      "LLMs with schema context generate surprisingly accurate SQL for well-structured databases",
+      "Read-only mode provides a safe exploration interface with no write risk",
+    ],
+    cons: [
+      "SQL injection and unauthorized data access are serious risks if queries aren't sandboxed",
+      "Schema complexity (hundreds of tables, cryptic column names) degrades SQL generation quality",
+      "Agents can generate expensive queries (full table scans) — query timeouts and cost limits are essential",
+    ],
+    whenTo: "Use a SQL tool when business data is in relational DBs and you need flexible ad-hoc queries; avoid it for high-security production databases — use read-only replicas with row-level security instead.",
+    vs: [
+      { concept: "Vector Store / RAG", thisIs: "SQL tool retrieves precise structured data with exact filtering and aggregation", thatIs: "RAG retrieves approximate semantically relevant chunks from unstructured text" },
+      { concept: "Pre-built API endpoint", thisIs: "SQL tool enables flexible ad-hoc queries the developer didn't anticipate", thatIs: "A pre-built API returns a fixed result shape for a specific predetermined query" },
+    ],
+    how: [
+      "Provide the agent with schema context: table names, column names, types, and sample rows",
+      "Implement a run_query(sql: str) tool that executes against a read-only replica",
+      "Add query validation: block DROP/DELETE/UPDATE unless write mode is explicitly enabled",
+      "Set query timeout (e.g., 30s) and row limit (e.g., 1000 rows) to prevent runaway queries",
+      "Return results as markdown table or JSON and prompt the agent to interpret them",
+    ],
+    code: `import sqlite3
+
+def run_sql(query: str) -> str:
+    conn = sqlite3.connect("data.db")
+    cursor = conn.execute(query)
+    rows = cursor.fetchmany(100)
+    cols = [d[0] for d in cursor.description]
+    return "\\n".join([",".join(cols)] + [",".join(map(str,r)) for r in rows])
+
+# Register as tool with your agent framework`,
+  },
+  {
+    id: "pdf-parser", pillar: "tools", name: "PDF / Document Parser Tool", color: "var(--cy)", status: "live", isNew: true,
+    what: "A tool that extracts structured text, tables, and metadata from PDF, Word, PowerPoint, and other document formats, making their content available for LLM processing.",
+    why: "Enterprise knowledge is locked in documents; reliable parsing with layout preservation is the critical first step of any document AI pipeline — garbage in, garbage out.",
+    useCases: [
+      "Contract analysis agent that extracts clauses, parties, and dates from uploaded PDFs",
+      "Research assistant that ingests academic papers, preserving tables and citations for analysis",
+      "Automated report generation that reads financial Excel/PDF reports and synthesizes key metrics",
+    ],
+    pros: [
+      "Unlocks unstructured document content for AI processing without manual data entry",
+      "Modern parsers (Docling, LlamaParse, Azure Document Intelligence) preserve table structure",
+      "Batch processing pipelines can ingest thousands of documents for knowledge base population",
+    ],
+    cons: [
+      "Scanned/image PDFs require OCR which adds cost, latency, and error rate",
+      "Complex layouts (multi-column, watermarks, merged cells) still challenge all parsers",
+      "Table extraction accuracy varies — always validate on a sample of your specific document types",
+    ],
+    whenTo: "Use document parsing for any pipeline ingesting user-uploaded or batch-processed documents; for simple single-page PDFs, consider passing directly to a multimodal model instead.",
+    vs: [
+      { concept: "Multimodal Input", thisIs: "Document parsers extract text/structure into tokens that any LLM can process", thatIs: "Multimodal input passes the document image directly to a vision-capable model" },
+      { concept: "Web Scraper", thisIs: "Document parsers handle binary file formats (PDF, DOCX, PPTX) with layout awareness", thatIs: "Web scrapers extract content from live HTML web pages" },
+    ],
+    how: [
+      "Choose parser: Docling (open-source, excellent tables), LlamaParse (cloud, best quality), PyMuPDF (fast, basic)",
+      "For scanned PDFs, add OCR layer: Tesseract (free) or Azure/AWS Document Intelligence (accurate)",
+      "Extract content with layout metadata: page numbers, headings, table coordinates",
+      "Chunk extracted content intelligently — respect document structure (sections, not arbitrary windows)",
+      "Validate extraction quality on 10+ representative documents before building the full pipeline",
+    ],
+    code: `from docling.document_converter import DocumentConverter
+
+converter = DocumentConverter()
+result = converter.convert("contract.pdf")
+# Access structured content
+for element in result.document.texts:
+    print(element.text)
+# Export as markdown preserving structure
+md = result.document.export_to_markdown()
+print(md[:500])`,
+  },
+  {
+    id: "browser-tool", pillar: "tools", name: "Browser / Web Scraper Tool", color: "var(--cy)", status: "live", isNew: true,
+    what: "A tool that gives an agent the ability to navigate web pages, execute JavaScript, fill forms, click elements, and extract content from live websites programmatically.",
+    why: "Massive amounts of real-time information (prices, news, competitor data, live dashboards) are only accessible via the web — browser tools make agents first-class web citizens.",
+    useCases: [
+      "Market research agent that scrapes competitor pricing pages and synthesizes a comparison report",
+      "Automated testing agent that navigates a web app, fills forms, and validates UI behavior",
+      "News monitoring agent that browses specified sites hourly and summarizes new articles",
+    ],
+    pros: [
+      "Access to any public web information that a human browser can reach — no API required",
+      "Playwright/Puppeteer handle JavaScript-heavy SPAs that simple HTTP scrapers can't parse",
+      "Computer use models (Claude, GPT-4o) can navigate GUIs visually without DOM selectors",
+    ],
+    cons: [
+      "Brittle to site layout changes — selectors break silently when pages are redesigned",
+      "Anti-bot measures (CAPTCHAs, rate limits, Cloudflare) block many automation attempts",
+      "Legal and ToS considerations — many sites prohibit scraping in their terms of service",
+    ],
+    whenTo: "Use browser tools when target data has no API and you control the browsing scope; avoid it for data available via official APIs — scraping is fragile and may violate ToS.",
+    vs: [
+      { concept: "Web Search Tool", thisIs: "Browser tool navigates to specific URLs and interacts with full page content and UI", thatIs: "Web search queries a search index and returns ranked snippets without full page access" },
+      { concept: "REST API Call", thisIs: "Browser scraping extracts data from pages designed for human consumption", thatIs: "REST APIs provide structured data contracts designed specifically for programmatic access" },
+    ],
+    how: [
+      "Use Playwright (recommended) or Puppeteer for headless browser automation",
+      "For AI-native browsing, use browser-use library or Anthropic Computer Use",
+      "Launch browser: async with async_playwright() as p: browser = await p.chromium.launch()",
+      "Navigate and extract: await page.goto(url); content = await page.inner_text('body')",
+      "Handle dynamic content with await page.wait_for_selector() before extraction",
+    ],
+    code: `from playwright.async_api import async_playwright
+import asyncio
+
+async def scrape(url: str) -> str:
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        page = await browser.new_page()
+        await page.goto(url)
+        await page.wait_for_load_state("networkidle")
+        text = await page.inner_text("body")
+        await browser.close()
+        return text[:3000]
+
+content = asyncio.run(scrape("https://example.com"))`,
+  },
+  {
+    id: "email-calendar-tool", pillar: "tools", name: "Email / Calendar Tool", color: "var(--cy)", status: "live", isNew: true,
+    what: "Tools that integrate with email services (Gmail, Outlook) and calendar APIs (Google Calendar, Microsoft Graph) to read, send, and schedule on behalf of the user.",
+    why: "Email and calendar are the core coordination layer of business operations — agents with access to these can automate scheduling, triage inboxes, and act on meeting context autonomously.",
+    useCases: [
+      "Executive assistant agent that reads emails, drafts replies, and schedules meetings based on availability",
+      "Sales agent that monitors inbox for inbound leads, qualifies them, and books discovery calls",
+      "Project management agent that creates calendar blocks for deadlines and sends status update emails",
+    ],
+    pros: [
+      "Massive productivity leverage — email triage and scheduling are high-frequency, repetitive tasks",
+      "Google and Microsoft Graph APIs are well-documented with broad permission scopes",
+      "OAuth2 integration means agents act on behalf of users without storing passwords",
+    ],
+    cons: [
+      "High-risk tool — sending email or modifying calendars has real-world irreversible consequences",
+      "OAuth2 scope management is complex — over-permissioned agents are a significant security risk",
+      "Spam filters and sending limits can block agent-generated emails at scale",
+    ],
+    whenTo: "Use email/calendar tools only with explicit human approval flows for send/create actions; read-only access for triage and summarization is safer and should be the default starting point.",
+    vs: [
+      { concept: "Browser Tool", thisIs: "Email/calendar tools use official OAuth APIs — structured, reliable, and permissioned", thatIs: "Browser tools scrape web interfaces — fragile and not authorized by the service" },
+      { concept: "Notification Tool", thisIs: "Email tools manage bidirectional communication including reading, drafting, and threading", thatIs: "A notification tool sends one-way alerts without reading inbox or managing threads" },
+    ],
+    how: [
+      "Register an OAuth2 app in Google Cloud Console or Azure AD for the required scopes",
+      "Implement token storage and refresh — store encrypted refresh tokens, never access tokens",
+      "For Gmail: use google-api-python-client with gmail.readonly and gmail.send scopes",
+      "For Calendar: use calendar.events scope to create/read events",
+      "Wrap all write operations (send, create, delete) in a human-approval tool call before execution",
+    ],
+  },
+  {
+    id: "image-gen-tool", pillar: "tools", name: "Image Generation Tool", color: "var(--cy)", status: "live", isNew: true,
+    what: "A tool that calls image generation APIs (DALL-E, Stable Diffusion, Midjourney, Flux) to create, edit, or transform images based on natural language prompts from within an agent workflow.",
+    why: "Agents that can generate visual assets — product mockups, diagrams, marketing images — become end-to-end creative collaborators rather than text-only assistants.",
+    useCases: [
+      "Marketing automation agent that generates product images, social media graphics, and ad creatives",
+      "UX design assistant that creates wireframe mockups from feature descriptions for stakeholder review",
+      "Content creation pipeline that illustrates articles with relevant generated images automatically",
+    ],
+    pros: [
+      "Creates visual outputs that no amount of text generation can replace for human review",
+      "DALL-E 3 API and Stability AI are production-ready with predictable latency and pricing",
+      "Inpainting and editing APIs allow surgical modification of existing images",
+    ],
+    cons: [
+      "Generation is slow (3-15 seconds per image) — blocks synchronous agent workflows",
+      "Prompt engineering for consistent brand-aligned visuals requires significant iteration",
+      "Content policy filters may block legitimate use cases (medical, historical, fictional violence)",
+    ],
+    whenTo: "Add image generation when your agent's workflow produces deliverables that humans will visually consume; skip it for purely data-processing or backend automation agents where images add no value.",
+    vs: [
+      { concept: "Multimodal Input", thisIs: "Image generation tool produces new images as output from text prompts", thatIs: "Multimodal input processes existing images as input for reasoning" },
+      { concept: "Browser / Web Scraper", thisIs: "Image generation creates original assets via AI models", thatIs: "Web scraping retrieves existing images from websites" },
+    ],
+    how: [
+      "Choose provider: OpenAI DALL-E 3 (best instruction following), Stability AI (open, customizable), Flux (high quality)",
+      "Call client.images.generate(model='dall-e-3', prompt=..., size='1024x1024', quality='hd')",
+      "Store generated images to object storage (S3/GCS) — API URLs expire",
+      "For editing, use images.edit() with a mask PNG to inpaint specific regions",
+      "Run async generation and poll for completion to avoid blocking agent execution",
+    ],
+    code: `from openai import OpenAI
+
+client = OpenAI()
+response = client.images.generate(
+    model="dall-e-3",
+    prompt="A minimalist flat-design icon of an AI agent network, blue on white",
+    size="1024x1024",
+    quality="hd",
+    n=1
+)
+image_url = response.data[0].url
+print(f"Generated: {image_url}")`,
+  },
+
   // ── PRODUCTION ───────────────────────────────────────────────────────────
   {
     id: "api-gateway", pillar: "production", name: "API Gateway", color: "#94a3b8", status: "live",
@@ -552,6 +1389,22 @@ span.end({ output: response, usage: { input: inputTok, output: outputTok } });`,
     id: "fine-tuning", pillar: "production", name: "Fine-tuning", color: "#94a3b8", status: "live",
     what: "A training process that adapts a base LLM's weights to a specific task, domain, or output style using your labeled data. Fine-tuned models are faster, cheaper, and more consistent on their target task.",
     why: "Prompt engineering hits a ceiling on specialized tasks. Fine-tuning bakes the task into the model — improving accuracy 20-40% on domain-specific work while reducing inference cost via a smaller model.",
+    useCases: [
+      "Training a support-ticket classifier that achieves 95%+ accuracy on company-specific categories",
+      "Adapting a base model to always respond in a brand's specific tone and terminology",
+      "Building a domain-specific code model fine-tuned on your internal APIs and patterns",
+    ],
+    pros: [
+      "Bakes task behavior into weights — consistent output format without verbose system prompts",
+      "Enables using smaller, cheaper models (gpt-4o-mini) at larger model quality for specific tasks",
+      "Unlocks capabilities that prompt engineering can't achieve (e.g., learning private domain vocabulary)",
+    ],
+    cons: [
+      "Requires 200-1000 high-quality labeled examples — data collection is expensive",
+      "Model weights are static — can't update knowledge without re-training",
+      "Overfitting risk: fine-tuned models underperform on out-of-distribution inputs",
+    ],
+    whenTo: "Use fine-tuning when prompt engineering has plateaued and you have 200+ quality labeled examples; always exhaust prompt engineering and RAG first — fine-tuning is a last resort for quality, not a first step.",
     vs: [
       { concept: "RAG",               thisIs: "Improves model behavior and consistency — great for output format and tone",          thatIs: "Adds dynamic knowledge at runtime — great for updatable facts and private documents" },
       { concept: "Prompt Engineering", thisIs: "Requires 200+ labeled examples, GPU time, days to iterate",                         thatIs: "No labeled data, free, iterates in minutes — always try this first" },
@@ -566,6 +1419,245 @@ const job = await openai.fineTuning.jobs.create({
   model: "gpt-4o-mini"   // Fine-tune small, fast, cheap model
 });
 // Poll job.status → "succeeded" → use job.fine_tuned_model`,
+  },
+
+  // ── NEW: PRODUCTION ───────────────────────────────────────────────────────
+  {
+    id: "guardrails", pillar: "production", name: "Guardrails / Safety Filters", color: "#94a3b8", status: "live", isNew: true,
+    what: "Input and output validation layers that detect and block harmful, off-topic, or policy-violating content before it reaches the LLM or the user, enforcing safety and compliance boundaries.",
+    why: "LLMs can be prompted into producing harmful content, leaking system prompts, or violating compliance rules — guardrails provide a defense-in-depth layer independent of model-level safety.",
+    useCases: [
+      "Financial services chatbot that blocks advice-giving outside regulatory scope and flags PII leakage",
+      "Customer service bot that prevents competitors from being mentioned per brand policy",
+      "Public-facing agent that blocks jailbreak attempts, prompt injection, and harmful content generation",
+    ],
+    pros: [
+      "Defense-in-depth: catches failures that model-level safety training misses",
+      "NeMo Guardrails and Guardrails AI provide declarative rule authoring without code changes",
+      "Audit logs of blocked interactions provide compliance evidence and attack pattern visibility",
+    ],
+    cons: [
+      "Overly aggressive filters cause false positives that frustrate legitimate users",
+      "Each guardrail check adds latency (20-200ms) — multiple checks compound quickly",
+      "Adversaries iterate on jailbreaks faster than static rule sets can be updated",
+    ],
+    whenTo: "Always deploy guardrails in production customer-facing agents; tune aggressiveness based on risk level — financial/medical/legal agents need strict filters, internal dev tools can be permissive.",
+    vs: [
+      { concept: "System Prompt", thisIs: "Guardrails are external validation layers that intercept requests regardless of model behavior", thatIs: "System prompts instruct the model to self-govern — bypassed by sufficiently clever prompts" },
+      { concept: "Red Teaming", thisIs: "Guardrails are runtime defenses that block violations in production", thatIs: "Red teaming proactively discovers vulnerabilities before deployment" },
+    ],
+    how: [
+      "Define input rails: topic relevance check, PII detection, prompt injection detection",
+      "Define output rails: toxicity filter, hallucination detection, PII masking",
+      "Use Guardrails AI (validators) or NeMo Guardrails (Colang dialogue rules) as framework",
+      "Log all triggered guardrails with full context for monitoring and rule tuning",
+      "Implement graceful fallback responses that help users reformulate rejected queries",
+    ],
+    code: `from guardrails import Guard
+from guardrails.hub import ToxicLanguage, DetectPII
+
+guard = Guard().use_many(
+    ToxicLanguage(threshold=0.5, on_fail="exception"),
+    DetectPII(pii_entities=["EMAIL", "PHONE_NUMBER"], on_fail="fix")
+)
+
+result = guard.validate(
+    "Call me at john@example.com or 555-1234",
+    metadata={"user_id": "u123"}
+)
+print(result.validated_output)  # PII replaced with placeholders`,
+  },
+  {
+    id: "semantic-caching", pillar: "production", name: "Semantic Caching", color: "#94a3b8", status: "live", isNew: true,
+    what: "A caching layer that stores LLM responses keyed by the semantic meaning of queries rather than exact text, returning cached answers for paraphrased versions of previously answered questions.",
+    why: "Exact-match caching misses 'What is RAG?' vs 'Explain Retrieval Augmented Generation' — semantic caching detects these as equivalent, cutting LLM costs by 30-80% for FAQ-heavy workloads.",
+    useCases: [
+      "Customer support chatbot where the same questions are asked repeatedly in different phrasings",
+      "Enterprise knowledge base where employees ask variations of the same HR/policy questions",
+      "High-traffic public-facing LLM API where cost reduction is critical at scale",
+    ],
+    pros: [
+      "Dramatically reduces LLM API costs and latency for repetitive query workloads",
+      "Improves response consistency — same semantic question always gets the same vetted answer",
+      "Works transparently across all LLM providers — provider-agnostic caching layer",
+    ],
+    cons: [
+      "Cache invalidation is hard — stale answers to 'What is our current pricing?' can misinform users",
+      "Similarity threshold tuning is critical — too loose causes wrong cache hits, too strict misses savings",
+      "Cache warm-up period means no benefit for the first N queries until cache is populated",
+    ],
+    whenTo: "Deploy semantic caching for high-traffic assistants with repetitive query patterns; skip it for agentic pipelines where every query is unique (data analysis, code generation) — cache hit rates will be near zero.",
+    vs: [
+      { concept: "Exact-match Cache (Redis)", thisIs: "Semantic caching matches by embedding similarity — catches paraphrases and synonyms", thatIs: "Exact-match caching requires byte-identical keys — misses any variation in phrasing" },
+      { concept: "Prompt Caching (Anthropic/OpenAI)", thisIs: "Semantic caching stores full responses and serves them without any LLM call", thatIs: "Provider-side prompt caching reduces cost of processing repeated prefixes but still runs inference" },
+    ],
+    how: [
+      "Choose a semantic cache library: GPTCache, Momento Semantic Cache, or build on Redis + pgvector",
+      "On each query, embed the input and search cache with cosine similarity threshold (e.g., 0.92)",
+      "If cache hit above threshold: return cached response, log cache hit, skip LLM call",
+      "If cache miss: call LLM, store (embedding, response, timestamp, ttl) in cache",
+      "Set TTL based on content volatility — pricing answers: 1 hour; conceptual answers: 7 days",
+    ],
+    code: `from gptcache import cache
+from gptcache.adapter import openai
+from gptcache.embedding import Onnx
+from gptcache.manager import get_data_manager
+from gptcache.similarity_evaluation.distance import SearchDistanceEvaluation
+
+cache.init(
+    embedding_func=Onnx().to_embeddings,
+    data_manager=get_data_manager(),
+    similarity_evaluation=SearchDistanceEvaluation(),
+)
+# Now use openai.ChatCompletion.create() as normal — caching is automatic
+response = openai.ChatCompletion.create(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": "What is RAG?"}]
+)`,
+  },
+  {
+    id: "cost-optimization", pillar: "production", name: "Cost Optimization", color: "#94a3b8", status: "live", isNew: true,
+    what: "A set of strategies for reducing LLM inference costs including model routing, prompt compression, caching, batching, and token budget enforcement without sacrificing acceptable quality.",
+    why: "LLM API costs scale with usage and can reach thousands of dollars per day for production agents — systematic cost optimization is often the difference between a viable and unviable product.",
+    useCases: [
+      "Routing simple FAQ queries to GPT-4o mini and complex reasoning to GPT-4o, cutting costs 70%",
+      "Compressing RAG context from 4,000 tokens to 1,500 tokens using LLMLingua before LLM injection",
+      "Batching 100 classification requests into a single async batch API call at 50% discount",
+    ],
+    pros: [
+      "Model routing alone can cut costs 50-80% with minimal quality regression on simple tasks",
+      "Prompt compression (LLMLingua) reduces token count 2-4x with measurable quality retention",
+      "OpenAI Batch API and Anthropic Message Batches offer 50% discount for async workloads",
+    ],
+    cons: [
+      "Complexity of multi-tier routing adds latency variance and operational overhead",
+      "Aggressive context compression can degrade answer quality for nuanced reasoning tasks",
+      "Cost visibility requires instrumentation — teams often don't know their token breakdown by feature",
+    ],
+    whenTo: "Invest in cost optimization once you have production traffic data showing which query types dominate; premature optimization before launch wastes engineering time on irrelevant bottlenecks.",
+    vs: [
+      { concept: "Semantic Caching", thisIs: "Cost optimization is a portfolio of strategies including routing, compression, and batching", thatIs: "Semantic caching is one specific cost optimization technique focused on avoiding redundant calls" },
+      { concept: "Fine-tuning", thisIs: "Cost optimization reduces inference spend through routing and efficiency techniques", thatIs: "Fine-tuning reduces costs by training a smaller model to match a larger model's quality" },
+    ],
+    how: [
+      "Instrument all LLM calls with token counts, model used, latency, and feature/query-type labels",
+      "Classify queries by complexity and route simple ones to mini/haiku tier models",
+      "Apply prompt compression (LLMLingua-2) to RAG contexts exceeding 2,000 tokens",
+      "Use provider batch APIs for offline/async workloads — same quality at half the price",
+      "Set per-request max_tokens budgets and alert when average tokens exceed baseline by 20%",
+    ],
+  },
+
+  // ── NEW: EVALUATION ───────────────────────────────────────────────────────
+  {
+    id: "deepeval", pillar: "evaluate", name: "DeepEval", color: "var(--ro)", status: "live", isNew: true,
+    what: "An open-source LLM evaluation framework with 14+ built-in metrics (answer relevancy, faithfulness, hallucination, toxicity) that can run in CI/CD pipelines like unit tests.",
+    why: "Evaluating LLM output quality manually doesn't scale — DeepEval provides pytest-compatible automated evaluation that integrates with development workflows as a quality gate.",
+    useCases: [
+      "Running RAG pipeline evaluation in CI to catch prompt or retrieval regressions before deploy",
+      "Comparing two versions of a system prompt on a golden dataset to pick the better one",
+      "Monitoring production response quality by sampling and running async eval on live traffic",
+    ],
+    pros: [
+      "pytest integration means evaluation runs naturally in existing CI/CD without new infrastructure",
+      "14+ built-in metrics cover RAG (faithfulness, contextual precision) and agent (task completion) scenarios",
+      "Confident AI dashboard provides team-visible evaluation history and regression tracking",
+    ],
+    cons: [
+      "LLM-as-judge metrics still require a capable judge model (GPT-4o), adding cost to eval runs",
+      "Metric definitions (especially 'answer relevancy') may not match your domain's quality criteria",
+      "Synthetic dataset generation quality varies — golden datasets need human review",
+    ],
+    whenTo: "Use DeepEval when you want pytest-style automated LLM quality gates in CI/CD; supplement with human evaluation for high-stakes domains where LLM-as-judge accuracy is insufficient.",
+    vs: [
+      { concept: "RAGAS", thisIs: "DeepEval is a full testing framework with CI integration, multiple metric types, and a UI dashboard", thatIs: "RAGAS is focused specifically on RAG pipeline metrics with strong research backing" },
+      { concept: "LLM-as-Judge", thisIs: "DeepEval wraps LLM-as-judge into structured metric objects with pass/fail thresholds", thatIs: "LLM-as-judge is the underlying evaluation technique — a model scoring another model's output" },
+    ],
+    how: [
+      "pip install deepeval && deepeval login to connect to Confident AI dashboard",
+      "Define test cases with LLMTestCase(input=, actual_output=, expected_output=, retrieval_context=)",
+      "Instantiate metrics: AnswerRelevancyMetric(threshold=0.7), FaithfulnessMetric(threshold=0.8)",
+      "Write pytest test functions using assert_test(test_case, [metric1, metric2])",
+      "Run deepeval test run test_rag.py in CI to get pass/fail with metric scores",
+    ],
+    code: `from deepeval import assert_test
+from deepeval.test_case import LLMTestCase
+from deepeval.metrics import AnswerRelevancyMetric, FaithfulnessMetric
+
+def test_rag_response():
+    test_case = LLMTestCase(
+        input="What is the refund policy?",
+        actual_output="You can return items within 30 days for a full refund.",
+        retrieval_context=["Our policy: 30-day returns, full refund, no questions asked."]
+    )
+    assert_test(test_case, [
+        AnswerRelevancyMetric(threshold=0.7),
+        FaithfulnessMetric(threshold=0.8)
+    ])`,
+  },
+  {
+    id: "trulens-braintrust", pillar: "evaluate", name: "TruLens / Braintrust", color: "var(--ro)", status: "live", isNew: true,
+    what: "Evaluation and observability platforms for LLM applications — TruLens focuses on RAG feedback functions and tracing; Braintrust provides end-to-end experiment tracking, scoring, and dataset management.",
+    why: "Beyond one-off metric checks, teams need to compare experiments, track evaluation history, manage golden datasets, and collaborate on quality — these platforms provide that infrastructure.",
+    useCases: [
+      "A/B testing two RAG retrieval strategies with TruLens feedback functions across 200 test queries",
+      "Braintrust experiment tracking to compare Claude vs GPT-4o on domain-specific benchmark",
+      "Continuous evaluation loop where every production deploy triggers a Braintrust eval run",
+    ],
+    pros: [
+      "TruLens TruChain and TruLlama add tracing wrappers with zero refactor to existing LangChain/LlamaIndex code",
+      "Braintrust's dataset versioning and scoring UI makes human + automated eval collaboration practical",
+      "Both support custom scoring functions alongside built-in metrics",
+    ],
+    cons: [
+      "TruLens local dashboard is not production-grade for team collaboration — use hosted Braintrust instead",
+      "Braintrust is a paid SaaS — cost scales with logged spans and eval runs at high volume",
+      "Eval coverage is only as good as your dataset quality — garbage benchmark, garbage insight",
+    ],
+    whenTo: "Use TruLens for fast local RAG evaluation during development; upgrade to Braintrust when you need team collaboration, experiment history, and production eval pipelines.",
+    vs: [
+      { concept: "DeepEval", thisIs: "TruLens/Braintrust focus on experiment tracking, dataset management, and eval history", thatIs: "DeepEval focuses on pytest-style automated metric assertion as quality gates in CI" },
+      { concept: "Monitoring (Langfuse/Langsmith)", thisIs: "TruLens/Braintrust evaluate response quality with defined metrics against datasets", thatIs: "Monitoring tracks live production behavior, latency, errors, and usage patterns" },
+    ],
+    how: [
+      "For TruLens: pip install trulens-eval and wrap your chain with TruChain(chain, feedbacks=[f_answer_relevance])",
+      "Define feedback functions: f_qa_relevance = Feedback(provider.relevance).on_input_output()",
+      "Run your test queries and open tru.get_leaderboard() to compare configurations",
+      "For Braintrust: braintrust.init(project='my-agent') and wrap evals with traced() decorator",
+      "Log scores with braintrust.log(scores={'correctness': 0.9}, metadata={'model': 'gpt-4o'})",
+    ],
+  },
+  {
+    id: "red-teaming", pillar: "evaluate", name: "Red Teaming", color: "var(--ro)", status: "live", isNew: true,
+    what: "A structured adversarial testing process where human experts and/or automated systems attempt to break an AI agent through jailbreaks, prompt injection, data poisoning, and social engineering.",
+    why: "Standard evaluation only tests happy paths — red teaming systematically discovers safety failures, policy bypasses, and unexpected behaviors before malicious users do in production.",
+    useCases: [
+      "Pre-launch security audit of a customer-facing agent for jailbreak vulnerabilities and PII leakage",
+      "Automated red-teaming using an 'attacker LLM' to generate adversarial prompts at scale",
+      "Compliance validation for a healthcare agent ensuring it never provides medical diagnoses",
+    ],
+    pros: [
+      "Discovers failure modes that automated metrics and happy-path testing completely miss",
+      "Automated red-teaming (PyRIT, Garak) generates thousands of adversarial variants cheaply",
+      "Documents security posture for regulatory compliance and enterprise procurement processes",
+    ],
+    cons: [
+      "Human red-teaming is expensive and requires specialized adversarial thinking skills",
+      "Automated tools generate many false positives — high volume of results needs human triage",
+      "Adversarial space is infinite — red teaming reduces but cannot eliminate risk",
+    ],
+    whenTo: "Red-team before every major release of a customer-facing agent and after any significant prompt or tool change; skip it for internal developer tools with known trusted users only.",
+    vs: [
+      { concept: "Guardrails", thisIs: "Red teaming finds vulnerabilities proactively before deployment through adversarial testing", thatIs: "Guardrails defend against known attack patterns reactively at runtime" },
+      { concept: "Standard Evaluation", thisIs: "Red teaming intentionally tries to make the system fail with adversarial inputs", thatIs: "Standard evaluation measures performance on expected, representative inputs" },
+    ],
+    how: [
+      "Define threat model: who are adversarial users, what's their goal, what's the blast radius?",
+      "Manual phase: human testers attempt jailbreaks, prompt injection, role-play bypasses, and data extraction",
+      "Automated phase: use PyRIT (Microsoft) or Garak to generate adversarial prompt variations at scale",
+      "Document all successful attacks with reproduction steps and severity classification",
+      "Implement fixes (guardrails, prompt hardening, scope restriction) and retest until all criticals pass",
+    ],
   },
 ];
 
@@ -954,8 +2046,8 @@ function BlockDetail({ block, onPractice }: { block: Block | null; onPractice?: 
     <div className="detail-panel">
       <div className="detail-header">
         <div className="detail-dot" style={{ background: block.color }} />
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
             <span className="detail-name">{block.name}</span>
             {block.isNew && <span className="badge-new">NEW</span>}
             <span className={`badge-status ${block.status}`}>{block.status}</span>
@@ -976,7 +2068,7 @@ function BlockDetail({ block, onPractice }: { block: Block | null; onPractice?: 
       {onPractice && (
         <div style={{ display: "flex", gap: 8, padding: "0 16px 12px" }}>
           <button className="practice-btn" style={{ flex: 1, borderColor: block.color, color: block.color }}
-            onClick={() => onPractice(`Explain ${block.name} to me as an AI engineering mentor. Cover: what it is, why it matters, how it fits into a real AI system, and walk me through building a minimal working example.`)}>
+            onClick={() => onPractice(`Explain ${block.name} to me as an AI engineering mentor. Cover: what it is, why it matters, real-world use cases, advantages and disadvantages, how it compares to alternatives, and walk me through building a minimal working example.`)}>
             <Bot size={11} /> Ask AI Mentor
           </button>
         </div>
@@ -984,34 +2076,93 @@ function BlockDetail({ block, onPractice }: { block: Block | null; onPractice?: 
 
       <div className="detail-body">
         {detailTab === "what" && (
-          <div>
+          <div className="detail-what-content">
+            {/* Definition */}
+            <div className="detail-section-label">DEFINITION</div>
             <p className="detail-text">{block.what}</p>
-            <div style={{ marginTop: 14 }}>
-              <div className="detail-section-label">WHY IT MATTERS</div>
-              <p className="detail-text">{block.why}</p>
-            </div>
+
+            {/* Why it matters */}
+            <div className="detail-section-label" style={{ marginTop: 14 }}>WHY IT MATTERS</div>
+            <p className="detail-text">{block.why}</p>
+
+            {/* Use cases */}
+            {block.useCases && block.useCases.length > 0 && (
+              <div style={{ marginTop: 14 }}>
+                <div className="detail-section-label">REAL-WORLD USE CASES</div>
+                <ul className="usecase-list">
+                  {block.useCases.map((uc, i) => (
+                    <li key={i} className="usecase-item">
+                      <span className="usecase-dot" style={{ background: block.color }} />
+                      <span>{uc}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* When to use */}
+            {block.whenTo && (
+              <div style={{ marginTop: 14 }}>
+                <div className="detail-section-label">WHEN TO USE (DECISION GUIDE)</div>
+                <div className="whento-box" style={{ borderColor: block.color + "44" }}>
+                  <p className="detail-text" style={{ margin: 0 }}>{block.whenTo}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Pros & Cons */}
+            {(block.pros || block.cons) && (
+              <div style={{ marginTop: 14 }}>
+                <div className="detail-section-label">ADVANTAGES & DISADVANTAGES</div>
+                <div className="proscons-grid">
+                  {block.pros && block.pros.length > 0 && (
+                    <div className="pros-col">
+                      <div className="proscons-header pros-header">✓ Advantages</div>
+                      <ul className="proscons-list">
+                        {block.pros.map((p, i) => (
+                          <li key={i} className="proscons-item pro-item">{p}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {block.cons && block.cons.length > 0 && (
+                    <div className="cons-col">
+                      <div className="proscons-header cons-header">✗ Disadvantages</div>
+                      <ul className="proscons-list">
+                        {block.cons.map((c, i) => (
+                          <li key={i} className="proscons-item con-item">{c}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
         {detailTab === "diff" && (
-          block.vs.length === 0
-            ? <p className="detail-text" style={{ color: "var(--mu)", fontStyle: "italic" }}>No direct comparisons for this concept. Select HOW to see implementation steps.</p>
-            : block.vs.map((v, i) => (
-              <div key={i} className="vs-card">
-                <div className="vs-title">{block.name} vs {v.concept}</div>
-                <div className="vs-grid">
-                  <div className="vs-col">
-                    <div className="vs-col-label" style={{ color: block.color }}>This ({block.name})</div>
-                    <p className="vs-text">{v.thisIs}</p>
-                  </div>
-                  <div className="vs-divider" />
-                  <div className="vs-col">
-                    <div className="vs-col-label" style={{ color: "var(--mu)" }}>That ({v.concept})</div>
-                    <p className="vs-text">{v.thatIs}</p>
+          <div>
+            {block.vs.length === 0
+              ? <p className="detail-text" style={{ color: "var(--mu)", fontStyle: "italic" }}>No direct comparisons for this concept. Select HOW to see implementation steps.</p>
+              : block.vs.map((v, i) => (
+                <div key={i} className="vs-card">
+                  <div className="vs-title">{block.name} vs {v.concept}</div>
+                  <div className="vs-grid">
+                    <div className="vs-col">
+                      <div className="vs-col-label" style={{ color: block.color }}>This ({block.name})</div>
+                      <p className="vs-text">{v.thisIs}</p>
+                    </div>
+                    <div className="vs-divider" />
+                    <div className="vs-col">
+                      <div className="vs-col-label" style={{ color: "var(--mu)" }}>That ({v.concept})</div>
+                      <p className="vs-text">{v.thatIs}</p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
+              ))
+            }
+          </div>
         )}
 
         {detailTab === "how" && (
@@ -1544,8 +2695,8 @@ export default function StudioPage() {
 
         /* ── Blueprint layout ─────────────────────────────────────────── */
         .blueprint-layout { flex: 1; display: flex; overflow: hidden; }
-        .blueprint-canvas { flex: 1; overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 20px; }
-        .detail-sidebar { width: 300px; border-left: 1px solid var(--bd); overflow: hidden; display: flex; flex-direction: column; flex-shrink: 0; }
+        .blueprint-canvas { flex: 7; overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+        .detail-sidebar { flex: 3; min-width: 340px; max-width: 520px; border-left: 1px solid var(--bd); overflow: hidden; display: flex; flex-direction: column; flex-shrink: 0; }
 
         /* ── Blueprint search ─────────────────────────────────────────── */
         .bp-search-row { display: flex; align-items: center; gap: 10px; }
@@ -1589,6 +2740,24 @@ export default function StudioPage() {
         .detail-body { flex: 1; overflow-y: auto; padding: 14px 16px; }
         .detail-text { font-size: 12px; color: var(--di); line-height: 1.75; margin: 0; }
         .detail-section-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--mu); margin-bottom: 6px; }
+
+        /* ── WHAT tab enriched content ───────────────────────────────── */
+        .detail-what-content { display: flex; flex-direction: column; gap: 0; }
+        .usecase-list { padding: 0; margin: 6px 0 0; list-style: none; display: flex; flex-direction: column; gap: 7px; }
+        .usecase-item { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; color: var(--di); line-height: 1.6; }
+        .usecase-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+        .whento-box { margin-top: 6px; padding: 10px 12px; background: var(--bg1); border: 1px solid; border-radius: 8px; }
+        .proscons-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px; }
+        .pros-col, .cons-col { display: flex; flex-direction: column; gap: 6px; }
+        .proscons-header { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px; }
+        .pros-header { background: rgba(52,211,153,0.1); color: var(--em); }
+        .cons-header { background: rgba(248,113,113,0.1); color: var(--ro); }
+        .proscons-list { padding: 0; margin: 0; list-style: none; display: flex; flex-direction: column; gap: 5px; }
+        .proscons-item { font-size: 11px; line-height: 1.55; padding-left: 10px; position: relative; }
+        .pro-item { color: var(--di); }
+        .pro-item::before { content: "•"; position: absolute; left: 0; color: var(--em); font-weight: 700; }
+        .con-item { color: var(--di); }
+        .con-item::before { content: "•"; position: absolute; left: 0; color: var(--ro); font-weight: 700; }
 
         /* ── VS comparison cards ──────────────────────────────────────── */
         .vs-card { background: var(--bg1); border: 1px solid var(--bd); border-radius: 8px; padding: 12px; margin-bottom: 10px; }
@@ -1753,10 +2922,16 @@ export default function StudioPage() {
         @keyframes spin { to { transform: rotate(360deg); } }
 
         /* ── Mobile ───────────────────────────────────────────────────── */
+        @media (max-width: 900px) {
+          .detail-sidebar { min-width: 280px; max-width: 320px; }
+        }
         @media (max-width: 768px) {
           .detail-sidebar { display: none; }
           .updates-layout { grid-template-columns: 1fr; }
           .network-graph { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 600px) {
+          .proscons-grid { grid-template-columns: 1fr; }
         }
       `}</style>
     </div>
