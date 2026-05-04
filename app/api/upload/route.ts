@@ -80,3 +80,6 @@ export async function POST(req: NextRequest) {
 }
 
 export const runtime = "nodejs";
+
+// Allow up to 50 MB request bodies on this route (Next.js 16 App Router)
+export const maxDuration = 60; // seconds — give large uploads time to process
