@@ -109,6 +109,50 @@ async function executeTool(name: string, args: Record<string, unknown>): Promise
   }
 }
 
+// Detect if a prompt is conceptual/educational (no tools needed)
+function isConceptualPrompt(prompt: string): boolean {
+  const lower = prompt.toLowerCase();
+  const conceptualKeywords = [
+    "help me build and understand", "explain", "what is", "how does",
+    "difference between", "tell me about", "describe", "overview",
+    "what are", "why is", "help me learn", "teach me",
+  ];
+  return conceptualKeywords.some(k => lower.includes(k));
+}
+
+// Local type for non-streaming Groq completions (avoids SDK namespace issues)
+interface GroqCompletionParams {
+  model: string;
+  messages: Groq.Chat.ChatCompletionMessageParam[];
+  tools?: Groq.Chat.ChatCompletionTool[];
+  tool_choice?: "auto" | "none" | { type: "function"; function: { name: string } };
+  max_tokens?: number;
+  stream?: false;
+}
+
+// Attempt one Groq call; on tool_use_failed, retry without tools
+async function groqWithFallback(
+  groqClient: Groq,
+  params: GroqCompletionParams,
+): Promise<Groq.Chat.ChatCompletion> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return await (groqClient.chat.completions.create as any)(params);
+  } catch (err: unknown) {
+    const isToolFail =
+      err instanceof Error &&
+      (err.message.includes("tool_use_failed") || err.message.includes("Failed to call a function"));
+    if (isToolFail) {
+      // Retry without tools — model answers directly
+      const { tools: _t, tool_choice: _tc, ...rest } = params;
+      void _t; void _tc;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return await (groqClient.chat.completions.create as any)(rest);
+    }
+    throw err;
+  }
+}
+
 export async function POST(req: NextRequest) {
   const { prompt, model = "llama-3.3-70b-versatile", systemPrompt } = await req.json();
 
@@ -121,18 +165,42 @@ export async function POST(req: NextRequest) {
       };
 
       try {
+        // For purely conceptual prompts, skip tool loop and answer directly
+        if (isConceptualPrompt(prompt) && !systemPrompt) {
+          send({ type: "agent_start", message: "Answering directly…" });
+          send({ type: "step_start", step: 1 });
+          const direct = await groq.chat.completions.create({
+            model,
+            messages: [
+              {
+                role: "system",
+                content: `You are AXIOM, an expert AI engineering mentor. Answer clearly and technically.
+When explaining AI concepts: give a crisp definition, explain why it matters, and show a short code example if relevant.`,
+              },
+              { role: "user", content: prompt },
+            ],
+            max_tokens: 1200,
+          });
+          send({ type: "final_answer", content: direct.choices[0].message.content || "" });
+          send({ type: "done" });
+          controller.close();
+          return;
+        }
+
         const messages: Groq.Chat.ChatCompletionMessageParam[] = [
           {
             role: "system",
-            content: systemPrompt || `You are AXIOM ReAct Agent — a reasoning AI that thinks step by step and uses tools to answer questions accurately. 
-For each task:
-1. THINK about what you need to do
-2. ACT by calling the appropriate tool
-3. OBSERVE the result
-4. Repeat until you have a complete answer
-5. Give a final clear ANSWER
+            content: systemPrompt || `You are AXIOM ReAct Agent — an AI that uses tools when needed.
 
-Always reason explicitly before each tool call.`,
+CRITICAL TOOL USE RULES:
+- Use web_search ONLY when you need real-time facts, news, or current data
+- Use calculate ONLY for math or unit conversions
+- Use analyze_data ONLY when given an explicit array of numbers to analyze
+- Use summarize_url ONLY when given an explicit URL to fetch
+- For ALL other questions — especially explanations, concepts, or "how to" questions — answer DIRECTLY without any tool calls
+
+When you have enough information, stop calling tools and give your final answer.
+Always think before each tool call: "Do I actually need external data for this?"`,
           },
           { role: "user", content: prompt },
         ];
@@ -140,13 +208,13 @@ Always reason explicitly before each tool call.`,
         let stepCount = 0;
         const maxSteps = 8;
 
-        send({ type: "agent_start", message: "Agent initialized, reasoning..." });
+        send({ type: "agent_start", message: "Agent initialized, reasoning…" });
 
         while (stepCount < maxSteps) {
           stepCount++;
           send({ type: "step_start", step: stepCount });
 
-          const response = await groq.chat.completions.create({
+          const response = await groqWithFallback(groq, {
             model,
             messages,
             tools: TOOLS,
@@ -161,18 +229,24 @@ Always reason explicitly before each tool call.`,
             send({ type: "thought", step: stepCount, content: msg.content });
           }
 
+          // No tool calls → this is the final answer
           if (!msg.tool_calls || msg.tool_calls.length === 0) {
-            // Final answer
             send({ type: "final_answer", content: msg.content || "No response generated." });
             break;
           }
 
-          // Process tool calls
+          // Push assistant message with its tool calls
           messages.push({ role: "assistant", content: msg.content || "", tool_calls: msg.tool_calls });
 
           for (const toolCall of msg.tool_calls) {
             const toolName = toolCall.function.name;
-            const toolArgs = JSON.parse(toolCall.function.arguments || "{}");
+
+            let toolArgs: Record<string, unknown> = {};
+            try {
+              toolArgs = JSON.parse(toolCall.function.arguments || "{}");
+            } catch {
+              toolArgs = { raw: toolCall.function.arguments };
+            }
 
             send({ type: "tool_call", step: stepCount, tool: toolName, args: toolArgs });
 
@@ -189,10 +263,13 @@ Always reason explicitly before each tool call.`,
         }
 
         if (stepCount >= maxSteps) {
-          send({ type: "max_steps", message: "Reached maximum steps. Generating final response..." });
+          send({ type: "max_steps", message: "Max steps reached. Summarising…" });
           const finalResp = await groq.chat.completions.create({
             model,
-            messages: [...messages, { role: "user", content: "Provide your final answer based on what you've gathered so far." }],
+            messages: [
+              ...messages,
+              { role: "user", content: "Provide your final answer based on what you have gathered so far." },
+            ],
             max_tokens: 512,
           });
           send({ type: "final_answer", content: finalResp.choices[0].message.content || "" });

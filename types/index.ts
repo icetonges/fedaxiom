@@ -9,11 +9,13 @@ export interface AIModel {
 }
 
 export const AI_MODELS: AIModel[] = [
-  { id: "gemini-2.0-flash",              label: "Gemini 2.0 Flash",  provider: "gemini", free: true,  context: 1000000 },
-  { id: "gemini-2.5-pro-preview-05-06",  label: "Gemini 2.5 Pro",    provider: "gemini", free: false, context: 1000000 },
+  { id: "gemini-2.5-flash",              label: "Gemini 2.5 Flash",  provider: "gemini", free: true,  context: 1000000 },
+  { id: "gemini-2.5-flash-lite",         label: "Gemini Flash Lite", provider: "gemini", free: true,  context: 1000000 },
+  { id: "gemini-2.5-pro",               label: "Gemini 2.5 Pro",    provider: "gemini", free: false, context: 1000000 },
   { id: "llama-3.3-70b-versatile",       label: "Llama 3.3 70B",     provider: "groq",   free: true,  context: 128000  },
-  { id: "deepseek-r1-distill-llama-70b", label: "DeepSeek R1",       provider: "groq",   free: true,  context: 128000  },
-  { id: "mixtral-8x7b-32768",            label: "Mixtral 8x7B",      provider: "groq",   free: true,  context: 32768   },
+  { id: "deepseek-r1-distill-llama-70b", label: "DeepSeek R1 70B",   provider: "groq",   free: true,  context: 128000  },
+  { id: "llama-3.1-8b-instant",          label: "Llama 3.1 8B",      provider: "groq",   free: true,  context: 128000  },
+  { id: "gemma2-9b-it",                  label: "Gemma 2 9B",        provider: "groq",   free: true,  context: 8192    },
 ]
 
 export interface ChatMessage {

@@ -1,82 +1,92 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// In production, this route:
-//   1. Embeds the query with Gemini embedding-001
-//   2. Runs pgvector similarity search: SELECT * FROM knowledge_chunks ORDER BY embedding <=> $1 LIMIT 5
-//   3. Feeds top chunks + query to Gemini Flash for answer generation
-//   4. Returns answer + source citations
+// ─────────────────────────────────────────────────────────────────────────────
+// Knowledge Mirror — Embeddings / Query Route
+//
+// Receives the actual chunk texts from the client (stored in localStorage),
+// ranks them by keyword overlap, picks the top-5, then calls Gemini Flash
+// to generate a grounded answer with source citations.
+//
+// Production upgrade path:
+//   1. Embed the query with text-embedding-004
+//   2. Run pgvector similarity search (chunks already stored in DB)
+//   3. Remove the `chunks` parameter — DB handles retrieval
+// ─────────────────────────────────────────────────────────────────────────────
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
-// Simulated in-memory chunk store (replace with pgvector queries)
-const DEMO_CHUNKS: Record<string, { content: string; doc: string }[]> = {};
+interface Chunk { content: string; doc: string }
+interface ScoredChunk extends Chunk { score: number }
 
-function cosineSimilarity(a: number[], b: number[]): number {
-  const dot = a.reduce((s, v, i) => s + v * b[i], 0);
-  const magA = Math.sqrt(a.reduce((s, v) => s + v * v, 0));
-  const magB = Math.sqrt(b.reduce((s, v) => s + v * v, 0));
-  return dot / (magA * magB);
+/** Simple TF keyword scorer — good enough without real embeddings */
+function rankChunks(chunks: Chunk[], query: string): ScoredChunk[] {
+  const words = query
+    .toLowerCase()
+    .split(/\W+/)
+    .filter(w => w.length > 2);
+
+  return chunks.map(c => {
+    const lower = c.content.toLowerCase();
+    const score = words.reduce((s, w) => {
+      // count occurrences, boost exact phrase match
+      const count = (lower.match(new RegExp(w, "g")) || []).length;
+      return s + count;
+    }, 0);
+    return { ...c, score };
+  });
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const { query, docIds } = await req.json();
+    const body = await req.json();
+    const query: string           = body.query ?? "";
+    const chunks: Chunk[]         = body.chunks ?? [];   // from localStorage
 
-    if (!query?.trim()) {
+    if (!query.trim()) {
       return NextResponse.json({ error: "Query is required" }, { status: 400 });
     }
 
-    // ── In production: embed query + run pgvector search ──────────────────
-    // const embModel = genAI.getGenerativeModel({ model: "text-embedding-004" })
-    // const queryEmb = (await embModel.embedContent(query)).embedding.values
-    // const chunks = await db.query(
-    //   `SELECT content, doc_name, 1 - (embedding <=> $1::vector) AS score
-    //    FROM knowledge_chunks
-    //    WHERE doc_id = ANY($2)
-    //    ORDER BY score DESC LIMIT 5`,
-    //   [JSON.stringify(queryEmb), docIds]
-    // )
-    // ─────────────────────────────────────────────────────────────────────
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-    // Demo: generate an answer with Gemini using the query
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    // ── No documents uploaded yet ────────────────────────────────────────────
+    if (chunks.length === 0) {
+      const result = await model.generateContent(
+        `The user asked: "${query}"\n\n` +
+        `No documents have been uploaded to the knowledge base yet. ` +
+        `Politely let them know they need to upload at least one document first, ` +
+        `then they can ask questions about its content.`
+      );
+      return NextResponse.json({ answer: result.response.text(), sources: [] });
+    }
 
-    const contextNote = docIds && docIds.length > 0
-      ? `The user has uploaded ${docIds.length} document(s) to the knowledge base.`
-      : "No documents are indexed yet.";
+    // ── Rank and pick top 5 chunks ───────────────────────────────────────────
+    const scored = rankChunks(chunks, query);
+    scored.sort((a, b) => b.score - a.score);
+    const top5 = scored.slice(0, 5);
 
-    const prompt = `You are an AI assistant for a knowledge base system called AXIOM Knowledge Mirror.
+    // Normalise scores 0–1 for display
+    const maxScore = Math.max(...scored.map(c => c.score), 1);
+    const sources = top5.map(c => ({
+      chunk: c.content,
+      score: maxScore > 0 ? Math.min(c.score / maxScore, 1) : 0.5,
+      doc:   c.doc,
+    }));
 
-${contextNote}
+    // ── Build grounded prompt ────────────────────────────────────────────────
+    const context = top5
+      .map((c, i) => `[Source ${i + 1} — ${c.doc}]\n${c.content}`)
+      .join("\n\n---\n\n");
 
-The user asked: "${query}"
-
-Since this is a demo environment (no live pgvector database connected), provide a helpful response that:
-1. Acknowledges what the system would do in production
-2. Gives a genuinely useful answer to the question if possible
-3. Explains that connecting Neon PostgreSQL with pgvector would enable semantic search over their actual documents
-
-Keep your response concise and practical.`;
+    const prompt =
+      `You are an AI assistant for a knowledge base called AXIOM Knowledge Mirror.\n` +
+      `Answer the user's question using ONLY the document excerpts below.\n` +
+      `Cite sources as [Source N]. If the answer isn't in the excerpts, say so.\n\n` +
+      `DOCUMENT EXCERPTS:\n${context}\n\n` +
+      `USER QUESTION: ${query}`;
 
     const result = await model.generateContent(prompt);
     const answer = result.response.text();
-
-    // Simulated source chunks
-    const sources = docIds && docIds.length > 0
-      ? [
-          {
-            chunk: `Relevant content from document matching "${query}" would appear here with pgvector similarity search enabled.`,
-            score: 0.92,
-            doc: "Document 1",
-          },
-          {
-            chunk: `Additional context chunks would be retrieved based on cosine similarity to your query embedding.`,
-            score: 0.81,
-            doc: "Document 2",
-          },
-        ]
-      : [];
 
     return NextResponse.json({ answer, sources });
   } catch (error) {
