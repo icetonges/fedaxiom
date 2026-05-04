@@ -4,7 +4,8 @@ import { useState } from "react";
 import {
   TrendingUp, Brain, Target, ChevronRight, Loader2, AlertCircle,
   CheckCircle, Clock, Star, Zap, Award, Code, Database, Globe,
-  BarChart2, Briefcase, Plus, Minus
+  BarChart2, Briefcase, Plus, Minus, ExternalLink, BookOpen,
+  GitBranch, Users, GraduationCap, FileText,
 } from "lucide-react";
 
 const SKILLS = [
@@ -53,6 +54,221 @@ const PRIORITY_COLORS: Record<string, string> = {
   medium: "var(--am)",
   low: "var(--em)",
 };
+
+// ─── Study & Community Resources ─────────────────────────────────────────────
+
+const RESOURCES = [
+  {
+    cat: "Open-Source GitHub Guides",
+    color: "#818cf8",
+    icon: <GitBranch size={13}/>,
+    items: [
+      {
+        name: "Awesome Generative AI Guide",
+        stars: "26.5k ⭐",
+        url: "https://github.com/aishwaryanr/awesome-generative-ai-guide",
+        desc: "One-stop repo for GenAI — 90+ free courses, monthly research paper summaries, 10-week LLM mastery curriculum, interview Q&A banks, RAG & fine-tuning notebooks. MIT licensed.",
+        tags: ["LLMs", "RAG", "Fine-tuning", "Interview Prep", "90+ Courses"],
+      },
+      {
+        name: "AI Guide by 鱼皮 (liyupi)",
+        stars: "13k ⭐",
+        url: "https://github.com/liyupi/ai-guide",
+        desc: "Practical Chinese-first AI guide covering vibe coding, DeepSeek / GPT / Claude / Gemini, prompt engineering, Agents, RAG, MCP, and monetisation strategies for AI products.",
+        tags: ["Vibe Coding", "Agents", "MCP", "Chinese", "Practical"],
+      },
+      {
+        name: "Awesome AI/ML Resources",
+        stars: "2k+ ⭐",
+        url: "https://github.com/armankhondker/awesome-ai-ml-resources",
+        desc: "Beginner-friendly 7-stage structured roadmap: Python → Math → ML Theory → Projects → Specialisations → MLOps → Research Papers. Curates Coursera, MIT, Stanford, and AWS content.",
+        tags: ["Beginners", "ML", "Roadmap", "Curated", "7-Stage"],
+      },
+      {
+        name: "AI Guide Web Portal",
+        stars: "",
+        url: "https://ai.codefather.cn/library/2010994846520700929",
+        desc: "Web version of the ai-guide knowledge library — browsable AI learning paths, tool tutorials, Cursor/Claude Code guides, and a growing community knowledge base.",
+        tags: ["Web Library", "Claude Code", "Tutorials", "Community"],
+      },
+    ],
+  },
+  {
+    cat: "Roadmaps & Structured Curricula",
+    color: "#34d399",
+    icon: <TrendingUp size={13}/>,
+    items: [
+      {
+        name: "AI Engineer Roadmap (roadmap.sh)",
+        stars: "",
+        url: "https://roadmap.sh/ai/roadmap-chat/ai-engineer",
+        desc: "Interactive visual roadmap with an AI tutor that personalises your learning path. Covers foundations through production deployment. Also see: ai-data-scientist roadmap.",
+        tags: ["Visual Roadmap", "AI Tutor", "Interactive", "Career Path"],
+      },
+      {
+        name: "Kaggle 5-Day Agents Course",
+        stars: "",
+        url: "https://www.kaggle.com/learn-guide/5-day-agents",
+        desc: "Google's free intensive: 11 notebooks across 5 days covering agents, MCP, memory systems, evaluation, and production deployment with Google ADK + Gemini.",
+        tags: ["Agents", "Free", "Hands-on", "Google ADK"],
+      },
+      {
+        name: "fast.ai — Practical Deep Learning",
+        stars: "",
+        url: "https://course.fast.ai",
+        desc: "Jeremy Howard's legendary top-down course. Best way to build real intuition for deep learning without getting buried in theory. Free, notebook-driven, production-focused.",
+        tags: ["Deep Learning", "Free", "Top-down", "Practical"],
+      },
+      {
+        name: "DeepLearning.AI (Andrew Ng)",
+        stars: "",
+        url: "https://deeplearning.ai",
+        desc: "Gold standard structured curriculum: ML Specialization, Deep Learning, MLOps, LLM Engineering. Industry-recognised certificates. Best starting point for structured learners.",
+        tags: ["Certificates", "ML", "LLMs", "Structured"],
+      },
+    ],
+  },
+  {
+    cat: "Courses & Learning Platforms",
+    color: "#38bdf8",
+    icon: <GraduationCap size={13}/>,
+    items: [
+      {
+        name: "Hugging Face Courses",
+        stars: "",
+        url: "https://huggingface.co/learn",
+        desc: "Free NLP Course, Deep RL, Diffusion Models, Audio ML, and Agents courses — all notebook-based and tied directly to the open-source HF ecosystem.",
+        tags: ["Free", "NLP", "Transformers", "Agents", "Open Source"],
+      },
+      {
+        name: "Kaggle Learn",
+        stars: "",
+        url: "https://kaggle.com/learn",
+        desc: "Free micro-courses on Python, ML, Deep Learning, Feature Engineering, SQL, NLP, and AI. Each takes 4–6 hours with a certificate. Best quick up-skilling tool.",
+        tags: ["Free", "Micro-courses", "Certificates", "Practical"],
+      },
+      {
+        name: "Google AI Developer Hub",
+        stars: "",
+        url: "https://ai.google.dev",
+        desc: "Official Google AI documentation, quickstarts for Gemini API and ADK, codelabs, and production guides. Essential if you're building on Google's AI stack.",
+        tags: ["Gemini", "ADK", "Official", "Codelabs"],
+      },
+      {
+        name: "Anthropic Cookbook",
+        stars: "",
+        url: "https://github.com/anthropics/anthropic-cookbook",
+        desc: "Official Claude engineering patterns: tool use, multi-agent, RAG, context management, streaming. Practical notebooks for building production Claude applications.",
+        tags: ["Claude", "Tool Use", "RAG", "Official"],
+      },
+    ],
+  },
+  {
+    cat: "Research & Papers",
+    color: "#fbbf24",
+    icon: <FileText size={13}/>,
+    items: [
+      {
+        name: "Papers With Code",
+        stars: "",
+        url: "https://paperswithcode.com",
+        desc: "ML papers + code implementations linked together. Track every SOTA benchmark, find implementations instantly. Best tool for turning research into practice.",
+        tags: ["SOTA", "Research", "Code", "Benchmarks"],
+      },
+      {
+        name: "ArXiv cs.AI / cs.LG",
+        stars: "",
+        url: "https://arxiv.org/list/cs.AI/recent",
+        desc: "Where all major AI research appears first — preprints, hours after writing. Follow cs.AI (Artificial Intelligence) and cs.LG (Machine Learning) daily.",
+        tags: ["Preprints", "Daily", "Free", "Frontier"],
+      },
+      {
+        name: "Anthropic Research",
+        stars: "",
+        url: "https://anthropic.com/research",
+        desc: "Claude scaling laws, Constitutional AI, interpretability, and alignment research. Essential reading for anyone building serious Claude-based systems.",
+        tags: ["Alignment", "Interpretability", "Scaling", "Claude"],
+      },
+      {
+        name: "Google DeepMind Research",
+        stars: "",
+        url: "https://deepmind.google/research/",
+        desc: "Gemini, Gemma, AlphaCode, and frontier research. Cutting-edge work on agents, reasoning, multimodal models, and scientific AI.",
+        tags: ["Gemini", "Agents", "Frontier", "Multimodal"],
+      },
+    ],
+  },
+  {
+    cat: "Community & Networking",
+    color: "#f472b6",
+    icon: <Users size={13}/>,
+    items: [
+      {
+        name: "Hugging Face Discord",
+        stars: "",
+        url: "https://discord.gg/huggingface",
+        desc: "Largest open ML community online. Active #beginners, #NLP, #diffusion, and #agents channels. Maintainers answer questions. Best place to find collaborators.",
+        tags: ["Discord", "Open ML", "Beginners", "Active"],
+      },
+      {
+        name: "r/MachineLearning",
+        stars: "1M+",
+        url: "https://reddit.com/r/MachineLearning",
+        desc: "1M+ members. Research paper discussions, AMAs from top researchers (Karpathy, LeCun, Bengio), industry news. High signal-to-noise ratio.",
+        tags: ["Reddit", "Research", "AMAs", "High Signal"],
+      },
+      {
+        name: "r/LocalLLaMA",
+        stars: "500k+",
+        url: "https://reddit.com/r/LocalLLaMA",
+        desc: "Community for running LLMs locally — quantisation, hardware benchmarks, model comparisons, Ollama setups. Very practical, fast-moving.",
+        tags: ["Local LLMs", "Practical", "Hardware", "Ollama"],
+      },
+      {
+        name: "Latent Space (Podcast + Discord)",
+        stars: "",
+        url: "https://latent.space",
+        desc: "Deep technical interviews with AI researchers and engineers. Episodes cover RAG, evals, agents, LLM internals, and AI infrastructure. Discord has active community.",
+        tags: ["Podcast", "Technical", "Discord", "Deep Dives"],
+      },
+    ],
+  },
+  {
+    cat: "Certifications",
+    color: "#fb923c",
+    icon: <Award size={13}/>,
+    items: [
+      {
+        name: "Google Professional ML Engineer",
+        stars: "",
+        url: "https://cloud.google.com/learn/certification/machine-learning-engineer",
+        desc: "Industry-recognised cert covering ML on GCP, Vertex AI, MLOps, and feature engineering. Strong signal for employers using Google Cloud stack. Recommended after 1yr experience.",
+        tags: ["GCP", "Vertex AI", "MLOps", "Professional"],
+      },
+      {
+        name: "AWS ML Specialty",
+        stars: "",
+        url: "https://aws.amazon.com/certification/certified-machine-learning-specialty/",
+        desc: "Covers ML pipeline design, feature engineering, model evaluation, and deployment on SageMaker. Valuable if your target employer is AWS-heavy.",
+        tags: ["AWS", "SageMaker", "Specialty", "Pipeline"],
+      },
+      {
+        name: "DeepLearning.AI Certificates",
+        stars: "",
+        url: "https://deeplearning.ai/courses/",
+        desc: "Andrew Ng's specialisations in LLM Engineering, MLOps, and GenAI for Everyone. Affordable, widely recognised, and directly linked to job postings.",
+        tags: ["LLMs", "MLOps", "Affordable", "Recognised"],
+      },
+      {
+        name: "Hugging Face Certifications",
+        stars: "",
+        url: "https://huggingface.co/learn",
+        desc: "Community-recognised certificates in Transformers, Agents, and Audio ML. All free to earn. Strong open-source signal, especially for research-leaning roles.",
+        tags: ["Free", "Transformers", "Agents", "Open Source"],
+      },
+    ],
+  },
+];
 
 export default function CareerPage() {
   const [profile, setProfile] = useState<Profile>({
@@ -281,6 +497,95 @@ export default function CareerPage() {
           </div>
         </div>
       ) : null}
+
+      {/* ── STUDY & COMMUNITY RESOURCES ────────────────────────────────── */}
+      <div style={{ marginTop: 48, borderTop: "1px solid var(--bd)", paddingTop: 36 }}>
+        {/* Section header */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}>
+          <BookOpen size={18} color="var(--cy)" />
+          <span style={{ fontSize: 12, fontWeight: 800, color: "var(--cy)", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+            Study &amp; Community
+          </span>
+        </div>
+        <h2 style={{ fontSize: "clamp(1.3rem, 2.5vw, 1.75rem)", fontWeight: 800, color: "var(--tx)", lineHeight: 1.2, marginBottom: 6 }}>
+          Learning Resources
+        </h2>
+        <p style={{ fontSize: 14, color: "var(--tx2)", lineHeight: 1.65, marginBottom: 32 }}>
+          Curated guides, courses, communities, and certifications to accelerate your AI engineering journey — from first commit to senior-level production systems
+        </p>
+
+        {RESOURCES.map(section => (
+          <div key={section.cat} style={{ marginBottom: 32 }}>
+            {/* Category header */}
+            <div style={{
+              display: "flex", alignItems: "center", gap: 7, marginBottom: 12,
+              fontSize: 11, fontWeight: 800, color: section.color,
+              textTransform: "uppercase", letterSpacing: "0.1em",
+            }}>
+              <div style={{ width: 3, height: 16, background: section.color, borderRadius: 2, flexShrink: 0 }}/>
+              {section.icon}
+              {section.cat}
+            </div>
+
+            {/* Resource cards grid */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 10 }}>
+              {section.items.map(item => (
+                <a
+                  key={item.name}
+                  href={item.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: "flex", flexDirection: "column", gap: 9,
+                    background: "var(--bg1)", border: "1px solid var(--bd)",
+                    borderRadius: 11, padding: "15px 17px", textDecoration: "none",
+                    transition: "border-color 0.15s, background 0.15s",
+                  }}
+                  onMouseEnter={e => {
+                    (e.currentTarget as HTMLElement).style.borderColor = section.color + "60";
+                    (e.currentTarget as HTMLElement).style.background = section.color + "07";
+                  }}
+                  onMouseLeave={e => {
+                    (e.currentTarget as HTMLElement).style.borderColor = "var(--bd)";
+                    (e.currentTarget as HTMLElement).style.background = "var(--bg1)";
+                  }}
+                >
+                  {/* Title row */}
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: "var(--tx)", lineHeight: 1.3 }}>
+                      {item.name}
+                    </span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, marginTop: 1 }}>
+                      {item.stars && (
+                        <span style={{ fontSize: 11, color: "#fbbf24", fontWeight: 700, whiteSpace: "nowrap" }}>
+                          {item.stars}
+                        </span>
+                      )}
+                      <ExternalLink size={12} color="var(--tx3)" />
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  <p style={{ fontSize: 13, color: "var(--tx2)", lineHeight: 1.65, margin: 0 }}>{item.desc}</p>
+
+                  {/* Tags */}
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 2 }}>
+                    {item.tags.map(tag => (
+                      <span key={tag} style={{
+                        fontSize: 11, padding: "2px 9px", borderRadius: 5,
+                        background: section.color + "14",
+                        color: section.color,
+                        border: `1px solid ${section.color}30`,
+                        whiteSpace: "nowrap",
+                      }}>{tag}</span>
+                    ))}
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
 
       <style jsx>{`
         .ca-page { padding: 28px 24px; max-width: 900px; margin: 0 auto; }

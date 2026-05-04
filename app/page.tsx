@@ -7,6 +7,7 @@ import {
   GitBranch, Cpu, Zap, Bot, ArrowRight, ChevronDown, ChevronRight,
   BookOpen, Shield, TrendingUp, Layers, Code2, Activity,
   CheckCircle, ExternalLink, Sparkles, RefreshCw, Copy, Check,
+  Map,
 } from "lucide-react";
 
 // ─── Process flow steps ───────────────────────────────────────────────────────
@@ -894,6 +895,124 @@ client.register_scalable_target(...)` },
 
 // ─── Advanced topics ──────────────────────────────────────────────────────────
 
+// ─── AI Engineer Roadmap phases ──────────────────────────────────────────────
+
+const ROADMAP_PHASES = [
+  {
+    phase: "0", label: "Foundations", time: "2–4 mo", color: "#64748b",
+    icon: <BookOpen size={22}/>,
+    desc: "The bedrock every AI engineer builds on — language, math, and CS fundamentals before touching any model",
+    roles: ["All roles"],
+    cats: ["Programming", "Mathematics", "CS Fundamentals"],
+    skills: [
+      ["Python (essential)", "TypeScript / JS", "SQL & NoSQL", "Bash / Shell scripting", "Git & GitHub", "Package management (pip, uv, conda)"],
+      ["Linear Algebra (vectors, matrices)", "Statistics & Probability", "Calculus (gradients, chain rule)", "Information Theory (entropy, KL-div)"],
+      ["Data Structures & Algorithms", "REST APIs & HTTP", "System Design basics", "Async / concurrency", "Testing & debugging"],
+    ],
+  },
+  {
+    phase: "1", label: "Machine Learning", time: "2–3 mo", color: "#4f8ef7",
+    icon: <BarChart2 size={22}/>,
+    desc: "Classical ML — the intuition and vocabulary behind every modern AI system",
+    roles: ["ML Engineer", "Data Scientist", "AI Researcher"],
+    cats: ["Algorithms", "Core Concepts", "Libraries"],
+    skills: [
+      ["Linear Regression", "Logistic Regression", "Decision Trees", "Random Forest", "SVM", "KNN", "K-Means / DBSCAN", "Gradient Boosting (XGBoost, LightGBM)"],
+      ["Feature Engineering", "Cross-validation & Splits", "Bias-Variance Tradeoff", "Overfitting & Regularization", "Dimensionality Reduction (PCA, UMAP)", "Evaluation Metrics (AUC, F1, NDCG)"],
+      ["scikit-learn", "NumPy & Pandas", "Matplotlib / Seaborn / Plotly", "Jupyter Notebooks", "Optuna (hyperparameter tuning)"],
+    ],
+  },
+  {
+    phase: "2", label: "Deep Learning", time: "2–4 mo", color: "#818cf8",
+    icon: <Brain size={22}/>,
+    desc: "Neural networks — the engine of modern AI, from perceptrons to Transformers",
+    roles: ["ML Engineer", "AI Researcher", "LLM Engineer"],
+    cats: ["Core Concepts", "Architectures", "Frameworks", "Training Craft"],
+    skills: [
+      ["Perceptrons & MLP", "Backpropagation", "Activation Functions (ReLU, GELU, SiLU)", "Batch Normalization", "Dropout & Regularization"],
+      ["CNNs (image)", "RNNs / LSTMs (sequences)", "Transformers (all domains)", "Attention & Multi-head Attention", "Vision Transformers (ViT)", "Diffusion Models"],
+      ["PyTorch", "TensorFlow / Keras", "Hugging Face Transformers", "Diffusers", "ONNX (export & serving)"],
+      ["Optimizers (Adam, AdamW, Muon)", "Learning Rate Scheduling", "Mixed Precision (fp16 / bf16)", "Gradient Clipping", "Distributed Training (DDP, FSDP)"],
+    ],
+  },
+  {
+    phase: "3", label: "LLMs & GenAI", time: "1–2 mo", color: "#34d399",
+    icon: <Sparkles size={22}/>,
+    desc: "Foundation models — the new programming interface for AI products",
+    roles: ["AI Engineer", "LLM Engineer", "AI Product Engineer"],
+    cats: ["LLM Foundations", "Prompt Engineering", "Models", "Fine-tuning"],
+    skills: [
+      ["Transformer Architecture (deep)", "Pre-training vs Fine-tuning", "RLHF / DPO / SFT", "Tokenization & Vocabulary", "Context Window & KV Cache", "Mixture of Experts (MoE)"],
+      ["Zero-shot / Few-shot", "Chain-of-Thought (CoT)", "System Prompts", "ReAct prompting", "Structured Outputs (JSON mode)", "Prompt Injection defence"],
+      ["GPT-4o / o1 / o3", "Claude 3.5 / 3.7 Sonnet", "Gemini 2.5 Flash / Pro", "Llama 3.1 / 3.3", "Mistral / Mixtral", "DeepSeek R1 / V3"],
+      ["LoRA / QLoRA", "PEFT techniques", "Instruction Tuning", "RLHF pipelines (TRL)", "Dataset preparation & DPO pairs", "Unsloth (fast fine-tuning)"],
+    ],
+  },
+  {
+    phase: "4", label: "AI Engineering", time: "2–3 mo", color: "#38bdf8",
+    icon: <Cpu size={22}/>,
+    desc: "Agents, RAG, memory, and protocols — the production AI stack that ships real products",
+    roles: ["AI Engineer", "AI Product Engineer"],
+    cats: ["Agents", "RAG & Search", "Memory Systems", "Protocols & APIs"],
+    skills: [
+      ["ReAct Architecture", "Tool Use & Function Calling", "Multi-agent Orchestration", "Coordinator / Supervisor patterns", "A2A Protocol", "Parallel tool execution"],
+      ["Embeddings & Semantic Search", "Vector Databases", "Chunking Strategies", "Hybrid Search (BM25 + semantic)", "Reranking (Cohere, BGE, Jina)", "HyDE & query expansion"],
+      ["In-Context Memory", "External Vector Memory", "Episodic (user-specific) Memory", "Memory ETL Pipeline", "Context Engineering", "Session management"],
+      ["MCP (Model Context Protocol)", "JSON Schema tool definitions", "Streaming responses (SSE)", "Structured Outputs", "Batch processing", "Rate limiting & retry logic"],
+    ],
+  },
+  {
+    phase: "5", label: "Frameworks", time: "1–2 mo", color: "#fbbf24",
+    icon: <Wrench size={22}/>,
+    desc: "The ecosystem — pick the right tools for each job without getting framework-locked",
+    roles: ["AI Engineer", "AI Product Engineer", "Full-stack AI"],
+    cats: ["LLM Frameworks", "Vector Databases", "Embedding Models", "Serving & Inference"],
+    skills: [
+      ["Google ADK", "LangChain / LangGraph", "LlamaIndex", "AutoGen / AG2", "CrewAI", "Semantic Kernel (Microsoft)", "Pydantic AI"],
+      ["Pinecone", "Weaviate", "Chroma", "pgvector (Postgres)", "Qdrant", "Milvus", "Turbopuffer"],
+      ["OpenAI text-embedding-3-large", "Gemini Embeddings", "Cohere Embed v3", "BAAI/bge-m3", "sentence-transformers", "Jina Embeddings v3"],
+      ["FastAPI", "vLLM (fast inference)", "Ollama (local)", "Modal / Replicate (serverless)", "TGI (Hugging Face)", "LiteLLM (multi-provider)"],
+    ],
+  },
+  {
+    phase: "6", label: "MLOps & Cloud", time: "2–3 mo", color: "#fb923c",
+    icon: <Rocket size={22}/>,
+    desc: "Taking models from notebook to production — containers, cloud, CI/CD, and observability",
+    roles: ["ML Engineer", "MLOps", "AI Platform Engineer"],
+    cats: ["Containerization", "Cloud Platforms", "MLOps Tools", "Observability"],
+    skills: [
+      ["Docker & Docker Compose", "Kubernetes (K8s)", "Helm Charts", "Cloud Run / AWS Lambda", "Service meshes (Istio)"],
+      ["GCP Vertex AI", "AWS SageMaker", "Azure ML Studio", "Databricks", "Palantir Foundry / AIP", "Hugging Face Inference Endpoints"],
+      ["MLflow", "Weights & Biases (W&B)", "LangSmith", "Arize Phoenix", "Comet ML", "Langfuse (open source)"],
+      ["OpenTelemetry (OTel)", "Prometheus + Grafana", "LLM cost tracking", "CI/CD quality gates", "Canary / Blue-Green deploys", "Semantic caching"],
+    ],
+  },
+  {
+    phase: "7", label: "Safety & Eval", time: "ongoing", color: "#f87171",
+    icon: <Shield size={22}/>,
+    desc: "Responsible AI — safety and evaluation are non-negotiable for production systems",
+    roles: ["All senior roles", "AI Safety Engineer"],
+    cats: ["Guardrails", "Evaluation", "Alignment & Ethics", "Production Safety"],
+    skills: [
+      ["Input safety classifiers", "Output content filtering", "PII detection (Presidio)", "Prompt injection prevention", "Schema validation (Pydantic)", "Harmful content detection"],
+      ["LLM-as-a-Judge", "RAGAS framework", "Golden Set regression testing", "Trajectory evaluation", "Human-in-the-loop (HITL)", "Evals-in-CI/CD pipeline"],
+      ["NIST AI Risk Management Framework", "Red-teaming", "Constitutional AI (CAI)", "Bias & fairness testing", "EU AI Act (risk tiers)", "Responsible AI practices"],
+      ["Cost optimisation (semantic caching)", "Model routing (smart → cheap)", "Prompt compression", "Token budget enforcement", "Disaster recovery", "Multi-region resilience"],
+    ],
+  },
+];
+
+// ─── Career path → required phases mapping ───────────────────────────────────
+
+const CAREER_PATHS = [
+  { role: "AI Engineer",        phases: [0,3,4,5,6,7], color: "#4f8ef7" },
+  { role: "ML Engineer",        phases: [0,1,2,3,6,7], color: "#818cf8" },
+  { role: "Data Scientist",     phases: [0,1,2,3],     color: "#34d399" },
+  { role: "AI Product Eng",     phases: [0,3,4,5],     color: "#38bdf8" },
+  { role: "MLOps Engineer",     phases: [0,1,6,7],     color: "#fb923c" },
+  { role: "AI Researcher",      phases: [0,1,2,3,7],   color: "#f472b6" },
+];
+
 const ADVANCED = [
   { icon: <Cpu size={16}/>,        color: "#818cf8", title: "Gemini 2.5 Flash",         tag: "NEW MODEL",     desc: "Free tier, 1M context, multimodal. Best price-performance. Replaces 2.0 Flash across all workloads." },
   { icon: <Network size={16}/>,    color: "#34d399", title: "MCP v2 + Remote Servers",  tag: "HOT",           desc: "De-facto tool standard. Claude, Cursor, VS Code all support it. SSE transport enables cloud-hosted MCP servers shareable across teams." },
@@ -1131,6 +1250,189 @@ function SectionHeader({ icon, label, title, sub, color }: { icon: React.ReactNo
   );
 }
 
+// ─── Roadmap section ──────────────────────────────────────────────────────────
+
+function RoadmapSection() {
+  const [activePhase, setActivePhase] = useState(0);
+  const phase = ROADMAP_PHASES[activePhase];
+
+  return (
+    <section id="roadmap" style={{ marginBottom: 64 }}>
+      <SectionHeader
+        icon={<Map size={18}/>}
+        label="Learning Roadmap"
+        title="AI Engineer Roadmap"
+        sub="A comprehensive skill map from zero to production AI engineering — 8 phases covering every skill you need, with role-specific learning paths"
+        color="#a78bfa"
+      />
+
+      {/* ── Phase selector tabs ── */}
+      <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 6, marginBottom: 20, scrollbarWidth: "none" }}>
+        {ROADMAP_PHASES.map((p, i) => (
+          <button
+            key={p.phase}
+            onClick={() => setActivePhase(i)}
+            style={{
+              display: "flex", alignItems: "center", gap: 7,
+              padding: "8px 15px", borderRadius: 8, flexShrink: 0,
+              background: activePhase === i ? p.color + "20" : "#1c1f30",
+              border: `1px solid ${activePhase === i ? p.color + "70" : "rgba(255,255,255,0.10)"}`,
+              color: activePhase === i ? p.color : "#6b7499",
+              fontSize: 13, fontWeight: activePhase === i ? 700 : 500,
+              cursor: "pointer", transition: "all 0.15s", fontFamily: "inherit",
+            }}
+          >
+            <span style={{
+              display: "inline-flex", width: 20, height: 20, borderRadius: "50%",
+              background: activePhase === i ? p.color : "rgba(255,255,255,0.07)",
+              color: activePhase === i ? "#0a0c14" : "#6b7499",
+              alignItems: "center", justifyContent: "center",
+              fontSize: 10, fontWeight: 800, flexShrink: 0,
+            }}>{p.phase}</span>
+            {p.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Phase detail panel ── */}
+      <div style={{
+        background: "#1c1f30",
+        border: `1px solid ${phase.color}44`,
+        borderRadius: 14, overflow: "hidden",
+        transition: "border-color 0.25s",
+      }}>
+        {/* Phase header */}
+        <div style={{
+          padding: "20px 24px",
+          borderBottom: `1px solid ${phase.color}22`,
+          background: phase.color + "08",
+          display: "flex", alignItems: "flex-start", gap: 16, flexWrap: "wrap",
+        }}>
+          <div style={{
+            width: 52, height: 52, borderRadius: 13,
+            background: phase.color + "18", border: `1px solid ${phase.color}44`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: phase.color, flexShrink: 0,
+          }}>
+            {phase.icon}
+          </div>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 5 }}>
+              <span style={{ fontSize: 19, fontWeight: 800, color: "#eaedf8" }}>
+                Phase {phase.phase} — {phase.label}
+              </span>
+              <span style={{
+                padding: "3px 11px", borderRadius: 6,
+                background: phase.color + "20", color: phase.color,
+                fontSize: 11, fontWeight: 700, border: `1px solid ${phase.color}44`,
+              }}>{phase.time}</span>
+            </div>
+            <p style={{ fontSize: 14, color: "#9aa3c0", margin: 0, lineHeight: 1.65 }}>{phase.desc}</p>
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+            {phase.roles.map(r => (
+              <span key={r} style={{
+                fontSize: 11, padding: "3px 10px", borderRadius: 5,
+                background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)",
+                color: "#8a93b5", whiteSpace: "nowrap",
+              }}>{r}</span>
+            ))}
+          </div>
+        </div>
+
+        {/* Skill categories grid */}
+        <div style={{
+          padding: 20,
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))",
+          gap: 12,
+        }}>
+          {phase.cats.map((cat, ci) => (
+            <div key={cat} style={{
+              background: "#12141f", border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 10, padding: "14px 16px",
+            }}>
+              <div style={{
+                fontSize: 10, fontWeight: 800, color: phase.color,
+                textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 11,
+                display: "flex", alignItems: "center", gap: 6,
+              }}>
+                <div style={{ width: 3, height: 12, background: phase.color, borderRadius: 2, flexShrink: 0 }}/>
+                {cat}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                {(phase.skills[ci] || []).map(skill => (
+                  <div key={skill} style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                    <div style={{
+                      width: 5, height: 5, borderRadius: "50%",
+                      background: phase.color, flexShrink: 0, marginTop: 6,
+                    }}/>
+                    <span style={{ fontSize: 13, color: "#b0bcd4", lineHeight: 1.5 }}>{skill}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Progress bar footer */}
+        <div style={{
+          padding: "10px 22px 14px",
+          borderTop: "1px solid rgba(255,255,255,0.07)",
+          display: "flex", alignItems: "center", gap: 10,
+        }}>
+          <span style={{ fontSize: 11, color: "#3d4460", whiteSpace: "nowrap" }}>Overall progress</span>
+          <div style={{ flex: 1, height: 4, borderRadius: 4, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+            <div style={{
+              height: "100%",
+              width: `${((activePhase + 1) / ROADMAP_PHASES.length) * 100}%`,
+              background: `linear-gradient(90deg, #4f8ef7, ${phase.color})`,
+              borderRadius: 4, transition: "width 0.35s ease",
+            }}/>
+          </div>
+          <span style={{ fontSize: 11, color: phase.color, fontWeight: 700, whiteSpace: "nowrap" }}>
+            {activePhase + 1} / {ROADMAP_PHASES.length} phases
+          </span>
+        </div>
+      </div>
+
+      {/* ── Career path matrix ── */}
+      <div style={{ marginTop: 14 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#3d4460", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>
+          Which phases each role needs most
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(195px, 1fr))", gap: 8 }}>
+          {CAREER_PATHS.map(cp => (
+            <div key={cp.role} style={{
+              background: "#1c1f30", border: "1px solid rgba(255,255,255,0.10)",
+              borderRadius: 10, padding: "12px 14px",
+            }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: cp.color, marginBottom: 9 }}>{cp.role}</div>
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                {ROADMAP_PHASES.map((p, i) => (
+                  <div key={i} style={{
+                    width: 26, height: 26, borderRadius: 6,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 10, fontWeight: 800,
+                    background: cp.phases.includes(i) ? p.color + "22" : "rgba(255,255,255,0.04)",
+                    color: cp.phases.includes(i) ? p.color : "#2a2e46",
+                    border: cp.phases.includes(i) ? `1px solid ${p.color}44` : "1px solid rgba(255,255,255,0.06)",
+                    transition: "all 0.15s",
+                    cursor: "pointer",
+                  }}
+                    onClick={() => setActivePhase(i)}
+                    title={`Phase ${p.phase}: ${p.label}`}
+                  >{p.phase}</div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function HomePage() {
@@ -1263,6 +1565,9 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* ── AI ENGINEER ROADMAP ───────────────────────────────────────── */}
+      <RoadmapSection />
 
       {/* ── ADVANCED & TRENDING ───────────────────────────────────────── */}
       <section id="advanced" style={{ marginBottom: 64 }}>
