@@ -24,7 +24,8 @@
       "Bash(node_modules\\\\.bin\\\\tsc --noEmit --skipLibCheck)",
       "Bash(./node_modules/.bin/tsc --noEmit --skipLibCheck)",
       "Bash(npm run *)",
-      "WebFetch(domain:roadmap.sh)"
+      "WebFetch(domain:roadmap.sh)",
+      "Bash(dir \"C:\\\\Users\\\\Peter-HP\\\\git peter note\\\\ClaudeCode\\\\axiom\\\\tender-mirzakhani-08fca3\\\\node_modules\\\\lucide-react\")"
     ]
   }
 }

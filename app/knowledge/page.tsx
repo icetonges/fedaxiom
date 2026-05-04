@@ -138,7 +138,7 @@ export default function KnowledgePage() {
               <div className="km-drop-content">
                 <Upload size={32} className="km-upload-icon" />
                 <p className="km-drop-title">Drop documents here</p>
-                <p className="km-drop-sub">PDF · TXT · MD · DOCX — chunks auto-embedded into pgvector</p>
+                <p className="km-drop-sub">PDF · TXT · MD · DOCX · up to 50 MB — chunks auto-embedded into pgvector</p>
                 <button className="km-browse-btn"><Plus size={14} /> Browse files</button>
               </div>
             )}

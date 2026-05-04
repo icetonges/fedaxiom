@@ -1002,6 +1002,199 @@ const ROADMAP_PHASES = [
   },
 ];
 
+// ─── Per-skill learning resources ────────────────────────────────────────────
+
+type ResType = "docs" | "course" | "video" | "book" | "repo" | "tool";
+interface SkillRes { title: string; url: string; type: ResType; note?: string }
+
+const SKILL_RESOURCES: Record<string, SkillRes[]> = {
+  // Phase 0 — Foundations
+  "Python (essential)": [
+    { title: "Python Official Tutorial", url: "https://docs.python.org/3/tutorial/", type: "docs", note: "Start here" },
+    { title: "CS50P — Python (Harvard, free)", url: "https://cs50.harvard.edu/python/2022/", type: "course", note: "Best free course" },
+    { title: "Automate the Boring Stuff (free)", url: "https://automatetheboringstuff.com/", type: "book", note: "Practical projects" },
+    { title: "Exercism Python Track", url: "https://exercism.org/tracks/python", type: "course", note: "Practice problems" },
+    { title: "Real Python Tutorials", url: "https://realpython.com/", type: "docs", note: "Production tips" },
+  ],
+  "TypeScript / JS": [
+    { title: "TypeScript Handbook", url: "https://www.typescriptlang.org/docs/handbook/", type: "docs" },
+    { title: "The Odin Project (JS)", url: "https://www.theodinproject.com/paths/full-stack-javascript", type: "course", note: "Free, project-based" },
+    { title: "Execute Program (TS)", url: "https://www.executeprogram.com/courses/typescript", type: "course" },
+    { title: "Mostly Adequate Guide to FP in JS", url: "https://mostly-adequate.gitbook.io/mostly-adequate-guide/", type: "book", note: "Free" },
+  ],
+  "SQL & NoSQL": [
+    { title: "SQLBolt — Interactive SQL", url: "https://sqlbolt.com/", type: "course", note: "Best free interactive" },
+    { title: "Mode SQL Tutorial", url: "https://mode.com/sql-tutorial/", type: "course" },
+    { title: "MongoDB University", url: "https://learn.mongodb.com/", type: "course", note: "Official, free" },
+    { title: "Kaggle SQL Course", url: "https://kaggle.com/learn/intro-to-sql", type: "course", note: "Free with cert" },
+  ],
+  "Git & GitHub": [
+    { title: "Pro Git Book (free)", url: "https://git-scm.com/book/en/v2", type: "book" },
+    { title: "GitHub Skills", url: "https://skills.github.com/", type: "course", note: "Official interactive labs" },
+    { title: "Learn Git Branching", url: "https://learngitbranching.js.org/", type: "tool", note: "Visual branching game" },
+  ],
+  "Linear Algebra": [
+    { title: "3Blue1Brown: Essence of Linear Algebra", url: "https://www.youtube.com/playlist?list=PLZHQObOWTQDPD3MizzM2xVFitgF8hE_ab", type: "video", note: "Best visual intro" },
+    { title: "Gilbert Strang MIT OCW", url: "https://ocw.mit.edu/courses/18-06-linear-algebra-spring-2010/", type: "course", note: "Free MIT course" },
+    { title: "Fast.ai Linear Algebra for Deep Learning", url: "https://github.com/fastai/numerical-linear-algebra", type: "repo", note: "Applied to DL" },
+  ],
+  "Statistics & Probability": [
+    { title: "StatQuest with Josh Starmer", url: "https://www.youtube.com/@statquest", type: "video", note: "Best YouTube channel" },
+    { title: "Think Stats (free book)", url: "https://greenteapress.com/thinkstats2/html/index.html", type: "book" },
+    { title: "Seeing Theory (visual prob)", url: "https://seeing-theory.brown.edu/", type: "tool", note: "Beautiful visual site" },
+    { title: "Khan Academy Statistics", url: "https://khanacademy.org/math/statistics-probability", type: "course", note: "Free" },
+  ],
+  "Calculus (gradients, chain rule)": [
+    { title: "3Blue1Brown: Essence of Calculus", url: "https://www.youtube.com/playlist?list=PLZHQObOWTQDMsr9K-rj53DwVRMYO3t5Yr", type: "video", note: "Start here" },
+    { title: "Karpathy: Micrograd (backprop from scratch)", url: "https://github.com/karpathy/micrograd", type: "repo", note: "Build it yourself" },
+    { title: "Khan Academy Calculus", url: "https://khanacademy.org/math/calculus-1", type: "course", note: "Free" },
+  ],
+  // Phase 1 — Machine Learning
+  "scikit-learn": [
+    { title: "scikit-learn Official Docs", url: "https://scikit-learn.org/stable/user_guide.html", type: "docs" },
+    { title: "Kaggle ML Intro", url: "https://kaggle.com/learn/intro-to-machine-learning", type: "course", note: "Free with cert" },
+    { title: "Hands-On ML with scikit-learn (book)", url: "https://homl.info/", type: "book", note: "Gold standard" },
+  ],
+  "NumPy & Pandas": [
+    { title: "NumPy Official Tutorial", url: "https://numpy.org/doc/stable/user/absolute_beginners.html", type: "docs" },
+    { title: "Pandas User Guide", url: "https://pandas.pydata.org/docs/user_guide/index.html", type: "docs" },
+    { title: "Kaggle Pandas", url: "https://kaggle.com/learn/pandas", type: "course", note: "Free, hands-on" },
+    { title: "Wes McKinney: Python for Data Analysis", url: "https://wesmckinney.com/book/", type: "book", note: "Free online" },
+  ],
+  "Gradient Boosting (XGBoost, LightGBM)": [
+    { title: "XGBoost Official Docs", url: "https://xgboost.readthedocs.io/en/stable/tutorials/", type: "docs" },
+    { title: "Kaggle Intermediate ML", url: "https://kaggle.com/learn/intermediate-machine-learning", type: "course", note: "Includes XGBoost" },
+    { title: "LightGBM Docs", url: "https://lightgbm.readthedocs.io/en/stable/", type: "docs" },
+  ],
+  // Phase 2 — Deep Learning
+  "PyTorch": [
+    { title: "PyTorch Official Tutorials", url: "https://pytorch.org/tutorials/", type: "docs", note: "Start here" },
+    { title: "fast.ai Deep Learning Course", url: "https://course.fast.ai/", type: "course", note: "Best practical course" },
+    { title: "Deep Learning with PyTorch (free book)", url: "https://isip.piconepress.com/courses/temple/ece_4822/resources/books/Deep-Learning-with-PyTorch.pdf", type: "book" },
+    { title: "Karpathy: Neural Nets Zero to Hero", url: "https://karpathy.ai/zero-to-hero.html", type: "video", note: "Build from scratch" },
+  ],
+  "Transformers": [
+    { title: "The Illustrated Transformer (Alammar)", url: "https://jalammar.github.io/illustrated-transformer/", type: "docs", note: "Best visual guide" },
+    { title: "Hugging Face NLP Course", url: "https://huggingface.co/learn/nlp-course/", type: "course", note: "Free, excellent" },
+    { title: "Attention Is All You Need (paper)", url: "https://arxiv.org/abs/1706.03762", type: "repo", note: "The original" },
+  ],
+  "Hugging Face Transformers": [
+    { title: "HF Transformers Docs", url: "https://huggingface.co/docs/transformers/", type: "docs" },
+    { title: "HF NLP Course", url: "https://huggingface.co/learn/nlp-course/", type: "course", note: "Free" },
+    { title: "HF Model Hub", url: "https://huggingface.co/models", type: "tool" },
+  ],
+  "Optimizers (Adam, AdamW, Muon)": [
+    { title: "Why Momentum Really Works (Distill)", url: "https://distill.pub/2017/momentum/", type: "docs", note: "Visual deep dive" },
+    { title: "Karpathy: Let's Train GPT (optimizer section)", url: "https://www.youtube.com/watch?v=kCc8FmEb1nY", type: "video" },
+  ],
+  // Phase 3 — LLMs
+  "Chain-of-Thought (CoT)": [
+    { title: "Wei et al. CoT Paper", url: "https://arxiv.org/abs/2201.11903", type: "repo" },
+    { title: "Anthropic Prompt Engineering Guide", url: "https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/overview", type: "docs", note: "Official, excellent" },
+    { title: "OpenAI Prompt Engineering Guide", url: "https://platform.openai.com/docs/guides/prompt-engineering", type: "docs" },
+  ],
+  "Gemini 2.5 Flash / Pro": [
+    { title: "Gemini API Quickstart", url: "https://ai.google.dev/gemini-api/docs/quickstart", type: "docs" },
+    { title: "Google AI Studio (free playground)", url: "https://aistudio.google.com/", type: "tool", note: "Free tier" },
+    { title: "Gemini Models Overview", url: "https://ai.google.dev/gemini-api/docs/models/gemini", type: "docs" },
+  ],
+  "Claude 3.5 / 3.7 Sonnet": [
+    { title: "Anthropic API Docs", url: "https://docs.anthropic.com/", type: "docs" },
+    { title: "Anthropic Cookbook", url: "https://github.com/anthropics/anthropic-cookbook", type: "repo", note: "Official patterns" },
+    { title: "Claude Console (playground)", url: "https://console.anthropic.com/", type: "tool" },
+  ],
+  "LoRA / QLoRA": [
+    { title: "QLoRA Paper (Dettmers et al.)", url: "https://arxiv.org/abs/2305.14314", type: "repo" },
+    { title: "HF PEFT Docs", url: "https://huggingface.co/docs/peft/", type: "docs" },
+    { title: "Unsloth Fine-tuning (fast + free)", url: "https://github.com/unslothai/unsloth", type: "repo", note: "2x faster than HF" },
+    { title: "HF Fine-tuning Course", url: "https://huggingface.co/learn/llm-course/chapter11/1", type: "course", note: "Free" },
+  ],
+  // Phase 4 — AI Engineering
+  "ReAct Architecture": [
+    { title: "ReAct Paper (Yao et al.)", url: "https://arxiv.org/abs/2210.03629", type: "repo", note: "The original" },
+    { title: "Kaggle Day 1: From Prompt to Action", url: "https://www.kaggle.com/code/kaggle5daysofai/day-1a-from-prompt-to-action", type: "course", note: "Hands-on" },
+  ],
+  "MCP (Model Context Protocol)": [
+    { title: "MCP Official Docs", url: "https://modelcontextprotocol.io/", type: "docs", note: "Start here" },
+    { title: "MCP Spec", url: "https://spec.modelcontextprotocol.io/", type: "docs" },
+    { title: "MCP Server Registry (GitHub)", url: "https://github.com/modelcontextprotocol/servers", type: "repo" },
+    { title: "FastMCP (Python framework)", url: "https://github.com/jlowin/fastmcp", type: "repo", note: "Easiest way to build MCP" },
+  ],
+  "Vector Databases": [
+    { title: "Pinecone Learning Center", url: "https://docs.pinecone.io/guides/getting-started/overview", type: "docs" },
+    { title: "pgvector Docs", url: "https://github.com/pgvector/pgvector", type: "repo", note: "Free, Postgres extension" },
+    { title: "Qdrant Docs", url: "https://qdrant.tech/documentation/", type: "docs" },
+    { title: "The Not-So-Hard Guide to Vector DBs", url: "https://www.pinecone.io/learn/vector-database/", type: "docs" },
+  ],
+  "RAG & Search": [
+    { title: "RAGAS Framework", url: "https://docs.ragas.io/", type: "docs", note: "RAG evaluation" },
+    { title: "LangChain RAG Guide", url: "https://python.langchain.com/docs/tutorials/rag/", type: "docs" },
+    { title: "Kaggle Day 3b: Agent Memory", url: "https://www.kaggle.com/code/kaggle5daysofai/day-3b-agent-memory", type: "course" },
+  ],
+  // Phase 5 — Frameworks
+  "Google ADK": [
+    { title: "ADK Quickstart", url: "https://google.github.io/adk-docs/get-started/quickstart/", type: "docs", note: "Start here" },
+    { title: "ADK GitHub (Python)", url: "https://github.com/google/adk-python", type: "repo" },
+    { title: "ADK Sample Agents", url: "https://github.com/google/adk-samples", type: "repo", note: "Copy-paste examples" },
+  ],
+  "LangChain / LangGraph": [
+    { title: "LangChain Python Docs", url: "https://python.langchain.com/docs/introduction/", type: "docs" },
+    { title: "LangGraph Docs", url: "https://langchain-ai.github.io/langgraph/", type: "docs", note: "For multi-agent" },
+    { title: "LangSmith (observability)", url: "https://smith.langchain.com/", type: "tool" },
+  ],
+  "LlamaIndex": [
+    { title: "LlamaIndex Docs", url: "https://docs.llamaindex.ai/", type: "docs" },
+    { title: "LlamaIndex RAG Tutorial", url: "https://docs.llamaindex.ai/en/stable/getting_started/starter_example/", type: "docs" },
+  ],
+  "FastAPI": [
+    { title: "FastAPI Official Docs", url: "https://fastapi.tiangolo.com/", type: "docs", note: "Excellent docs" },
+    { title: "FastAPI Full Course (TechWithTim)", url: "https://www.youtube.com/watch?v=0sOvCWFmrtA", type: "video" },
+  ],
+  "vLLM (fast inference)": [
+    { title: "vLLM Docs", url: "https://docs.vllm.ai/", type: "docs" },
+    { title: "vLLM GitHub", url: "https://github.com/vllm-project/vllm", type: "repo", note: "18k+ stars" },
+  ],
+  // Phase 6 — MLOps
+  "Docker": [
+    { title: "Docker Official Tutorial", url: "https://docs.docker.com/get-started/", type: "docs" },
+    { title: "Play with Docker (free browser lab)", url: "https://labs.play-with-docker.com/", type: "tool", note: "No install needed" },
+    { title: "Nana Docker Course (YouTube)", url: "https://www.youtube.com/watch?v=pg19Z8LL06w", type: "video", note: "4hr free course" },
+  ],
+  "GCP Vertex AI": [
+    { title: "Vertex AI Docs", url: "https://cloud.google.com/vertex-ai/docs", type: "docs" },
+    { title: "Google Cloud Skills Boost (free labs)", url: "https://cloudskillsboost.google/", type: "course", note: "Earn badges" },
+    { title: "Vertex AI Quickstarts", url: "https://cloud.google.com/vertex-ai/docs/start/introduction-unified-platform", type: "docs" },
+  ],
+  "MLflow": [
+    { title: "MLflow Official Docs", url: "https://mlflow.org/docs/latest/index.html", type: "docs" },
+    { title: "MLflow Quickstart", url: "https://mlflow.org/docs/latest/getting-started/intro-quickstart/", type: "docs" },
+  ],
+  "OpenTelemetry (OTel)": [
+    { title: "OTel Official Docs", url: "https://opentelemetry.io/docs/", type: "docs" },
+    { title: "OTel for AI (Arize guide)", url: "https://arize.com/blog/opentelemetry-for-llm-observability/", type: "docs" },
+    { title: "Langfuse (open source LLM observability)", url: "https://langfuse.com/docs", type: "tool", note: "Free tier" },
+  ],
+  // Phase 7 — Safety
+  "LLM-as-a-Judge": [
+    { title: "LLM-as-Judge Paper (Zheng et al.)", url: "https://arxiv.org/abs/2306.05685", type: "repo" },
+    { title: "RAGAS Evaluation Framework", url: "https://docs.ragas.io/", type: "docs" },
+    { title: "Kaggle Day 4b: Agent Evaluation", url: "https://www.kaggle.com/code/kaggle5daysofai/day-4b-agent-evaluation", type: "course" },
+  ],
+  "NIST AI Risk Management Framework": [
+    { title: "NIST AI RMF Official", url: "https://www.nist.gov/artificial-intelligence/ai-risk-management-framework", type: "docs" },
+    { title: "NIST AI RMF Playbook", url: "https://airc.nist.gov/Docs/1", type: "docs" },
+  ],
+};
+
+const RES_TYPE_COLORS: Record<ResType, string> = {
+  docs:   "#38bdf8", course: "#34d399", video: "#f472b6",
+  book:   "#fbbf24", repo:   "#818cf8", tool:  "#fb923c",
+};
+const RES_TYPE_LABELS: Record<ResType, string> = {
+  docs: "Docs", course: "Course", video: "Video",
+  book: "Book", repo: "GitHub", tool: "Tool",
+};
+
 // ─── Career path → required phases mapping ───────────────────────────────────
 
 const CAREER_PATHS = [
@@ -1254,6 +1447,7 @@ function SectionHeader({ icon, label, title, sub, color }: { icon: React.ReactNo
 
 function RoadmapSection() {
   const [activePhase, setActivePhase] = useState(0);
+  const [selectedSkill, setSelectedSkill] = useState<string | null>(null);
   const phase = ROADMAP_PHASES[activePhase];
 
   return (
@@ -1267,7 +1461,7 @@ function RoadmapSection() {
       />
 
       {/* ── Phase selector tabs ── */}
-      <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 6, marginBottom: 20, scrollbarWidth: "none" }}>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", paddingBottom: 4, marginBottom: 18 }}>
         {ROADMAP_PHASES.map((p, i) => (
           <button
             key={p.phase}
@@ -1360,20 +1554,81 @@ function RoadmapSection() {
                 <div style={{ width: 3, height: 12, background: phase.color, borderRadius: 2, flexShrink: 0 }}/>
                 {cat}
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-                {(phase.skills[ci] || []).map(skill => (
-                  <div key={skill} style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-                    <div style={{
-                      width: 5, height: 5, borderRadius: "50%",
-                      background: phase.color, flexShrink: 0, marginTop: 6,
-                    }}/>
-                    <span style={{ fontSize: 13, color: "#b0bcd4", lineHeight: 1.5 }}>{skill}</span>
-                  </div>
-                ))}
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {(phase.skills[ci] || []).map(skill => {
+                  const hasRes = !!SKILL_RESOURCES[skill];
+                  const isSelected = selectedSkill === skill;
+                  return (
+                    <button key={skill} onClick={() => setSelectedSkill(isSelected ? null : skill)}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 8, textAlign: "left",
+                        background: isSelected ? phase.color + "18" : "transparent",
+                        border: isSelected ? `1px solid ${phase.color}44` : "1px solid transparent",
+                        borderRadius: 6, padding: "4px 7px", cursor: hasRes ? "pointer" : "default",
+                        transition: "all 0.12s", fontFamily: "inherit", width: "100%",
+                      }}
+                      onMouseEnter={e => { if (hasRes && !isSelected) (e.currentTarget as HTMLElement).style.background = phase.color + "0e"; }}
+                      onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                    >
+                      <div style={{ width: 5, height: 5, borderRadius: "50%", background: phase.color, flexShrink: 0 }}/>
+                      <span style={{ fontSize: 13, color: isSelected ? phase.color : "#b0bcd4", lineHeight: 1.5, flex: 1 }}>{skill}</span>
+                      {hasRes && <ExternalLink size={10} style={{ color: phase.color, opacity: 0.6, flexShrink: 0 }} />}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           ))}
         </div>
+
+        {/* ── Skill resource panel (shown when a skill is clicked) ── */}
+        {selectedSkill && SKILL_RESOURCES[selectedSkill] && (
+          <div style={{
+            margin: "0 20px 16px",
+            background: "#0d0f1a", borderRadius: 10,
+            border: `1px solid ${phase.color}33`,
+            overflow: "hidden",
+          }}>
+            <div style={{
+              padding: "10px 14px", borderBottom: `1px solid ${phase.color}22`,
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              background: phase.color + "10",
+            }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: phase.color }}>
+                📚 Learning Resources: {selectedSkill}
+              </span>
+              <button onClick={() => setSelectedSkill(null)} style={{
+                background: "none", border: "none", cursor: "pointer",
+                color: "#6b7499", display: "flex", alignItems: "center", padding: 2,
+              }}>✕</button>
+            </div>
+            <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+              {SKILL_RESOURCES[selectedSkill].map((res, ri) => (
+                <a key={ri} href={res.url} target="_blank" rel="noopener noreferrer" style={{
+                  display: "flex", alignItems: "flex-start", gap: 10, textDecoration: "none",
+                  padding: "8px 10px", borderRadius: 7,
+                  background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)",
+                  transition: "border-color 0.15s",
+                }}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = RES_TYPE_COLORS[res.type] + "44"}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.07)"}
+                >
+                  <span style={{
+                    fontSize: 10, fontWeight: 800, padding: "2px 7px", borderRadius: 4, flexShrink: 0, marginTop: 1,
+                    background: RES_TYPE_COLORS[res.type] + "20", color: RES_TYPE_COLORS[res.type],
+                    border: `1px solid ${RES_TYPE_COLORS[res.type]}40`,
+                    textTransform: "uppercase", letterSpacing: "0.07em",
+                  }}>{RES_TYPE_LABELS[res.type]}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#c9d1f0", lineHeight: 1.3 }}>{res.title}</div>
+                    {res.note && <div style={{ fontSize: 11, color: "#4f8ef7", marginTop: 2 }}>★ {res.note}</div>}
+                  </div>
+                  <ExternalLink size={11} style={{ color: "#3d4460", flexShrink: 0, marginTop: 3 }} />
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Progress bar footer */}
         <div style={{

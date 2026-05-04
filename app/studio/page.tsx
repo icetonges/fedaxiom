@@ -9,6 +9,7 @@ import {
   CloudSun, Search, ChevronRight, ChevronDown,
   Layers, FileText,
 } from "lucide-react";
+import SandboxCanvas from "./SandboxCanvas";
 
 // ═══════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -1518,7 +1519,7 @@ export default function StudioPage() {
       <div className="content">
         {tab === "blueprint" && <BlueprintTab selectedBlock={selectedBlock} onSelect={setSelectedBlock} onPractice={handlePractice} />}
         {tab === "chat"      && <ChatTab initialMessage={practiceGoal} />}
-        {tab === "sandbox"   && <SandboxTab initialGoal={practiceGoal} />}
+        {tab === "sandbox"   && <SandboxCanvas />}
         {tab === "a2a"       && <A2ATab />}
         {tab === "updates"   && <UpdatesTab onGoBlueprint={() => setTab("blueprint")} />}
       </div>
