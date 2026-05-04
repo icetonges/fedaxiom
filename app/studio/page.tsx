@@ -2,106 +2,1839 @@
 
 import { useState, useRef, useEffect } from "react";
 import {
-  Send, Bot, User, Zap, Settings, Trash2, Copy, Check,
-  ChevronDown, Loader2, Cpu, Brain, Terminal, ChevronRight,
-  AlertCircle, CheckCircle
+  Brain, Database, Wrench, Network, BarChart2, Rocket,
+  Activity, Code2, GitBranch, Cpu, Zap, Bot, User, Send,
+  ArrowRight, Sparkles, RefreshCw, Clock, Loader2,
+  Check, AlertCircle, CheckCircle, Terminal, Copy,
+  CloudSun, Search, ChevronRight, ChevronDown,
+  Layers, FileText,
 } from "lucide-react";
+import SandboxCanvas from "./SandboxCanvas";
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+// TYPES
+// ═══════════════════════════════════════════════════════════════════════════
 
-type Tab = "chat" | "agent";
-type Role = "user" | "assistant" | "system";
+type Tab = "blueprint" | "chat" | "sandbox" | "a2a" | "updates";
+type PillarId = "knowledge" | "core" | "skills" | "tools" | "orchestration" | "a2a_fw" | "evaluate" | "production";
 
-interface Message {
-  id: string;
-  role: Role;
-  content: string;
-  model?: string;
-  ts?: number;
+interface Difference { concept: string; thisIs: string; thatIs: string; }
+interface Block {
+  id: string; pillar: PillarId; name: string; color: string;
+  status: "live" | "beta" | "soon"; isNew?: boolean;
+  what: string; why: string; vs: Difference[]; how: string[]; code?: string;
+  useCases?: string[]; pros?: string[]; cons?: string[]; whenTo?: string;
 }
-
+interface Update {
+  id: string; date: string; type: "model" | "tool" | "framework" | "suggestion";
+  title: string; desc: string; isNew?: boolean;
+}
 interface AgentStep {
-  type: "agent_start" | "step_start" | "thought" | "tool_call" | "tool_result" | "final_answer" | "max_steps" | "error" | "done";
-  step?: number;
-  content?: string;
-  tool?: string;
-  args?: Record<string, unknown>;
-  result?: string;
-  message?: string;
+  type: "agent_start"|"step_start"|"thought"|"tool_call"|"tool_result"|"final_answer"|"error"|"done";
+  step?: number; content?: string; tool?: string; args?: Record<string,unknown>; result?: string; message?: string;
 }
 
-// ─── Model configs ────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+// PILLAR CONFIG
+// ═══════════════════════════════════════════════════════════════════════════
+
+const PILLARS: { id: PillarId; label: string; color: string; icon: React.ReactNode }[] = [
+  { id: "knowledge",     label: "Knowledge Layer",  color: "var(--em)",  icon: <Database size={13}/> },
+  { id: "core",          label: "Agent Core",       color: "var(--bl)",  icon: <Cpu size={13}/> },
+  { id: "skills",        label: "Agent Skills",     color: "var(--vi)",  icon: <Brain size={13}/> },
+  { id: "tools",         label: "Live Tools",       color: "var(--cy)",  icon: <Wrench size={13}/> },
+  { id: "orchestration", label: "Orchestration",    color: "var(--or)",  icon: <GitBranch size={13}/> },
+  { id: "a2a_fw",        label: "A2A Framework",    color: "var(--am)",  icon: <Network size={13}/> },
+  { id: "evaluate",      label: "Evaluation",       color: "var(--ro)",  icon: <BarChart2 size={13}/> },
+  { id: "production",    label: "Production",       color: "#94a3b8",    icon: <Rocket size={13}/> },
+];
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BLOCK DATA — the lego pieces
+// ═══════════════════════════════════════════════════════════════════════════
+
+const BLOCKS: Block[] = [
+  // ── KNOWLEDGE LAYER ──────────────────────────────────────────────────────
+  {
+    id: "knowledge-base", pillar: "knowledge", name: "Knowledge Base", color: "var(--em)", status: "live",
+    what: "A curated, external collection of facts, documents, and procedures your agent retrieves at runtime. Unlike the LLM's baked-in weights, a KB is yours to control — update it without retraining, cite every source, audit every fact.",
+    why: "LLMs hallucinate because they blend training patterns. A KB grounds every answer in real content you own. This is the difference between a confident guesser and a reliable expert.",
+    vs: [
+      { concept: "Agent Skills", thisIs: "KNOW — static facts and documents the agent looks up", thatIs: "DO — dynamic capabilities the agent executes (search, calculate, write code)" },
+      { concept: "Fine-tuning",  thisIs: "Runtime lookup — instantly updatable, traceable, no GPU cost", thatIs: "Weights update — persistent style changes, requires training, no source tracing" },
+    ],
+    how: ["Collect documents: PDFs, web pages, internal wikis, FAQs", "Chunk into 512-token segments with 50-token overlap", "Embed each chunk with text-embedding-3-small", "Store in vector DB: Pinecone, pgvector, Qdrant, or Weaviate", "At query time: embed query → retrieve top-k → inject as context"],
+    code: `// Build KB
+const chunks = await splitDocuments(docs, { size: 512, overlap: 50 });
+const store = await PineconeStore.fromDocuments(chunks, new OpenAIEmbeddings());
+
+// Query KB
+const context = await store.similaritySearch(query, 5);
+const answer = await llm.complete({ context, question: query });`,
+  },
+  {
+    id: "vector-store", pillar: "knowledge", name: "Vector Store", color: "var(--em)", status: "live",
+    what: "A database optimized for high-dimensional embedding vectors. Finds semantically similar content using cosine similarity — so 'car' matches 'automobile' and 'vehicle', not just exact keywords.",
+    why: "Traditional SQL misses synonyms and paraphrases. Vector similarity finds meaning. This is what makes RAG scale to millions of documents without losing precision.",
+    vs: [
+      { concept: "Knowledge Graph", thisIs: "Semantic similarity search — finds related concepts without exact words", thatIs: "Explicit relationship mapping — structured facts like 'Paris is_capital_of France'" },
+      { concept: "PostgreSQL",      thisIs: "ANN on 1536-dim float vectors — fast approximate nearest neighbor",      thatIs: "Exact row/column matching — deterministic, great for structured data, not vectors" },
+    ],
+    how: ["Choose: Pinecone (managed SaaS), pgvector (Postgres plugin), Qdrant (self-hosted), Weaviate (hybrid)", "Create index with correct dimensions (1536 for text-embedding-3-small)", "Upsert vectors with rich metadata: source, date, chunk_id, section", "Query with cosine similarity + metadata filters for precision", "Monitor index size and query latency in production"],
+    code: `const client = new QdrantClient({ url: "http://localhost:6333" });
+await client.upsert("my_kb", {
+  points: chunks.map((c, i) => ({
+    id: i, vector: c.embedding,
+    payload: { text: c.text, source: c.source, date: c.date }
+  }))
+});
+const results = await client.search("my_kb", { vector: queryEmbedding, limit: 5 });`,
+  },
+  {
+    id: "rag-pipeline", pillar: "knowledge", name: "RAG Pipeline", color: "var(--em)", status: "live",
+    what: "End-to-end system: chunk → embed → store offline. At query time: embed query → retrieve top-k → rerank → inject into prompt → generate grounded answer with citations.",
+    why: "RAG is the #1 production AI pattern. Solves hallucination, knowledge staleness, and lack of citations in one architecture. Every serious AI product has a RAG layer.",
+    vs: [
+      { concept: "Fine-tuning",       thisIs: "Data stays external — update KB in minutes, no model change, full traceability", thatIs: "Data baked into weights — better for style/format, not for factual accuracy" },
+      { concept: "Long-context LLM",  thisIs: "Retrieves only relevant 3-5 chunks — cheap, focused, scales to millions of docs", thatIs: "Stuff everything in context — simple, but expensive and loses focus past 32K tokens" },
+    ],
+    how: ["Offline: Ingest → Chunk (512 tok, 50 overlap) → Embed → Upsert to vector DB", "Online: Query → Embed → Retrieve top-k → Rerank → Build prompt → Generate", "Add metadata filters (date, source, category) for precision retrieval", "Implement hybrid search: BM25 (keyword) + vector for best recall", "Evaluate with RAGAS: faithfulness, relevance, context precision"],
+    code: `async function rag(question: string) {
+  const qVec = await embed(question);
+  const docs = await vectorDB.query(qVec, { topK: 5 });
+  const reranked = await cohere.rerank(question, docs);
+  return llm.complete(
+    \`Context: \${reranked.join("\\n---\\n")}\\n\\nQuestion: \${question}\`
+  );
+}`,
+  },
+  {
+    id: "embeddings", pillar: "knowledge", name: "Embeddings", color: "var(--em)", status: "live",
+    what: "Neural networks that convert text into dense numerical vectors where semantic similarity = mathematical closeness. 'King − Man + Woman ≈ Queen' is the classic example. Foundation of all vector search.",
+    why: "Embeddings are the universal language of AI memory. They power semantic search, clustering, anomaly detection, classification — all from the same representation.",
+    vs: [
+      { concept: "Sparse Vectors (BM25)", thisIs: "Dense: captures meaning and synonyms, 1536 float dimensions", thatIs: "Sparse: counts word frequency — fast exact-match, misses paraphrases" },
+      { concept: "LLM Tokens",            thisIs: "Output space: continuous vector (meaning)",                   thatIs: "Input space: discrete token IDs (subword units)" },
+    ],
+    how: ["Pick model: text-embedding-3-small (cost), text-embedding-3-large (quality), Nomic (open-source)", "Embed full sentences, not isolated keywords — full context gives better vectors", "Normalize vectors before storing (required for cosine similarity)", "Batch embed for cost efficiency: up to 2048 texts per API call", "Cache embeddings — re-embedding the same text is pure waste"],
+    code: `const { data } = await openai.embeddings.create({
+  model: "text-embedding-3-small",
+  input: chunks,       // batch up to 2048
+  dimensions: 1536,
+});
+const vectors = data.map(d => d.embedding);`,
+  },
+
+  // ── AGENT CORE ───────────────────────────────────────────────────────────
+  {
+    id: "llm-engine", pillar: "core", name: "LLM Engine", color: "var(--bl)", status: "live",
+    what: "The foundation model powering all reasoning, language understanding, and generation. The LLM is the brain — all other components (KB, tools, memory) are its senses and hands.",
+    why: "Model choice determines your ceiling. The best RAG with a weak LLM still produces weak answers. Pick the model that fits your latency, cost, and capability requirements for each task.",
+    vs: [
+      { concept: "Agent Skills", thisIs: "Reasons and generates — the intelligence layer", thatIs: "Acts on the world — extends what the LLM can do beyond its training" },
+      { concept: "Fine-tuned Model", thisIs: "General-purpose reasoning, broad knowledge, flexible prompting", thatIs: "Narrowly specialized, cheaper to run on-task, less flexible off-task" },
+    ],
+    how: ["Benchmark on YOUR task type — generate 50 representative test cases first", "For agents: prefer strong tool-use models (Claude 3.5, GPT-4o, Gemini 2.0 Flash)", "For reasoning chains: use thinking models (o3, Gemini 2.5 Pro, DeepSeek R1)", "For high-volume: use small fast models (Gemini Flash, Haiku) for intermediate steps", "For cost: match model tier to task importance — don't use GPT-4o to classify intent"],
+    code: `const MODELS = {
+  fast_cheap:   "gemini-2.5-flash",       // Free tier, 1M ctx, best value
+  fast_lite:    "gemini-2.5-flash-lite",  // Fastest + cheapest Gemini
+  reasoning:    "gemini-2.5-pro",         // Most capable, thinking mode
+  open_source:  "llama-3.3-70b-versatile",// Free on Groq, 128K ctx
+  deep_think:   "deepseek-r1-distill-llama-70b", // Chain-of-thought, free Groq
+  local:        "ollama/llama3.2:latest", // Offline, private
+};`,
+  },
+  {
+    id: "system-prompt", pillar: "core", name: "System Prompt", color: "var(--bl)", status: "live",
+    what: "The persistent instruction set that defines the agent's role, constraints, tone, output format, and capabilities. It's the job description that frames every conversation turn.",
+    why: "The system prompt is the single highest-leverage engineering artifact. A well-crafted system prompt reduces hallucinations, improves tool use, and shapes consistent behavior — no model change needed.",
+    vs: [
+      { concept: "User Prompt",      thisIs: "Sets agent role and constraints — persistent across all conversation turns", thatIs: "The specific task or question for one turn" },
+      { concept: "Few-shot Examples", thisIs: "Describes behavior in natural language — flexible, easy to iterate",         thatIs: "Shows correct examples — more reliable for edge cases, but costs more tokens" },
+    ],
+    how: ["Define role clearly: 'You are an anomaly detection expert...'", "Specify output format: 'Always respond as JSON: {finding, severity, recommendation}'", "Add hard constraints: 'Only use provided tools. Never fabricate data.'", "Include tool descriptions and when to use each", "Version-control your prompts — treat them as code, track changes"],
+    code: `const SYSTEM = \`You are ARIA, an AI analytics agent.
+
+Capabilities:
+- Analyze time-series data for anomalies
+- Search for domain context with web_search
+- Run calculations with calculate
+
+Rules:
+- Reason before every tool call
+- Cite confidence: High / Medium / Low
+- If unsure, say so — never fabricate\`;`,
+  },
+  {
+    id: "context-window", pillar: "core", name: "Context Window", color: "var(--bl)", status: "live",
+    what: "The total tokens an LLM can process in one call — system prompt + conversation history + retrieved docs + tool results + output. Gemini 2.5 Pro: 1M tokens. GPT-4o: 128K. Claude: 200K.",
+    why: "Context window size is the main practical constraint in agent design. It shapes how much history you keep, how many KB chunks you inject, and how complex your tool results can be.",
+    vs: [
+      { concept: "Working Memory",    thisIs: "Physical hardware limit — the maximum the model can process",         thatIs: "A design choice — what does the agent choose to track and prioritize?" },
+      { concept: "Long-context LLM",  thisIs: "Still use RAG for precision — retrieval keeps context focused",      thatIs: "Stuff all docs in — simpler but loses focus past ~50K tokens ('lost in the middle')" },
+    ],
+    how: ["Measure average prompt size: system + history + context + tools", "Compress old turns: summarize rather than delete", "Implement sliding window: always-keep recent N turns + relevant KB chunks", "Alert when utilization exceeds 80% of context limit in production", "For 1M-ctx models: still use RAG — it improves precision, not just size"],
+    code: `function compressHistory(messages: Message[], maxTokens = 4000) {
+  const tokens = messages.reduce((sum, m) => sum + countTokens(m.content), 0);
+  if (tokens < maxTokens) return messages;
+  const summary = summarizeOldTurns(messages.slice(0, -4));
+  return [...summary, ...messages.slice(-4)];
+}`,
+  },
+
+  // ── AGENT SKILLS ─────────────────────────────────────────────────────────
+  {
+    id: "tool-use", pillar: "skills", name: "Tool Use", color: "var(--vi)", status: "live",
+    what: "The LLM's ability to call external functions — search, calculate, query a DB, call an API — during generation. The model decides when and how based on its system prompt and context.",
+    why: "Tool use is what separates an AI chatbot from an AI agent. Without tools, the LLM can only recall. With tools, it can act, retrieve real-time data, and change the world.",
+    vs: [
+      { concept: "Knowledge Base",    thisIs: "DO — dynamic actions with side effects: search, write file, call API", thatIs: "KNOW — passive lookup of stored documents, no side effects" },
+      { concept: "Code Execution",    thisIs: "Predefined typed functions with JSON Schema — predictable, safe",       thatIs: "Arbitrary code the agent writes on the fly — flexible, needs sandboxing" },
+    ],
+    how: ["Define each tool with JSON Schema: name, description, parameter types", "Write clear descriptions — the LLM reads these to decide when to call each tool", "Handle errors gracefully: retry, fallback, or surface the error to the LLM", "Validate all tool inputs before execution — never trust LLM-generated args blindly", "Log all tool calls: what was called, with what args, what was returned"],
+    code: `const tools = [{
+  type: "function",
+  function: {
+    name: "web_search",
+    description: "Search the web for current information. Use for real-time data.",
+    parameters: {
+      type: "object",
+      properties: { query: { type: "string" } },
+      required: ["query"],
+    },
+  }
+}];`,
+  },
+  {
+    id: "working-memory", pillar: "skills", name: "Working Memory", color: "var(--vi)", status: "live",
+    what: "What the agent actively holds in context during a task — current goal, steps taken, tool results, key findings. The agent's short-term memory for a single task execution.",
+    why: "Without explicit working memory, agents drift. They forget what they've found, repeat tool calls, or lose the original goal. Structured memory keeps them coherent on long-horizon tasks.",
+    vs: [
+      { concept: "Knowledge Base",    thisIs: "Temporary — exists only during the current task, lost when done",       thatIs: "Persistent — survives across sessions, requires explicit retrieval" },
+      { concept: "Context Window",    thisIs: "A design choice — what the agent tracks and prioritizes",               thatIs: "A hardware constraint — the physical maximum the model can process" },
+    ],
+    how: ["Design a working memory schema: { goal, steps_taken, key_findings, current_focus }", "Inject working memory at the start of each agent step as a JSON block", "Compress completed steps to summaries — free context for new work", "Use structured JSON objects, not prose — more reliable for the LLM to parse", "Implement memory writes as explicit tool calls for full auditability"],
+    code: `interface WorkingMemory {
+  goal: string;
+  stepsTaken: { action: string; result: string }[];
+  keyFindings: string[];
+  currentFocus: string;
+}
+
+// Inject at each step:
+const memoryBlock = \`Working memory: \${JSON.stringify(memory, null, 2)}\`;`,
+  },
+  {
+    id: "planning", pillar: "skills", name: "Planning & Reasoning", color: "var(--vi)", status: "live",
+    what: "The agent's ability to decompose a complex goal into ordered subtasks, anticipate dependencies, and adapt when new information changes the situation.",
+    why: "Without a planning step, agents operate one move at a time and get lost. An upfront plan is a roadmap — it dramatically reduces wasted tool calls and improves completion on complex goals.",
+    vs: [
+      { concept: "ReAct (reactive)", thisIs: "Makes a plan first, then executes — better for known multi-step workflows",   thatIs: "Discovers the path step-by-step — better for exploratory, unpredictable tasks" },
+      { concept: "Chain-of-Thought",  thisIs: "Separate planning pass stored in memory — persistent, updatable",             thatIs: "Implicit reasoning in a single prompt — not stored, not revisited" },
+    ],
+    how: ["Add an explicit planning step BEFORE execution: 'Given goal X, list the steps you'll take as JSON'", "Store the plan in working memory and update it as you learn", "For complex tasks: use a separate 'planner' LLM call before the 'executor' calls", "Include step dependencies: 'Step 3 requires output from Step 1'", "Track plan adherence vs. deviations as an evaluation signal"],
+    code: `const plan = await llm.complete(\`
+  Goal: \${goal}
+  Tools: \${tools.map(t => t.name).join(", ")}
+  Create a step-by-step plan as JSON:
+  { steps: [{id, action, tool?, depends_on?}] }
+\`);
+for (const step of JSON.parse(plan).steps) {
+  const result = await execute(step);
+  memory.stepsTaken.push({ action: step.action, result });
+}`,
+  },
+  {
+    id: "self-reflection", pillar: "skills", name: "Self-Reflection", color: "var(--vi)", status: "live",
+    what: "After generating an output, the agent evaluates its own work against the original goal — identifies gaps or errors — then rewrites. An automated quality loop within a single agent.",
+    why: "First drafts from LLMs are good but rarely great. A single reflection pass catches ~40% of errors without human review. This is how agents approach human-level output quality.",
+    vs: [
+      { concept: "Supervisor Agent", thisIs: "Self-review within one agent — fast, one extra LLM call", thatIs: "External review by a separate agent — more objective, catches blind spots, needs A2A setup" },
+      { concept: "RLHF / Fine-tuning", thisIs: "Runtime quality loop — works on any input without retraining", thatIs: "Training-time quality improvement — bakes quality into weights, needs labeled data" },
+    ],
+    how: ["Generate initial output", "Prompt same (or stronger) model: 'Critique the above against: [criteria]'", "Parse critique into specific actionable items", "Regenerate with critique as additional context", "Limit to 2-3 cycles — diminishing returns beyond that"],
+    code: `async function withReflection(goal: string, draft: string) {
+  const critique = await llm.complete(
+    \`Goal: \${goal}\\nDraft: \${draft}\\nCritique: What's missing, wrong, or improvable?\`
+  );
+  return llm.complete(
+    \`Goal: \${goal}\\nDraft: \${draft}\\nCritique: \${critique}\\nImproved version:\`
+  );
+}`,
+  },
+
+  // ── LIVE TOOLS ───────────────────────────────────────────────────────────
+  {
+    id: "google-search", pillar: "tools", name: "Web Search", color: "var(--cy)", status: "live",
+    what: "Real-time web search returning current news, facts, and web content. Agents use this to answer questions about anything after their training cutoff — today's prices, latest releases, current events.",
+    why: "Without search, an agent's knowledge is frozen in time. Search is the most universally valuable tool — 80% of real-world agent tasks benefit from current web data.",
+    vs: [
+      { concept: "RAG (vector search)", thisIs: "Searches the entire public web in real time — broad, current, unpredictable quality", thatIs: "Searches your curated private documents — precise, controlled, offline" },
+    ],
+    how: ["Get Brave Search API key — free tier: 2000 searches/month", "Define tool with: query, num_results, freshness params", "Parse results: title + URL + snippet — pick top 3-5", "For deep content: chain with a 'fetch URL' call after searching", "Cache repeated queries within a session — don't re-search the same thing twice"],
+    code: `async function web_search(query: string) {
+  const res = await fetch(
+    \`https://api.search.brave.com/res/v1/web/search?q=\${encodeURIComponent(query)}&count=5\`,
+    { headers: { "X-Subscription-Token": process.env.BRAVE_API_KEY } }
+  );
+  const data = await res.json();
+  return data.web.results
+    .map((r: any) => \`\${r.title}: \${r.description} [\${r.url}]\`)
+    .join("\\n");
+}`,
+  },
+  {
+    id: "weather-api", pillar: "tools", name: "Weather API", color: "var(--cy)", status: "live",
+    what: "Real-time and forecast weather data by location. A simple but illustrative example showing how any REST API becomes a first-class agent tool — the pattern applies to finance, health, logistics, IoT.",
+    why: "Weather is the 'hello world' of tool integration. Mastering how to wrap, describe, and parse a weather API teaches you to connect any external service to an agent.",
+    vs: [],
+    how: ["Use Open-Meteo (free, no key required) or OpenWeatherMap (free tier)", "Define tool params: location (string), days (1-7), units (metric/imperial)", "Return structured summary: temperature, humidity, conditions, wind", "Handle errors: location not found, API rate limit, network failure", "This exact pattern applies to any REST API: finance, health, logistics"],
+    code: `async function get_weather(location: string) {
+  // Open-Meteo: free, no API key
+  const geo = await fetch(
+    \`https://geocoding-api.open-meteo.com/v1/search?name=\${encodeURIComponent(location)}\`
+  ).then(r => r.json());
+  const { latitude, longitude } = geo.results[0];
+  const wx = await fetch(
+    \`https://api.open-meteo.com/v1/forecast?latitude=\${latitude}&longitude=\${longitude}&current_weather=true\`
+  ).then(r => r.json());
+  return \`\${location}: \${wx.current_weather.temperature}°C, wind \${wx.current_weather.windspeed} km/h\`;
+}`,
+  },
+  {
+    id: "anomaly-detection", pillar: "tools", name: "Anomaly Detection", color: "var(--cy)", status: "live", isNew: true,
+    what: "A tool that analyzes time-series or tabular data to find outliers using z-score, IQR, or isolation forest. The agent calls this to surface unusual patterns, then interprets them in natural language.",
+    why: "Anomaly detection is one of the highest-ROI AI applications: fraud, infrastructure monitoring, quality control, cybersecurity. An agent with this tool proactively finds problems before users do.",
+    vs: [
+      { concept: "Rule-based Alerts", thisIs: "Adaptive — learns data distribution, catches novel anomalies, explains in context", thatIs: "Static thresholds — fast and transparent, but misses novel patterns and generates false positives" },
+    ],
+    how: ["Implement z-score baseline: |value - mean| / std > 3 = anomaly", "Use rolling window (last N points) as the baseline — adapts to trends", "Format output for LLM: 'Anomaly at t=X: value=Y, expected=Z, z-score=3.8'", "Let the LLM interpret and explain the anomaly to the user", "Severity levels: z > 5 = HIGH, z > 3 = MEDIUM — always include recommended action"],
+    code: `function detect_anomalies(data: number[], windowSize = 20) {
+  return data.flatMap((val, i) => {
+    if (i < windowSize) return [];
+    const w = data.slice(i - windowSize, i);
+    const mean = w.reduce((a, b) => a + b) / windowSize;
+    const std = Math.sqrt(w.map(x => (x-mean)**2).reduce((a,b)=>a+b) / windowSize);
+    const z = Math.abs((val - mean) / std);
+    return z > 3 ? [{ index: i, value: val, zScore: z, severity: z > 5 ? "HIGH" : "MEDIUM" }] : [];
+  });
+}`,
+  },
+  {
+    id: "code-executor", pillar: "tools", name: "Code Executor", color: "var(--cy)", status: "live",
+    what: "A sandboxed runtime letting the agent write and execute Python or JavaScript — for data analysis, math, file manipulation, or any computation that is easier in code than in a prompt.",
+    why: "Some problems are intractable in natural language but trivial in 3 lines of code. A code executor turns your LLM into a data scientist and programmer on demand.",
+    vs: [
+      { concept: "Predefined Tool Functions", thisIs: "Arbitrary code — unlimited flexibility, generates its own logic on the fly", thatIs: "Predefined schemas — predictable and safe, but limited to what you pre-built" },
+    ],
+    how: ["Use E2B or Modal for production-grade sandboxed execution", "Pass data as JSON in, get results back as JSON out", "Time-limit all executions: 30 seconds max to prevent runaway", "Capture stdout, stderr, and exceptions separately", "Never exec on your host machine — always sandbox. Code injection is a real threat."],
+    code: `import { Sandbox } from "@e2b/code-interpreter";
+const sb = await Sandbox.create();
+const { text, results, error } = await sb.runCode(\`
+import pandas as pd, json
+df = pd.DataFrame(json.loads(data_json))
+print(df.describe().to_json())
+\`);
+await sb.kill();`,
+  },
+
+  // ── ORCHESTRATION ────────────────────────────────────────────────────────
+  {
+    id: "react-loop", pillar: "orchestration", name: "ReAct Loop", color: "var(--or)", status: "live",
+    what: "The fundamental agentic control loop: Thought → Action (tool call) → Observation → Thought → repeat until Final Answer. The model reasons about what to do, acts, observes, and repeats.",
+    why: "ReAct is the battle-tested foundation for 90% of production agents. Its explicit reasoning trace is debuggable, and its iterative nature handles uncertainty that single-pass generation cannot.",
+    vs: [
+      { concept: "Plan-and-Execute", thisIs: "Reactive — discovers path step by step, adapts to surprises in real time",      thatIs: "Upfront plan then execute — more efficient for known multi-step workflows" },
+      { concept: "CoT (prompt only)", thisIs: "Can call external tools — grounded in real retrieved data",                   thatIs: "Pure in-prompt reasoning — only uses trained knowledge, no real-world grounding" },
+    ],
+    how: ["Prompt: 'Use tools. Format: Thought: ... Action: tool_name({args}) Observation: ...'", "Parse model output to extract tool name and args", "Execute tool, format result as Observation, append to history", "Feed history back into next turn — repeat", "Stop when: Final Answer tag, max steps reached, or explicit done signal"],
+    code: `while (step < MAX_STEPS) {
+  const output = await llm.complete(buildPrompt(goal, history));
+  if (output.includes("Final Answer:")) return extractAnswer(output);
+  const { tool, args } = parseAction(output);
+  const result = await tools[tool](args);
+  history.push({ thought: output, observation: result });
+  step++;
+}`,
+  },
+  {
+    id: "langgraph", pillar: "orchestration", name: "LangGraph", color: "var(--or)", status: "live", isNew: true,
+    what: "A framework modeling agent workflows as a directed graph: nodes (agent steps) and edges (routing logic). Supports cycles, conditional branching, checkpointing, and parallel execution.",
+    why: "LangGraph handles complexity that ad-hoc loops cannot — retries, human-in-the-loop, parallel branches, stateful persistence. It is the production standard for complex agentic systems.",
+    vs: [
+      { concept: "Simple while loop", thisIs: "Stateful graph — explicit nodes, conditional routing, persistence, parallelism", thatIs: "Simple iteration — works for linear chains, brittle for complex branching workflows" },
+    ],
+    how: ["Define state as TypedDict with all fields the workflow needs", "Create nodes: pure functions (state) → state updates", "Add conditional edges: routing logic based on state values", "Compile and invoke: graph.compile().invoke(initialState)", "Add MemorySaver checkpointer for human-in-the-loop workflows"],
+    code: `const graph = new StateGraph({ channels: { messages, isDone } })
+  .addNode("research", researchAgent)
+  .addNode("analyze",  analyzeAgent)
+  .addConditionalEdges("analyze",
+    (state) => state.isDone ? END : "research"
+  )
+  .addEdge("research", "analyze")
+  .setEntryPoint("research");
+
+const result = await graph.compile().invoke({ messages: [goal] });`,
+  },
+  {
+    id: "routing", pillar: "orchestration", name: "Intent Routing", color: "var(--or)", status: "live",
+    what: "A classifier (LLM call or embedding similarity) that reads user input and routes it to the right agent, tool, or workflow — so each request reaches the specialist best suited for it.",
+    why: "One agent trying to handle all request types gets mediocre at all of them. A router separates concerns and lets each specialist stay focused.",
+    vs: [],
+    how: ["LLM router: fast prompt that classifies intent into N categories (most flexible)", "Embedding classifier: cosine similarity against labeled examples per category (more scalable)", "Return: { intent, confidence, agent_id } — route below 0.7 confidence to a fallback handler", "Track routing accuracy in production — misroutes are silent quality failures"],
+    code: `async function route(query: string) {
+  const result = await llm.complete(\`
+    Classify into one of: [anomaly_detection, data_analysis, web_research, general]
+    Query: "\${query}"
+    Return JSON: { intent: string, confidence: number }
+  \`);
+  return JSON.parse(result);
+}`,
+  },
+
+  // ── A2A FRAMEWORK ────────────────────────────────────────────────────────
+  {
+    id: "supervisor-agent", pillar: "a2a_fw", name: "Supervisor Agent", color: "var(--am)", status: "live",
+    what: "An agent that validates, critiques, and approves outputs from worker agents before they are returned. The Supervisor focuses on QUALITY CONTROL — not task delegation.",
+    why: "Worker agents optimize for task completion. Supervisors optimize for correctness. A Supervisor catches hallucinations, off-topic responses, and safety violations that workers overlook.",
+    vs: [
+      { concept: "Orchestrator Agent", thisIs: "Validates quality AFTER task completion — 'Is this answer correct and safe?'",   thatIs: "Delegates and coordinates DURING execution — 'Which agent should do what next?'" },
+      { concept: "Coordinator Agent",  thisIs: "Focused on output quality — the final quality gate",                            thatIs: "Manages execution flow, dependencies, and sequencing of work" },
+    ],
+    how: ["Define clear acceptance criteria for the Supervisor's evaluation rubric", "Give Supervisor access to the original goal so it can check alignment", "Structured output: { approved: bool, score: number, issues: string[], revision: string }", "Limit to 1-2 revision cycles — prevents infinite loops", "Log all rejections: they are valuable training data"],
+    code: `const supervise = async (goal: string, output: string) => {
+  return llm.complete(\`
+    Goal: \${goal}
+    Worker output: \${output}
+
+    Evaluate on: accuracy, completeness, safety, on-topic.
+    Return JSON: { approved: boolean, score: 1-5, issues: string[], suggestion: string }
+  \`, { model: "claude-3-5-sonnet" });  // Use strongest model as judge
+};`,
+  },
+  {
+    id: "research-agent", pillar: "a2a_fw", name: "Research Agent", color: "var(--am)", status: "live",
+    what: "A specialist agent equipped with web search, RAG retrieval, and summarization tools — focused exclusively on finding, extracting, and synthesizing information from multiple sources.",
+    why: "Information gathering is a distinct skill from analysis or writing. A dedicated Research Agent is deeper and faster than a general agent trying to research and analyze simultaneously.",
+    vs: [
+      { concept: "General Agent", thisIs: "Deep research specialization — multi-source validation, citation tracking, exhaustive search", thatIs: "Balanced but shallow — does everything adequately but research is not optimized" },
+    ],
+    how: ["Equip with: web_search, rag_retrieve, fetch_url, summarize tools only", "System prompt: 'Always cite sources. Cross-check facts across 2+ sources. Output structured findings.'", "Output schema: { findings: string[], sources: URL[], confidence: 'high'|'medium'|'low' }", "Set a research budget: max N tool calls, time limit", "Pass findings to Analysis Agent — don't output directly to end user"],
+    code: `const researchAgent = new Agent({
+  model: "gemini-2.5-flash",  // Fast + free for search iteration
+  system: "Research specialist. Always cite sources. Cross-check 2+ sources.",
+  tools: [web_search, rag_retrieve, fetch_url, summarize],
+  maxSteps: 8,
+  outputSchema: { findings: "string[]", sources: "string[]", confidence: "string" }
+});`,
+  },
+  {
+    id: "anomaly-agent", pillar: "a2a_fw", name: "Anomaly Expert Agent", color: "var(--am)", status: "live", isNew: true,
+    what: "A domain-specialist agent with anomaly detection, statistical analysis, and search tools — it finds unusual patterns in data, looks up context, and explains findings in plain language.",
+    why: "Anomaly detection requires both statistical rigor and contextual interpretation. A dedicated expert agent does analysis + explanation + root cause hypothesis in one step.",
+    vs: [
+      { concept: "Rule-based Alert System", thisIs: "Adaptive — learns data patterns, explains anomalies, suggests root causes", thatIs: "Static thresholds — fast and simple, generates false positives, can't explain" },
+    ],
+    how: ["Equip with: detect_anomalies, calculate, web_search, statistical_summary", "System prompt: 'You are an anomaly detection expert. For each anomaly: severity, root cause hypothesis, recommended action.'", "Output always includes: severity (HIGH/MEDIUM/LOW), explanation, and next action", "Route to human for HIGH severity anomalies", "Feed anomaly history into future sessions for trend detection"],
+    code: `const anomalyAgent = new Agent({
+  model: "llama-3.3-70b",  // Strong reasoning, fast inference
+  system: \`Anomaly detection expert.
+For each anomaly found:
+1. Classify severity: HIGH / MEDIUM / LOW
+2. Hypothesize root cause
+3. Recommend immediate action\`,
+  tools: [detect_anomalies, calculate, web_search],
+});`,
+  },
+  {
+    id: "coordinator", pillar: "a2a_fw", name: "Coordinator Agent", color: "var(--am)", status: "live",
+    what: "The conductor of a multi-agent system — receives a goal, creates an execution plan, assigns tasks to specialist agents, tracks progress, and aggregates results into a final output.",
+    why: "Coordination is a distinct cognitive task from execution. A dedicated coordinator keeps the big picture while specialists stay deep — this is exactly how human expert teams work.",
+    vs: [
+      { concept: "Supervisor Agent", thisIs: "Plans and delegates work — active during execution",                                 thatIs: "Validates quality — active after work is done" },
+      { concept: "LangGraph",        thisIs: "An agent that reasons about coordination in natural language — flexible",           thatIs: "A code-level graph that defines coordination rules explicitly — more predictable" },
+    ],
+    how: ["Coordinator receives goal → generates execution plan with agent assignments", "Manage sequential vs parallel: research can run parallel, writing needs research first", "Pass context between agents: research output → analyst input → writer input", "Handle failures: if Research Agent fails, retry or route to fallback", "Final step: synthesize all outputs into one coherent report"],
+    code: `const coordinator = new Agent({
+  model: "gemini-2.5-pro",  // Most capable for complex coordination
+  system: \`You are a task coordinator.
+Given a goal: create a plan, delegate to specialists, aggregate results.
+Available agents: research_agent, anomaly_agent, general_agent\`,
+  tools: [delegate_to_research, delegate_to_anomaly, aggregate_results],
+});`,
+  },
+
+  // ── EVALUATION ───────────────────────────────────────────────────────────
+  {
+    id: "ragas", pillar: "evaluate", name: "RAGAS Metrics", color: "var(--ro)", status: "live",
+    what: "A framework evaluating RAG systems on 4 axes: Faithfulness (does the answer stay within the retrieved context?), Answer Relevancy (does it answer the question?), Context Precision (were retrieved docs relevant?), Context Recall (were all relevant docs retrieved?).",
+    why: "RAG can look accurate but fail silently on faithfulness (hallucinating beyond context) or context precision (retrieving irrelevant documents). RAGAS catches all four failure modes simultaneously.",
+    vs: [],
+    how: ["Build evaluation dataset: 50-100 question/answer/context triplets from your domain", "Run: ragas.evaluate(dataset, metrics=[faithfulness, answer_relevancy, context_precision])", "Target: faithfulness > 0.85, answer_relevancy > 0.80, context_precision > 0.75", "Re-run on every RAG configuration change", "Use LLM-as-judge for scalable evaluation without expensive human annotation"],
+    code: `from ragas import evaluate
+from ragas.metrics import faithfulness, answer_relevancy, context_precision
+
+results = evaluate(
+  dataset=dataset,  # question, contexts, answer, ground_truth
+  metrics=[faithfulness, answer_relevancy, context_precision]
+)
+# { faithfulness: 0.87, answer_relevancy: 0.82, context_precision: 0.79 }`,
+  },
+  {
+    id: "llm-judge", pillar: "evaluate", name: "LLM-as-Judge", color: "var(--ro)", status: "live",
+    what: "Use a strong model (GPT-4o, Claude 3.5) to evaluate outputs from your production agent — scoring accuracy, helpfulness, safety, and format adherence at scale without human annotation.",
+    why: "Human evaluation does not scale. LLM-as-judge gives 80-90% of the signal at 1% of the cost. It is how you continuously evaluate agents in production without hiring annotation teams.",
+    vs: [
+      { concept: "Human Evaluation", thisIs: "Scalable, cheap, fast — run on every deployment",                     thatIs: "Ground truth, nuanced, catches subtle errors — run for final release and calibration" },
+      { concept: "Unit Tests",        thisIs: "Semantic, fuzzy quality assessment — good for language quality",     thatIs: "Exact string matching — good for format and factual checks, brittle for language" },
+    ],
+    how: ["Define evaluation rubric: 5-point scale for accuracy, helpfulness, safety, format", "Use strongest available judge — Claude 3.5 Sonnet or GPT-4o", "Add chain-of-thought to the judge: 'Explain your rating before giving the score'", "Calibrate judge vs human ratings on 100 samples to quantify agreement", "Automate: run evals on every PR merge as a CI gate"],
+    code: `async function judgeOutput(question: string, answer: string) {
+  return llm.complete(\`
+    Question: \${question}
+    Answer: \${answer}
+    Rate 1-5: { accuracy, helpfulness, safety, format }
+    Explain each, then return JSON scores.
+  \`, { model: "claude-3-5-sonnet" });
+}`,
+  },
+  {
+    id: "prompt-eval", pillar: "evaluate", name: "Prompt Engineering", color: "var(--ro)", status: "live",
+    what: "The systematic practice of designing, testing, and iterating prompts to improve outputs — system prompts, few-shot examples, chain-of-thought, output format instructions.",
+    why: "Prompt engineering is the fastest, cheapest quality lever. A 2-hour prompt rewrite often outperforms a $50K fine-tuning run. Always exhaust prompt engineering before fine-tuning.",
+    vs: [
+      { concept: "Fine-tuning",  thisIs: "Free, instant, iterates in minutes — always try first",                        thatIs: "Expensive, slow (hours), needed only when prompt engineering hits its ceiling" },
+      { concept: "RAG context",  thisIs: "Shapes HOW the model reasons and formats its response",                         thatIs: "Shapes WHAT facts the model has access to" },
+    ],
+    how: ["Start with the ideal output: what does perfect look like?", "Add format instructions: 'Return JSON with fields: x, y, z'", "Add few-shot examples for complex or ambiguous tasks", "Add chain-of-thought: 'Think step by step before answering'", "A/B test variants on 50+ samples with LLM-as-judge for objective comparison"],
+    code: `const variants = {
+  v1: "Answer the question:",
+  v2: "Answer using only provided context. Say 'I don't know' if unsure:",
+  v3: "You are an expert. Think step by step, then answer as JSON:",
+};
+
+for (const [v, prompt] of Object.entries(variants)) {
+  const scores = await evalOnTestset(prompt, testCases);
+  console.log(v, scores);  // Pick highest scorer
+}`,
+  },
+
+  // ── NEW: ORCHESTRATION FRAMEWORKS ────────────────────────────────────────
+  {
+    id: "langchain", pillar: "orchestration", name: "LangChain", color: "var(--or)", status: "live", isNew: true,
+    what: "A Python/JS framework that chains LLM calls, tools, memory, and retrievers into composable pipelines using a unified interface.",
+    why: "Reduces boilerplate for connecting LLMs to data sources and tools; its massive ecosystem of integrations (200+ providers) means most connectors already exist out of the box.",
+    useCases: [
+      "Building a customer-support bot that retrieves docs via RAG, calls CRM APIs, and logs conversations",
+      "Creating a multi-step document analysis pipeline that extracts, summarizes, and classifies contracts",
+      "Rapid-prototyping an agent that uses web search + calculator + code execution in sequence",
+    ],
+    pros: [
+      "Enormous ecosystem: integrations for virtually every LLM, vector store, and tool",
+      "LCEL (LangChain Expression Language) makes composing chains declarative and inspectable",
+      "LangSmith tracing ships with the library for free observability",
+    ],
+    cons: [
+      "Heavy abstraction layers make debugging cryptic when chains fail mid-execution",
+      "Frequent breaking changes across versions have burned many production teams",
+      "Overkill for simple single-call tasks — adds latency and dependency weight",
+    ],
+    whenTo: "Use LangChain when you need rapid integration across many providers and tolerate abstraction complexity; avoid it for latency-critical paths or when you control a single LLM provider end-to-end.",
+    vs: [
+      { concept: "LlamaIndex", thisIs: "LangChain is a general-purpose agent/chain orchestration framework with broad tool integrations", thatIs: "LlamaIndex is specialized for data ingestion, indexing, and retrieval-centric workflows" },
+      { concept: "Raw OpenAI SDK", thisIs: "LangChain adds memory, chaining, and tool routing on top of LLM calls", thatIs: "The raw SDK gives direct API access with no orchestration overhead" },
+    ],
+    how: [
+      "Install: pip install langchain langchain-openai",
+      "Define a prompt template with ChatPromptTemplate.from_messages()",
+      "Pipe template | ChatOpenAI() | StrOutputParser() using LCEL",
+      "Add tools via create_react_agent() or create_tool_calling_agent()",
+      "Trace execution in LangSmith by setting LANGCHAIN_TRACING_V2=true",
+    ],
+    code: `from langchain_openai import ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate
+
+prompt = ChatPromptTemplate.from_messages([
+    ("system", "You are a helpful assistant."),
+    ("user", "{input}")
+])
+chain = prompt | ChatOpenAI(model="gpt-4o")
+result = chain.invoke({"input": "Explain RAG in one sentence"})`,
+  },
+  {
+    id: "llamaindex", pillar: "orchestration", name: "LlamaIndex", color: "var(--or)", status: "live", isNew: true,
+    what: "A data framework for connecting LLMs to external knowledge sources through structured ingestion, indexing, and query pipelines.",
+    why: "Abstracts the full RAG lifecycle — chunking, embedding, storing, retrieving, and synthesizing — with first-class support for complex document structures like tables, PDFs, and code.",
+    useCases: [
+      "Building an enterprise knowledge assistant over thousands of PDFs and Confluence pages",
+      "Constructing a multi-document QA system that synthesizes answers across sources with citations",
+      "Creating a structured analytics agent that queries SQL + vector stores in a single pipeline",
+    ],
+    pros: [
+      "Best-in-class document loaders and node parsers handle complex formats (tables, nested PDFs)",
+      "Workflow and AgentWorkflow APIs provide event-driven, resumable agent orchestration",
+      "First-party integrations with most vector DBs, embedding models, and LLM providers",
+    ],
+    cons: [
+      "Query pipeline API has changed significantly between major versions causing migration pain",
+      "Lower-level control requires understanding many abstractions (nodes, indexes, retrievers, synthesizers)",
+      "Less mature for tool-heavy agent use cases compared to LangChain's agent ecosystem",
+    ],
+    whenTo: "Use LlamaIndex when retrieval quality and document ingestion fidelity are the core concern; avoid it when your app is primarily about tool-calling agents with minimal RAG.",
+    vs: [
+      { concept: "LangChain", thisIs: "LlamaIndex is optimized for data indexing, retrieval pipelines, and knowledge-heavy agents", thatIs: "LangChain is optimized for general-purpose chaining, tool use, and multi-provider integrations" },
+      { concept: "Raw vector DB SDK", thisIs: "LlamaIndex manages the full RAG lifecycle from ingestion to synthesis", thatIs: "A raw vector DB SDK only handles storage and similarity search" },
+    ],
+    how: [
+      "pip install llama-index llama-index-llms-openai llama-index-embeddings-openai",
+      "Load documents with SimpleDirectoryReader or specialized loaders",
+      "Build a VectorStoreIndex from documents — chunking and embedding happen automatically",
+      "Query with index.as_query_engine() for RAG or index.as_chat_engine() for conversation",
+      "Use SubQuestionQueryEngine or RouterQueryEngine for multi-document reasoning",
+    ],
+    code: `from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
+
+docs = SimpleDirectoryReader("./data").load_data()
+index = VectorStoreIndex.from_documents(docs)
+engine = index.as_query_engine()
+response = engine.query("What are the key findings?")
+print(response)`,
+  },
+  {
+    id: "semantic-kernel", pillar: "orchestration", name: "Semantic Kernel", color: "var(--or)", status: "live", isNew: true,
+    what: "Microsoft's open-source SDK for integrating LLMs into .NET, Python, and Java applications using a plugin-based architecture with first-class enterprise features.",
+    why: "Designed for enterprises already in the Microsoft ecosystem, it connects Azure OpenAI, Copilot, and existing C# business logic via typed plugins and planners.",
+    useCases: [
+      "Adding AI capabilities to a C# enterprise app without rewriting in Python",
+      "Building a Microsoft 365 Copilot extension that reasons over SharePoint and Outlook data",
+      "Creating an auto-planning agent that selects and sequences enterprise API plugins to fulfill requests",
+    ],
+    pros: [
+      "First-class .NET/C# support — unique among major agent frameworks",
+      "Tight Azure OpenAI and Microsoft Copilot Studio integration",
+      "Kernel Function decorators make exposing existing business logic as AI tools trivial",
+    ],
+    cons: [
+      "Python SDK lags behind the C# SDK in features and documentation quality",
+      "Planner quality is inconsistent — auto-generated plans often require hand-tuning",
+      "Smaller community and fewer third-party integrations compared to LangChain",
+    ],
+    whenTo: "Use Semantic Kernel when building enterprise .NET applications or extending Microsoft Copilot; avoid it for greenfield Python-first agent projects where LangChain/LlamaIndex ecosystems are richer.",
+    vs: [
+      { concept: "LangChain", thisIs: "Semantic Kernel is enterprise/Microsoft-oriented with strong .NET and Azure support", thatIs: "LangChain is Python/JS-first with a broader third-party integration ecosystem" },
+      { concept: "Azure OpenAI SDK", thisIs: "Semantic Kernel adds planning, memory, and plugin orchestration on top of LLM calls", thatIs: "The Azure OpenAI SDK provides raw API access without orchestration abstractions" },
+    ],
+    how: [
+      "pip install semantic-kernel or dotnet add package Microsoft.SemanticKernel",
+      "Instantiate Kernel and add a chat completion service (Azure or OpenAI)",
+      "Define plugins with @kernel_function decorator or KernelFunction.from_method()",
+      "Invoke functions directly or use FunctionChoiceBehavior.Auto() for auto tool-calling",
+      "Add memory via VectorStoreTextSearch for RAG within the kernel pipeline",
+    ],
+    code: `import asyncio
+from semantic_kernel import Kernel
+from semantic_kernel.connectors.ai.open_ai import OpenAIChatCompletion
+
+kernel = Kernel()
+kernel.add_service(OpenAIChatCompletion(ai_model_id="gpt-4o"))
+
+@kernel.function(name="get_weather", description="Get weather for a city")
+def get_weather(city: str) -> str:
+    return f"Sunny, 22°C in {city}"
+
+async def main():
+    result = await kernel.invoke(get_weather, city="Paris")
+    print(result)
+asyncio.run(main())`,
+  },
+  {
+    id: "dspy", pillar: "orchestration", name: "DSPy — Stanford", color: "var(--or)", status: "live", isNew: true,
+    what: "Stanford's framework for programming LLM pipelines declaratively using typed signatures and automatically optimizing prompts via compiled teleprompters instead of hand-written instructions.",
+    why: "Replaces fragile hand-crafted prompts with a compiler that finds optimal instructions and few-shot examples by running the pipeline against a training set — prompts as code, not art.",
+    useCases: [
+      "Auto-optimizing a RAG pipeline's retrieval and answer generation prompts against a QA dataset",
+      "Building a multi-hop reasoning chain where each step's prompt is optimized jointly",
+      "Fine-tuning-free improvement of an existing LLM pipeline by compiling better few-shot examples",
+    ],
+    pros: [
+      "Prompt optimization is systematic and reproducible — backed by metrics, not intuition",
+      "Signatures provide a typed interface that makes pipeline logic inspectable and testable",
+      "Compiles work at the module level — optimize a sub-module without changing the whole pipeline",
+    ],
+    cons: [
+      "Requires a labeled evaluation set to optimize against — cold-start cost is significant",
+      "Optimization runs (MIPROv2, BootstrapFewShot) are expensive in LLM API calls",
+      "Mental model is very different from LangChain/LlamaIndex — steep learning curve",
+    ],
+    whenTo: "Use DSPy when you have evaluation data and want systematic prompt improvement over time; avoid it for one-off prototypes or when you lack ground-truth labels to compile against.",
+    vs: [
+      { concept: "LangChain", thisIs: "DSPy compiles and optimizes prompts automatically using a training loop", thatIs: "LangChain executes hand-written prompts without automated optimization" },
+      { concept: "Fine-tuning", thisIs: "DSPy optimizes prompts and few-shot examples without changing model weights", thatIs: "Fine-tuning updates model weights on domain-specific data" },
+    ],
+    how: [
+      "pip install dspy-ai",
+      "Define a Signature class with input/output fields and docstring describing the task",
+      "Build modules with dspy.ChainOfThought(Signature) or dspy.ReAct(Signature, tools=[])",
+      "Define a metric function and create a MIPROv2 or BootstrapFewShot optimizer",
+      "Run optimizer.compile(module, trainset=trainset) and save the compiled program",
+    ],
+    code: `import dspy
+
+dspy.configure(lm=dspy.LM("openai/gpt-4o"))
+
+class QA(dspy.Signature):
+    """Answer questions with short factual responses."""
+    question: str = dspy.InputField()
+    answer: str = dspy.OutputField()
+
+cot = dspy.ChainOfThought(QA)
+result = cot(question="What is the capital of France?")
+print(result.answer)`,
+  },
+  {
+    id: "dify", pillar: "orchestration", name: "Dify", color: "var(--or)", status: "live", isNew: true,
+    what: "An open-source LLM application development platform with a visual workflow builder, built-in RAG, agent orchestration, and one-click deployment to API or web app.",
+    why: "Bridges the gap between no-code (for rapid prototyping) and pro-code (for customization) — teams can build, test, and ship LLM apps without separate backend infrastructure.",
+    useCases: [
+      "Deploying an internal knowledge base chatbot backed by company docs without writing backend code",
+      "Building a multi-step content generation workflow with human review checkpoints via visual canvas",
+      "Rapidly A/B testing different prompts and models on the same workflow using the built-in playground",
+    ],
+    pros: [
+      "Visual workflow canvas makes complex pipelines understandable to non-engineers",
+      "Self-hostable with Docker — data stays on-premises, critical for enterprise compliance",
+      "Built-in dataset management, annotation tools, and model performance monitoring",
+    ],
+    cons: [
+      "Visual workflows become hard to version-control and diff in Git",
+      "Complex branching logic is less expressive than code-based frameworks",
+      "Plugin ecosystem is growing but narrower than LangChain's integration library",
+    ],
+    whenTo: "Use Dify when your team includes non-engineers who need to own AI workflows, or when you want an all-in-one platform; avoid it when your agent logic requires complex programmatic control flow.",
+    vs: [
+      { concept: "LangChain", thisIs: "Dify is a full-stack platform with UI, deployment, and monitoring built in", thatIs: "LangChain is a code library that requires you to build your own deployment and UI" },
+      { concept: "Flowise", thisIs: "Dify includes dataset management, annotations, and enterprise auth alongside the visual builder", thatIs: "Flowise is a lighter visual LangChain builder focused purely on flow construction" },
+    ],
+    how: [
+      "Self-host with docker compose up -d using the official docker-compose.yaml",
+      "Create a new Workflow or Chatflow app from the dashboard",
+      "Add nodes: LLM, Knowledge Retrieval, Tool, Code, HTTP Request, Condition",
+      "Connect your knowledge base by uploading docs and selecting a chunking/embedding strategy",
+      "Publish as API endpoint or embedded web widget with one click",
+    ],
+  },
+
+  // ── NEW: A2A FRAMEWORKS ───────────────────────────────────────────────────
+  {
+    id: "crewai", pillar: "a2a_fw", name: "CrewAI", color: "var(--am)", status: "live", isNew: true,
+    what: "A Python framework for orchestrating role-based multi-agent teams where each agent has a defined role, goal, backstory, and toolset, collaborating on shared tasks.",
+    why: "Models real-world team dynamics — a 'researcher' feeds a 'writer' who is reviewed by an 'editor' — making complex multi-agent workflows intuitive to design and debug.",
+    useCases: [
+      "Automating a content pipeline with a research agent, writer agent, and SEO editor agent",
+      "Running competitive analysis where specialist agents cover market, tech, and financial dimensions",
+      "Building a software development crew: architect agent designs, coder agent implements, QA agent tests",
+    ],
+    pros: [
+      "Role + goal + backstory prompting pattern produces highly focused agent behavior",
+      "Built-in sequential and hierarchical process modes cover most multi-agent topologies",
+      "Flows API (v0.11+) adds deterministic state machines on top of crew collaboration",
+    ],
+    cons: [
+      "Agents can get stuck in loops or produce verbose intermediate outputs with high token cost",
+      "Less flexible than LangGraph for custom dynamic topologies that don't fit crew metaphors",
+      "Inter-agent communication is text-only by default — no structured typed messages",
+    ],
+    whenTo: "Use CrewAI when your problem maps naturally to a team of specialists with defined roles; avoid it when you need precise control over agent communication protocols or real-time streaming.",
+    vs: [
+      { concept: "AutoGen", thisIs: "CrewAI uses structured role/goal/backstory definitions with a managed execution loop", thatIs: "AutoGen uses conversational multi-agent chat patterns with more flexible turn-taking" },
+      { concept: "LangGraph", thisIs: "CrewAI is a high-level framework with opinionated crew/task/agent abstractions", thatIs: "LangGraph is a low-level graph runtime for custom stateful agent topologies" },
+    ],
+    how: [
+      "pip install crewai crewai-tools",
+      "Define agents with Agent(role=, goal=, backstory=, tools=, llm=)",
+      "Define tasks with Task(description=, expected_output=, agent=)",
+      "Assemble with Crew(agents=[], tasks=[], process=Process.sequential)",
+      "Run with crew.kickoff(inputs={}) and inspect crew.usage_metrics",
+    ],
+    code: `from crewai import Agent, Task, Crew, Process
+
+researcher = Agent(role="Researcher", goal="Find key facts",
+                   backstory="Expert analyst", verbose=True)
+writer = Agent(role="Writer", goal="Write a summary",
+               backstory="Technical writer")
+task1 = Task(description="Research AI trends in 2025", agent=researcher,
+             expected_output="Bullet list of trends")
+task2 = Task(description="Write a blog post from the research", agent=writer,
+             expected_output="500-word post")
+crew = Crew(agents=[researcher, writer], tasks=[task1, task2],
+            process=Process.sequential)
+result = crew.kickoff()`,
+  },
+  {
+    id: "autogen", pillar: "a2a_fw", name: "AutoGen / AG2", color: "var(--am)", status: "live", isNew: true,
+    what: "A Microsoft/AG2 framework for building multi-agent systems where agents communicate via structured conversation turns, supporting human-in-the-loop, code execution, and nested agent chats.",
+    why: "Treats agent collaboration as a conversation protocol, making it natural to mix LLM agents, human proxies, and tool-executing agents in the same chat thread.",
+    useCases: [
+      "Data science automation where a planner agent writes code and an executor agent runs it iteratively",
+      "Research assistant that alternates between a critic agent and a writer agent until quality passes",
+      "Customer escalation system where AI handles routine cases and routes to a human-proxy agent",
+    ],
+    pros: [
+      "ConversableAgent abstraction cleanly unifies human, LLM, and tool-executing participants",
+      "Built-in code execution sandbox with Docker support for safe iterative code generation",
+      "GroupChat supports complex topologies: round-robin, selector, or custom speaker selection",
+    ],
+    cons: [
+      "Conversation-based state management becomes hard to reason about in long multi-turn sessions",
+      "AG2 fork (community) and Microsoft's AutoGen main have diverged — ecosystem fragmentation risk",
+      "Token costs escalate quickly as full conversation history is passed to each agent turn",
+    ],
+    whenTo: "Use AutoGen when code generation + execution feedback loops or human-in-the-loop workflows are central; avoid it when you need deterministic, graph-controlled execution flow.",
+    vs: [
+      { concept: "CrewAI", thisIs: "AutoGen centers on conversational message-passing between heterogeneous agent types", thatIs: "CrewAI centers on role-defined agents executing structured tasks in a managed crew" },
+      { concept: "LangGraph", thisIs: "AutoGen is conversation-first with implicit state in message history", thatIs: "LangGraph is graph-first with explicit typed state passed between nodes" },
+    ],
+    how: [
+      "pip install pyautogen (AutoGen) or pip install ag2 (AG2 fork)",
+      "Define ConversableAgent instances with llm_config and system_message",
+      "Use UserProxyAgent with code_execution_config for sandboxed code running",
+      "Initiate chat with agent_a.initiate_chat(agent_b, message=..., max_turns=N)",
+      "For group chats, wrap agents in GroupChat + GroupChatManager",
+    ],
+    code: `from autogen import AssistantAgent, UserProxyAgent
+
+assistant = AssistantAgent("assistant",
+    llm_config={"model": "gpt-4o"})
+user_proxy = UserProxyAgent("user_proxy",
+    code_execution_config={"use_docker": False},
+    human_input_mode="NEVER")
+user_proxy.initiate_chat(assistant,
+    message="Write and run a Python script to plot sin(x)")`,
+  },
+  {
+    id: "mcp", pillar: "a2a_fw", name: "MCP — Model Context Protocol", color: "var(--am)", status: "live", isNew: true,
+    what: "Anthropic's open standard protocol that defines a universal interface for LLMs to discover and call external tools, resources, and prompts via a client-server architecture.",
+    why: "Replaces bespoke tool integrations with a standardized plug-and-play protocol — any MCP server (filesystem, database, API) works with any MCP-compatible client without custom glue code.",
+    useCases: [
+      "Connecting Claude Desktop to a local filesystem MCP server for file read/write access",
+      "Building a company-wide tool registry where any LLM client can discover and invoke approved APIs",
+      "Giving a coding agent access to GitHub, Postgres, and Slack through three separate MCP servers simultaneously",
+    ],
+    pros: [
+      "Standardized schema means one MCP server can be reused across Claude, Cursor, Zed, and other clients",
+      "Transport flexibility: stdio for local tools, SSE/HTTP for remote services",
+      "Built-in capability negotiation — clients and servers advertise what they support",
+    ],
+    cons: [
+      "Relatively new (late 2024) — tooling, auth standards, and server quality vary widely",
+      "Stateful SSE connections add operational complexity compared to simple REST tool calls",
+      "Security surface is large — a malicious or misconfigured MCP server has broad system access",
+    ],
+    whenTo: "Use MCP when building reusable tool integrations that multiple LLM clients should share; avoid it for one-off single-agent tools where a simple function definition is sufficient.",
+    vs: [
+      { concept: "OpenAI Function Calling", thisIs: "MCP is a transport-level protocol for tool discovery and invocation across any LLM client", thatIs: "OpenAI Function Calling is a model-specific JSON schema convention tied to the OpenAI API" },
+      { concept: "A2A Protocol", thisIs: "MCP connects LLM clients to tools and data sources (model-to-tool)", thatIs: "A2A Protocol connects autonomous agents to other autonomous agents (agent-to-agent)" },
+    ],
+    how: [
+      "Install an MCP SDK: npm install @modelcontextprotocol/sdk or pip install mcp",
+      "Create an MCP server that registers tools with @server.call_tool() and resources with @server.list_resources()",
+      "Run the server over stdio (local) or SSE (remote HTTP endpoint)",
+      "Configure the client (e.g., Claude Desktop claude_desktop_config.json) to point to the server",
+      "The LLM automatically discovers available tools and calls them using the MCP protocol",
+    ],
+    code: `from mcp.server.fastmcp import FastMCP
+
+mcp = FastMCP("My Tools")
+
+@mcp.tool()
+def get_stock_price(ticker: str) -> str:
+    """Get the current stock price for a ticker symbol."""
+    return f"{ticker}: $142.50"  # replace with real API
+
+if __name__ == "__main__":
+    mcp.run(transport="stdio")`,
+  },
+  {
+    id: "a2a-protocol", pillar: "a2a_fw", name: "A2A Protocol — Google", color: "var(--am)", status: "beta", isNew: true,
+    what: "Google's open protocol for standardizing how autonomous AI agents discover, communicate with, and delegate tasks to other agents across organizational and vendor boundaries.",
+    why: "Enables an 'agent internet' where a travel-booking agent can delegate to a hotel agent (built by a different company) without custom integration — interoperability by design.",
+    useCases: [
+      "Enterprise workflows where an internal orchestrator delegates sub-tasks to vendor-specific agents",
+      "Travel booking agent that calls airline, hotel, and car-rental agents from different providers",
+      "AI marketplace where third-party agents register Agent Cards and are discoverable by orchestrators",
+    ],
+    pros: [
+      "Agent Card system enables decentralized agent discovery without a central registry",
+      "HTTP + JSON-based — fits naturally into existing API infrastructure",
+      "Backed by Google with growing adoption across Vertex AI and ADK",
+    ],
+    cons: [
+      "Protocol is early-stage (2025) — spec changes are frequent and tooling is immature",
+      "Trust and authorization between agents from different orgs is not fully solved",
+      "Overlap and tension with MCP creates ecosystem confusion about which protocol to use where",
+    ],
+    whenTo: "Use A2A when building multi-vendor or cross-organizational agent networks where agents need to delegate to each other; avoid it for single-org deployments where simpler direct API calls suffice.",
+    vs: [
+      { concept: "MCP", thisIs: "A2A is for agent-to-agent task delegation across trust boundaries", thatIs: "MCP is for connecting an LLM to tools and data sources within a single agent" },
+      { concept: "REST API", thisIs: "A2A adds agent capability discovery, task lifecycle management, and identity to HTTP calls", thatIs: "A plain REST API is a stateless request/response interface with no agent semantics" },
+    ],
+    how: [
+      "Define an Agent Card JSON describing the agent's capabilities, skills, and endpoint URL",
+      "Expose a /.well-known/agent.json endpoint so other agents can discover your agent",
+      "Implement /tasks endpoint to receive Task objects with message, context, and artifacts",
+      "Return Task status updates (submitted → working → completed) with output artifacts",
+      "Use Google ADK or adk-python to scaffold A2A-compliant agents quickly",
+    ],
+  },
+
+  // ── NEW: KNOWLEDGE LAYER ──────────────────────────────────────────────────
+  {
+    id: "hybrid-search", pillar: "knowledge", name: "Hybrid Search / RRF", color: "var(--em)", status: "live", isNew: true,
+    what: "A retrieval strategy that combines dense vector similarity search with sparse keyword search (BM25), merging results using Reciprocal Rank Fusion (RRF) for higher recall than either alone.",
+    why: "Dense search excels at semantic similarity but misses exact keyword matches; BM25 excels at keyword recall but misses paraphrases — hybrid combines both strengths without needing to pick one.",
+    useCases: [
+      "Legal document search where users query both natural language and exact clause references like 'Section 12.3'",
+      "E-commerce product search that handles both semantic queries and exact SKU/model number lookups",
+      "Enterprise knowledge base where acronyms and proper nouns need exact-match alongside semantic retrieval",
+    ],
+    pros: [
+      "Consistently outperforms either pure vector or pure BM25 search on standard RAG benchmarks",
+      "RRF merging requires no training — it's a parameter-free rank fusion algorithm",
+      "Available natively in most modern vector DBs (Weaviate, Qdrant, Elasticsearch, pgvector)",
+    ],
+    cons: [
+      "Requires maintaining both a vector index and an inverted index, doubling storage overhead",
+      "Alpha weighting between dense/sparse signals needs tuning per dataset",
+      "Latency is higher than single-modality search due to parallel query execution",
+    ],
+    whenTo: "Use hybrid search as the default retrieval strategy for production RAG; only use pure vector search when storage/latency is critically constrained and queries are exclusively semantic.",
+    vs: [
+      { concept: "Pure Vector Search", thisIs: "Hybrid search combines semantic and keyword signals for higher recall", thatIs: "Pure vector search only matches by embedding proximity, missing exact keyword hits" },
+      { concept: "Reranking", thisIs: "Hybrid search broadens the candidate pool by combining two retrieval signals", thatIs: "Reranking re-scores an existing candidate pool for higher precision" },
+    ],
+    how: [
+      "Enable BM25 indexing alongside vector indexing in your vector DB (e.g., Qdrant sparse vectors, Weaviate BM25)",
+      "Run dense query (embedding similarity) and sparse query (BM25) in parallel",
+      "Apply RRF: score(d) = Σ 1/(k + rank_i(d)) where k=60 is the standard constant",
+      "Sort merged results by RRF score and return top-K for context injection",
+      "Tune alpha weight between dense/sparse using held-out eval set and NDCG metric",
+    ],
+    code: `# RRF merging in Python
+def reciprocal_rank_fusion(result_sets: list[list[str]], k: int = 60):
+    scores = {}
+    for results in result_sets:
+        for rank, doc_id in enumerate(results):
+            scores[doc_id] = scores.get(doc_id, 0) + 1 / (k + rank + 1)
+    return sorted(scores.items(), key=lambda x: x[1], reverse=True)`,
+  },
+  {
+    id: "reranking", pillar: "knowledge", name: "Reranking / Cross-encoder", color: "var(--em)", status: "live", isNew: true,
+    what: "A second-pass relevance scoring step that takes top-K retrieved candidates and re-scores them using a cross-encoder model that jointly encodes query + document for higher precision.",
+    why: "Bi-encoder retrieval (fast, scalable) is approximate; cross-encoders are slower but produce superior relevance judgments by attending to query-document interactions — the combination beats either alone.",
+    useCases: [
+      "Improving a RAG pipeline's answer quality by reranking top-50 chunks down to top-5 before injection",
+      "Search engine result reordering where initial recall is broad but final ranking must be precise",
+      "Multi-document QA where retrieved chunks need relevance ranking before synthesis",
+    ],
+    pros: [
+      "Cross-encoders significantly outperform bi-encoder ranking on BEIR and MTEB benchmarks",
+      "Cohere Rerank and Jina Reranker APIs make production deployment trivial",
+      "Reduces context window waste by filtering low-relevance chunks before LLM sees them",
+    ],
+    cons: [
+      "Adds latency (50-200ms) and cost to every retrieval call",
+      "Cross-encoders cannot pre-compute embeddings — O(N) inference for N candidates",
+      "Effectiveness degrades if initial retrieval recall is too low (reranking can't recover missing docs)",
+    ],
+    whenTo: "Add reranking when retrieval precision matters more than latency, especially with large chunk pools; skip it for real-time applications where sub-100ms total latency is required.",
+    vs: [
+      { concept: "Bi-encoder / Embedding Retrieval", thisIs: "Cross-encoder reranking jointly encodes query+document for precise relevance scoring", thatIs: "Bi-encoder retrieval encodes query and document independently — fast but approximate" },
+      { concept: "Hybrid Search", thisIs: "Reranking increases precision by re-scoring an existing candidate set", thatIs: "Hybrid search increases recall by combining multiple retrieval signals" },
+    ],
+    how: [
+      "Retrieve top-50 to top-100 candidates using your primary retriever (vector/hybrid)",
+      "Call a cross-encoder API (Cohere Rerank, Jina Reranker) or local model (cross-encoder/ms-marco-MiniLM)",
+      "Pass (query, document) pairs — the model returns relevance scores for each pair",
+      "Re-sort candidates by reranker score and select top-K for context injection",
+      "Monitor reranker latency and cache results for repeated identical queries",
+    ],
+    code: `import cohere
+
+co = cohere.Client(api_key="...")
+
+results = co.rerank(
+    model="rerank-v3.5",
+    query="What is the refund policy?",
+    documents=["30-day returns accepted.", "No refunds on digital goods.", "Contact support."],
+    top_n=2
+)
+for r in results.results:
+    print(r.index, r.relevance_score)`,
+  },
+  {
+    id: "graphrag", pillar: "knowledge", name: "GraphRAG — Microsoft", color: "var(--em)", status: "live", isNew: true,
+    what: "Microsoft's RAG approach that builds a knowledge graph of entities and relationships from documents, enabling graph traversal and community summarization alongside vector retrieval.",
+    why: "Standard RAG answers local questions well but fails at 'global' queries requiring synthesis across an entire corpus — GraphRAG's community summaries and graph traversal address this gap.",
+    useCases: [
+      "Analyzing an entire research corpus to find emerging themes and cross-paper relationships",
+      "Enterprise knowledge management where understanding entity relationships (people, projects, products) matters",
+      "Intelligence analysis over large document sets requiring 'what connects X to Y' reasoning",
+    ],
+    pros: [
+      "Dramatically better at global summarization queries that span an entire corpus",
+      "Explicit entity-relationship graph enables multi-hop reasoning unavailable in vector RAG",
+      "Community detection (Leiden algorithm) creates hierarchical topic summaries automatically",
+    ],
+    cons: [
+      "Indexing is extremely expensive — building the graph requires many LLM calls per document",
+      "Not suited for simple FAQ or local retrieval tasks where standard RAG is faster and cheaper",
+      "Graph quality depends heavily on entity extraction quality — noisy documents produce noisy graphs",
+    ],
+    whenTo: "Use GraphRAG for whole-corpus analysis and relationship discovery over large document sets; avoid it for low-latency Q&A over well-structured docs where standard RAG is 10x cheaper.",
+    vs: [
+      { concept: "Standard RAG", thisIs: "GraphRAG builds a knowledge graph enabling global synthesis and multi-hop reasoning", thatIs: "Standard RAG retrieves local passages relevant to a query without cross-document reasoning" },
+      { concept: "Knowledge Base", thisIs: "GraphRAG auto-generates a structured knowledge graph from unstructured text at index time", thatIs: "A knowledge base is a manually or semi-manually curated structured information store" },
+    ],
+    how: [
+      "pip install graphrag and run graphrag init --root ./data to scaffold config",
+      "Place source documents in ./data/input/ and configure settings.yaml (LLM, embeddings)",
+      "Run graphrag index --root ./data to build the knowledge graph (expensive LLM calls)",
+      "Query with graphrag query --method global for corpus-wide synthesis or --method local for targeted retrieval",
+      "Explore the generated Parquet artifacts (entities, relationships, communities) for custom retrieval logic",
+    ],
+  },
+
+  // ── NEW: AGENT SKILLS ─────────────────────────────────────────────────────
+  {
+    id: "episodic-memory", pillar: "skills", name: "Long-term / Episodic Memory", color: "var(--vi)", status: "live", isNew: true,
+    what: "The ability of an agent to store, retrieve, and reason over past interactions and experiences beyond the current context window, enabling personalization and learning over time.",
+    why: "Context windows reset between sessions — episodic memory persists user preferences, past decisions, and learned facts to a durable store, making agents feel coherent and personalized across days.",
+    useCases: [
+      "Personal assistant that remembers user preferences, ongoing projects, and past conversations across sessions",
+      "Customer service agent that recalls a user's issue history and resolution status from prior tickets",
+      "Coding agent that remembers project-specific conventions, past bugs, and architectural decisions",
+    ],
+    pros: [
+      "Enables genuine personalization without reprocessing full history in every prompt",
+      "Selective memory retrieval is more token-efficient than loading entire conversation history",
+      "Supports agent learning — past mistakes and successes can inform future decisions",
+    ],
+    cons: [
+      "Memory retrieval quality directly limits agent quality — stale or wrong memories cause errors",
+      "Privacy and data retention complexity: what to store, for how long, and who can access it",
+      "Memory consolidation (deciding what to keep vs. forget) is an unsolved research problem",
+    ],
+    whenTo: "Add episodic memory when your agent needs to serve the same users repeatedly over days/weeks; skip it for stateless single-session tasks where working memory in the context window suffices.",
+    vs: [
+      { concept: "Working Memory", thisIs: "Episodic memory persists across sessions in durable storage and is retrieved selectively", thatIs: "Working memory is the active context window content — transient, lost when session ends" },
+      { concept: "RAG Pipeline", thisIs: "Episodic memory stores personal interaction history and learned user-specific facts", thatIs: "RAG retrieves from a shared document knowledge base not specific to individual users" },
+    ],
+    how: [
+      "Choose a memory backend: vector store for semantic recall, key-value store for factual recall, or both",
+      "After each session, extract memory-worthy facts using an LLM extraction pass",
+      "Store with user_id scope and timestamp for TTL and privacy management",
+      "At session start, retrieve relevant memories via semantic search over past interactions",
+      "Inject retrieved memories into system prompt: 'What I know about you: ...' section",
+    ],
+    code: `# Using mem0 library for episodic memory
+from mem0 import Memory
+
+m = Memory()
+# Store memories from a conversation
+m.add("User prefers concise bullet-point answers", user_id="alice")
+m.add("User is working on a FastAPI microservices project", user_id="alice")
+# Retrieve relevant memories for next session
+relevant = m.search("What kind of project is this user working on?", user_id="alice")
+print(relevant)`,
+  },
+
+  // ── NEW: AGENT CORE ───────────────────────────────────────────────────────
+  {
+    id: "structured-output", pillar: "core", name: "Structured Output / JSON Mode", color: "var(--bl)", status: "live", isNew: true,
+    what: "A model capability that constrains LLM output to a valid JSON structure matching a developer-defined schema, eliminating parse errors and enabling type-safe downstream processing.",
+    why: "Free-form LLM text is unreliable for programmatic consumption — structured output guarantees that the model returns exactly the fields and types your code expects, every time.",
+    useCases: [
+      "Extracting structured entities (name, date, amount) from unstructured invoice text",
+      "Generating typed tool call arguments that are directly passed to function signatures",
+      "Building a classification API that returns a guaranteed enum value, confidence score, and reasoning",
+    ],
+    pros: [
+      "Eliminates JSON parse errors and the regex hacks needed to extract data from free text",
+      "Pydantic/zod schema validation integrates naturally — define once, validate automatically",
+      "Enables reliable pipeline chaining where each step's output is the next step's typed input",
+    ],
+    cons: [
+      "Constrained decoding can reduce model creativity — not suitable for open-ended generation",
+      "Very complex schemas can degrade output quality as the model struggles to satisfy all constraints",
+      "Not all providers support native structured output — some fall back to prompt-based JSON extraction",
+    ],
+    whenTo: "Use structured output whenever LLM responses feed into code logic, databases, or APIs; use free-form text only for human-facing content like summaries and explanations.",
+    vs: [
+      { concept: "Tool Use / Function Calling", thisIs: "Structured output constrains the entire response to a JSON schema", thatIs: "Function calling selects and parameterizes a specific function to invoke — a special case of structured output" },
+      { concept: "Prompt-based JSON extraction", thisIs: "Structured output uses constrained decoding to guarantee valid JSON at the model level", thatIs: "Prompt-based extraction asks the model to produce JSON in prose, which can silently fail" },
+    ],
+    how: [
+      "Define a Pydantic model or JSON Schema describing the expected output structure",
+      "Pass schema to the API: OpenAI response_format={type: json_schema}, Anthropic tool use pattern",
+      "Parse the response directly — no regex or error-prone string manipulation needed",
+      "Use instructor library for a unified Pydantic-first interface across multiple providers",
+      "Validate and handle schema violations explicitly even with constrained decoding as a safety net",
+    ],
+    code: `from openai import OpenAI
+from pydantic import BaseModel
+
+client = OpenAI()
+
+class Invoice(BaseModel):
+    vendor: str
+    amount: float
+    currency: str
+    due_date: str
+
+completion = client.beta.chat.completions.parse(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": "Extract: Invoice from Acme Corp, $1,250.00 USD due 2025-06-01"}],
+    response_format=Invoice,
+)
+print(completion.choices[0].message.parsed)`,
+  },
+  {
+    id: "multimodal-input", pillar: "core", name: "Multimodal Input", color: "var(--bl)", status: "live", isNew: true,
+    what: "The ability of an LLM or agent to accept and reason over multiple input modalities simultaneously — text, images, audio, video, and documents — within a single inference call.",
+    why: "Real-world information doesn't live only in text; multimodal models unlock use cases like analyzing screenshots, reading charts, processing voice, and understanding document layouts natively.",
+    useCases: [
+      "Document processing agent that reads scanned PDFs with mixed text, tables, and diagrams",
+      "Customer support bot that accepts screenshots of error messages for visual debugging",
+      "Quality control system that analyzes product photos against specification documents simultaneously",
+    ],
+    pros: [
+      "Eliminates preprocessing pipelines (OCR, transcription) for many document types",
+      "Reasoning over image + text together produces better results than text-only with extracted content",
+      "Native audio/video input (Gemini 1.5+) enables real-time conversation and video analysis",
+    ],
+    cons: [
+      "Image tokens are expensive — a high-res image can cost 1,000+ tokens",
+      "Vision quality varies significantly between models for charts, handwriting, and low-res images",
+      "Audio/video modalities are only available on a subset of frontier models (not all providers)",
+    ],
+    whenTo: "Use multimodal input when source data contains non-text information that is hard to faithfully convert to text; fall back to text-only when costs or model availability are constraints.",
+    vs: [
+      { concept: "OCR + Text Pipeline", thisIs: "Multimodal input lets the model see images directly, preserving layout and visual context", thatIs: "OCR extracts text from images but loses visual structure, diagrams, and spatial relationships" },
+      { concept: "Embedding-based Image Search", thisIs: "Multimodal input enables reasoning and QA over specific images in context", thatIs: "Image embeddings enable semantic search over image collections without per-image reasoning" },
+    ],
+    how: [
+      "Pass image as base64 or URL in the content array: [{type: image_url, image_url: {url: ...}}]",
+      "For PDFs, use provider-native document APIs (Anthropic Files API, OpenAI vision) or convert to images",
+      "For audio, use Whisper for transcription or native audio input on Gemini/GPT-4o Audio",
+      "Size images appropriately — most vision models perform well at 768-1024px; avoid unnecessarily high-res",
+      "Test vision accuracy on your specific document types — chart/table understanding varies widely by model",
+    ],
+    code: `from anthropic import Anthropic
+import base64
+
+client = Anthropic()
+with open("chart.png", "rb") as f:
+    image_data = base64.b64encode(f.read()).decode()
+
+response = client.messages.create(
+    model="claude-opus-4-5",
+    max_tokens=1024,
+    messages=[{"role": "user", "content": [
+        {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": image_data}},
+        {"type": "text", "text": "Summarize the key trend shown in this chart."}
+    ]}]
+)
+print(response.content[0].text)`,
+  },
+
+  // ── NEW: LIVE TOOLS ───────────────────────────────────────────────────────
+  {
+    id: "sql-tool", pillar: "tools", name: "SQL Database Query Tool", color: "var(--cy)", status: "live", isNew: true,
+    what: "A tool that allows an LLM agent to generate, execute, and interpret SQL queries against relational databases to answer data questions or perform data operations.",
+    why: "Most business data lives in SQL databases; giving agents SQL access transforms them from knowledge retrievers into live data analysts capable of ad-hoc reporting and data manipulation.",
+    useCases: [
+      "Natural language BI assistant that translates 'What were last quarter's top 10 customers?' into SQL",
+      "Automated data quality agent that detects anomalies by querying metrics tables on a schedule",
+      "Customer support agent that looks up real-time order status, inventory, and account data",
+    ],
+    pros: [
+      "Unlocks structured business data without building custom API endpoints for every query pattern",
+      "LLMs with schema context generate surprisingly accurate SQL for well-structured databases",
+      "Read-only mode provides a safe exploration interface with no write risk",
+    ],
+    cons: [
+      "SQL injection and unauthorized data access are serious risks if queries aren't sandboxed",
+      "Schema complexity (hundreds of tables, cryptic column names) degrades SQL generation quality",
+      "Agents can generate expensive queries (full table scans) — query timeouts and cost limits are essential",
+    ],
+    whenTo: "Use a SQL tool when business data is in relational DBs and you need flexible ad-hoc queries; avoid it for high-security production databases — use read-only replicas with row-level security instead.",
+    vs: [
+      { concept: "Vector Store / RAG", thisIs: "SQL tool retrieves precise structured data with exact filtering and aggregation", thatIs: "RAG retrieves approximate semantically relevant chunks from unstructured text" },
+      { concept: "Pre-built API endpoint", thisIs: "SQL tool enables flexible ad-hoc queries the developer didn't anticipate", thatIs: "A pre-built API returns a fixed result shape for a specific predetermined query" },
+    ],
+    how: [
+      "Provide the agent with schema context: table names, column names, types, and sample rows",
+      "Implement a run_query(sql: str) tool that executes against a read-only replica",
+      "Add query validation: block DROP/DELETE/UPDATE unless write mode is explicitly enabled",
+      "Set query timeout (e.g., 30s) and row limit (e.g., 1000 rows) to prevent runaway queries",
+      "Return results as markdown table or JSON and prompt the agent to interpret them",
+    ],
+    code: `import sqlite3
+
+def run_sql(query: str) -> str:
+    conn = sqlite3.connect("data.db")
+    cursor = conn.execute(query)
+    rows = cursor.fetchmany(100)
+    cols = [d[0] for d in cursor.description]
+    return "\\n".join([",".join(cols)] + [",".join(map(str,r)) for r in rows])
+
+# Register as tool with your agent framework`,
+  },
+  {
+    id: "pdf-parser", pillar: "tools", name: "PDF / Document Parser Tool", color: "var(--cy)", status: "live", isNew: true,
+    what: "A tool that extracts structured text, tables, and metadata from PDF, Word, PowerPoint, and other document formats, making their content available for LLM processing.",
+    why: "Enterprise knowledge is locked in documents; reliable parsing with layout preservation is the critical first step of any document AI pipeline — garbage in, garbage out.",
+    useCases: [
+      "Contract analysis agent that extracts clauses, parties, and dates from uploaded PDFs",
+      "Research assistant that ingests academic papers, preserving tables and citations for analysis",
+      "Automated report generation that reads financial Excel/PDF reports and synthesizes key metrics",
+    ],
+    pros: [
+      "Unlocks unstructured document content for AI processing without manual data entry",
+      "Modern parsers (Docling, LlamaParse, Azure Document Intelligence) preserve table structure",
+      "Batch processing pipelines can ingest thousands of documents for knowledge base population",
+    ],
+    cons: [
+      "Scanned/image PDFs require OCR which adds cost, latency, and error rate",
+      "Complex layouts (multi-column, watermarks, merged cells) still challenge all parsers",
+      "Table extraction accuracy varies — always validate on a sample of your specific document types",
+    ],
+    whenTo: "Use document parsing for any pipeline ingesting user-uploaded or batch-processed documents; for simple single-page PDFs, consider passing directly to a multimodal model instead.",
+    vs: [
+      { concept: "Multimodal Input", thisIs: "Document parsers extract text/structure into tokens that any LLM can process", thatIs: "Multimodal input passes the document image directly to a vision-capable model" },
+      { concept: "Web Scraper", thisIs: "Document parsers handle binary file formats (PDF, DOCX, PPTX) with layout awareness", thatIs: "Web scrapers extract content from live HTML web pages" },
+    ],
+    how: [
+      "Choose parser: Docling (open-source, excellent tables), LlamaParse (cloud, best quality), PyMuPDF (fast, basic)",
+      "For scanned PDFs, add OCR layer: Tesseract (free) or Azure/AWS Document Intelligence (accurate)",
+      "Extract content with layout metadata: page numbers, headings, table coordinates",
+      "Chunk extracted content intelligently — respect document structure (sections, not arbitrary windows)",
+      "Validate extraction quality on 10+ representative documents before building the full pipeline",
+    ],
+    code: `from docling.document_converter import DocumentConverter
+
+converter = DocumentConverter()
+result = converter.convert("contract.pdf")
+# Access structured content
+for element in result.document.texts:
+    print(element.text)
+# Export as markdown preserving structure
+md = result.document.export_to_markdown()
+print(md[:500])`,
+  },
+  {
+    id: "browser-tool", pillar: "tools", name: "Browser / Web Scraper Tool", color: "var(--cy)", status: "live", isNew: true,
+    what: "A tool that gives an agent the ability to navigate web pages, execute JavaScript, fill forms, click elements, and extract content from live websites programmatically.",
+    why: "Massive amounts of real-time information (prices, news, competitor data, live dashboards) are only accessible via the web — browser tools make agents first-class web citizens.",
+    useCases: [
+      "Market research agent that scrapes competitor pricing pages and synthesizes a comparison report",
+      "Automated testing agent that navigates a web app, fills forms, and validates UI behavior",
+      "News monitoring agent that browses specified sites hourly and summarizes new articles",
+    ],
+    pros: [
+      "Access to any public web information that a human browser can reach — no API required",
+      "Playwright/Puppeteer handle JavaScript-heavy SPAs that simple HTTP scrapers can't parse",
+      "Computer use models (Claude, GPT-4o) can navigate GUIs visually without DOM selectors",
+    ],
+    cons: [
+      "Brittle to site layout changes — selectors break silently when pages are redesigned",
+      "Anti-bot measures (CAPTCHAs, rate limits, Cloudflare) block many automation attempts",
+      "Legal and ToS considerations — many sites prohibit scraping in their terms of service",
+    ],
+    whenTo: "Use browser tools when target data has no API and you control the browsing scope; avoid it for data available via official APIs — scraping is fragile and may violate ToS.",
+    vs: [
+      { concept: "Web Search Tool", thisIs: "Browser tool navigates to specific URLs and interacts with full page content and UI", thatIs: "Web search queries a search index and returns ranked snippets without full page access" },
+      { concept: "REST API Call", thisIs: "Browser scraping extracts data from pages designed for human consumption", thatIs: "REST APIs provide structured data contracts designed specifically for programmatic access" },
+    ],
+    how: [
+      "Use Playwright (recommended) or Puppeteer for headless browser automation",
+      "For AI-native browsing, use browser-use library or Anthropic Computer Use",
+      "Launch browser: async with async_playwright() as p: browser = await p.chromium.launch()",
+      "Navigate and extract: await page.goto(url); content = await page.inner_text('body')",
+      "Handle dynamic content with await page.wait_for_selector() before extraction",
+    ],
+    code: `from playwright.async_api import async_playwright
+import asyncio
+
+async def scrape(url: str) -> str:
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        page = await browser.new_page()
+        await page.goto(url)
+        await page.wait_for_load_state("networkidle")
+        text = await page.inner_text("body")
+        await browser.close()
+        return text[:3000]
+
+content = asyncio.run(scrape("https://example.com"))`,
+  },
+  {
+    id: "email-calendar-tool", pillar: "tools", name: "Email / Calendar Tool", color: "var(--cy)", status: "live", isNew: true,
+    what: "Tools that integrate with email services (Gmail, Outlook) and calendar APIs (Google Calendar, Microsoft Graph) to read, send, and schedule on behalf of the user.",
+    why: "Email and calendar are the core coordination layer of business operations — agents with access to these can automate scheduling, triage inboxes, and act on meeting context autonomously.",
+    useCases: [
+      "Executive assistant agent that reads emails, drafts replies, and schedules meetings based on availability",
+      "Sales agent that monitors inbox for inbound leads, qualifies them, and books discovery calls",
+      "Project management agent that creates calendar blocks for deadlines and sends status update emails",
+    ],
+    pros: [
+      "Massive productivity leverage — email triage and scheduling are high-frequency, repetitive tasks",
+      "Google and Microsoft Graph APIs are well-documented with broad permission scopes",
+      "OAuth2 integration means agents act on behalf of users without storing passwords",
+    ],
+    cons: [
+      "High-risk tool — sending email or modifying calendars has real-world irreversible consequences",
+      "OAuth2 scope management is complex — over-permissioned agents are a significant security risk",
+      "Spam filters and sending limits can block agent-generated emails at scale",
+    ],
+    whenTo: "Use email/calendar tools only with explicit human approval flows for send/create actions; read-only access for triage and summarization is safer and should be the default starting point.",
+    vs: [
+      { concept: "Browser Tool", thisIs: "Email/calendar tools use official OAuth APIs — structured, reliable, and permissioned", thatIs: "Browser tools scrape web interfaces — fragile and not authorized by the service" },
+      { concept: "Notification Tool", thisIs: "Email tools manage bidirectional communication including reading, drafting, and threading", thatIs: "A notification tool sends one-way alerts without reading inbox or managing threads" },
+    ],
+    how: [
+      "Register an OAuth2 app in Google Cloud Console or Azure AD for the required scopes",
+      "Implement token storage and refresh — store encrypted refresh tokens, never access tokens",
+      "For Gmail: use google-api-python-client with gmail.readonly and gmail.send scopes",
+      "For Calendar: use calendar.events scope to create/read events",
+      "Wrap all write operations (send, create, delete) in a human-approval tool call before execution",
+    ],
+  },
+  {
+    id: "image-gen-tool", pillar: "tools", name: "Image Generation Tool", color: "var(--cy)", status: "live", isNew: true,
+    what: "A tool that calls image generation APIs (DALL-E, Stable Diffusion, Midjourney, Flux) to create, edit, or transform images based on natural language prompts from within an agent workflow.",
+    why: "Agents that can generate visual assets — product mockups, diagrams, marketing images — become end-to-end creative collaborators rather than text-only assistants.",
+    useCases: [
+      "Marketing automation agent that generates product images, social media graphics, and ad creatives",
+      "UX design assistant that creates wireframe mockups from feature descriptions for stakeholder review",
+      "Content creation pipeline that illustrates articles with relevant generated images automatically",
+    ],
+    pros: [
+      "Creates visual outputs that no amount of text generation can replace for human review",
+      "DALL-E 3 API and Stability AI are production-ready with predictable latency and pricing",
+      "Inpainting and editing APIs allow surgical modification of existing images",
+    ],
+    cons: [
+      "Generation is slow (3-15 seconds per image) — blocks synchronous agent workflows",
+      "Prompt engineering for consistent brand-aligned visuals requires significant iteration",
+      "Content policy filters may block legitimate use cases (medical, historical, fictional violence)",
+    ],
+    whenTo: "Add image generation when your agent's workflow produces deliverables that humans will visually consume; skip it for purely data-processing or backend automation agents where images add no value.",
+    vs: [
+      { concept: "Multimodal Input", thisIs: "Image generation tool produces new images as output from text prompts", thatIs: "Multimodal input processes existing images as input for reasoning" },
+      { concept: "Browser / Web Scraper", thisIs: "Image generation creates original assets via AI models", thatIs: "Web scraping retrieves existing images from websites" },
+    ],
+    how: [
+      "Choose provider: OpenAI DALL-E 3 (best instruction following), Stability AI (open, customizable), Flux (high quality)",
+      "Call client.images.generate(model='dall-e-3', prompt=..., size='1024x1024', quality='hd')",
+      "Store generated images to object storage (S3/GCS) — API URLs expire",
+      "For editing, use images.edit() with a mask PNG to inpaint specific regions",
+      "Run async generation and poll for completion to avoid blocking agent execution",
+    ],
+    code: `from openai import OpenAI
+
+client = OpenAI()
+response = client.images.generate(
+    model="dall-e-3",
+    prompt="A minimalist flat-design icon of an AI agent network, blue on white",
+    size="1024x1024",
+    quality="hd",
+    n=1
+)
+image_url = response.data[0].url
+print(f"Generated: {image_url}")`,
+  },
+
+  // ── PRODUCTION ───────────────────────────────────────────────────────────
+  {
+    id: "api-gateway", pillar: "production", name: "API Gateway", color: "#94a3b8", status: "live",
+    what: "Entry point for your AI application — handles auth, rate limiting, request routing, caching, and observability for all agent API calls.",
+    why: "Production AI without an API gateway is an incident waiting to happen. No rate limits = cost explosion. No auth = public access. No logging = blind when things break.",
+    vs: [],
+    how: ["Auth: API keys or JWT — every request authenticated", "Rate limits: per-user and global — protect against abuse and cost overruns", "Caching: cache identical prompt+response pairs — 30-50% cost reduction typical", "Logging: every request with latency, token count, model, and user id", "Streaming: handle SSE properly — don't buffer stream responses"],
+    code: `export async function POST(req: Request) {
+  const key = req.headers.get("X-API-Key");
+  if (!key || !isValid(key)) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const remaining = await rateLimit(key, { limit: 100, window: "1h" });
+  if (remaining <= 0) return Response.json({ error: "Rate limit exceeded" }, { status: 429 });
+  const cached = await cache.get(hashRequest(req));
+  if (cached) return Response.json(cached);
+  // ... process
+}`,
+  },
+  {
+    id: "monitoring", pillar: "production", name: "Monitoring", color: "#94a3b8", status: "live",
+    what: "Instrumentation that tracks every aspect of your AI system in production: latency, token usage, cost per request, error rates, tool call patterns, and output quality over time.",
+    why: "AI systems degrade silently. A RAG pipeline that worked in staging may return poor context in production without any error. Observability is how you catch this before users complain.",
+    vs: [],
+    how: ["Instrument every LLM call: model, tokens in/out, latency, cost, tool calls made", "Use Langfuse, LangSmith, or Helicone for AI-specific tracing", "Alert on: p95 latency > 5s, error rate > 1%, cost/request spike > 3×", "Log user feedback (thumbs up/down) linked to request traces", "Build weekly dashboard: cost trend, quality trend, most-called tools"],
+    code: `import { Langfuse } from "langfuse";
+const lf = new Langfuse();
+const trace = lf.trace({ name: "agent-run", userId, input: { goal } });
+const span = trace.span({ name: "llm-call", input: { model, prompt } });
+const response = await llm.complete(prompt);
+span.end({ output: response, usage: { input: inputTok, output: outputTok } });`,
+  },
+  {
+    id: "fine-tuning", pillar: "production", name: "Fine-tuning", color: "#94a3b8", status: "live",
+    what: "A training process that adapts a base LLM's weights to a specific task, domain, or output style using your labeled data. Fine-tuned models are faster, cheaper, and more consistent on their target task.",
+    why: "Prompt engineering hits a ceiling on specialized tasks. Fine-tuning bakes the task into the model — improving accuracy 20-40% on domain-specific work while reducing inference cost via a smaller model.",
+    useCases: [
+      "Training a support-ticket classifier that achieves 95%+ accuracy on company-specific categories",
+      "Adapting a base model to always respond in a brand's specific tone and terminology",
+      "Building a domain-specific code model fine-tuned on your internal APIs and patterns",
+    ],
+    pros: [
+      "Bakes task behavior into weights — consistent output format without verbose system prompts",
+      "Enables using smaller, cheaper models (gpt-4o-mini) at larger model quality for specific tasks",
+      "Unlocks capabilities that prompt engineering can't achieve (e.g., learning private domain vocabulary)",
+    ],
+    cons: [
+      "Requires 200-1000 high-quality labeled examples — data collection is expensive",
+      "Model weights are static — can't update knowledge without re-training",
+      "Overfitting risk: fine-tuned models underperform on out-of-distribution inputs",
+    ],
+    whenTo: "Use fine-tuning when prompt engineering has plateaued and you have 200+ quality labeled examples; always exhaust prompt engineering and RAG first — fine-tuning is a last resort for quality, not a first step.",
+    vs: [
+      { concept: "RAG",               thisIs: "Improves model behavior and consistency — great for output format and tone",          thatIs: "Adds dynamic knowledge at runtime — great for updatable facts and private documents" },
+      { concept: "Prompt Engineering", thisIs: "Requires 200+ labeled examples, GPU time, days to iterate",                         thatIs: "No labeled data, free, iterates in minutes — always try this first" },
+    ],
+    how: ["Collect 200-1000 high-quality input/output pairs from your domain", "Format as JSONL: { messages: [{role, content}] } per line", "Fine-tune via OpenAI API, Anthropic, or LoRA on Hugging Face", "Evaluate fine-tuned vs base model on held-out test set (20% split)", "Use fine-tuned model for high-frequency tasks to reduce per-call cost"],
+    code: `const file = await openai.files.create({
+  file: fs.createReadStream("training.jsonl"),
+  purpose: "fine-tune"
+});
+const job = await openai.fineTuning.jobs.create({
+  training_file: file.id,
+  model: "gpt-4o-mini"   // Fine-tune small, fast, cheap model
+});
+// Poll job.status → "succeeded" → use job.fine_tuned_model`,
+  },
+
+  // ── NEW: PRODUCTION ───────────────────────────────────────────────────────
+  {
+    id: "guardrails", pillar: "production", name: "Guardrails / Safety Filters", color: "#94a3b8", status: "live", isNew: true,
+    what: "Input and output validation layers that detect and block harmful, off-topic, or policy-violating content before it reaches the LLM or the user, enforcing safety and compliance boundaries.",
+    why: "LLMs can be prompted into producing harmful content, leaking system prompts, or violating compliance rules — guardrails provide a defense-in-depth layer independent of model-level safety.",
+    useCases: [
+      "Financial services chatbot that blocks advice-giving outside regulatory scope and flags PII leakage",
+      "Customer service bot that prevents competitors from being mentioned per brand policy",
+      "Public-facing agent that blocks jailbreak attempts, prompt injection, and harmful content generation",
+    ],
+    pros: [
+      "Defense-in-depth: catches failures that model-level safety training misses",
+      "NeMo Guardrails and Guardrails AI provide declarative rule authoring without code changes",
+      "Audit logs of blocked interactions provide compliance evidence and attack pattern visibility",
+    ],
+    cons: [
+      "Overly aggressive filters cause false positives that frustrate legitimate users",
+      "Each guardrail check adds latency (20-200ms) — multiple checks compound quickly",
+      "Adversaries iterate on jailbreaks faster than static rule sets can be updated",
+    ],
+    whenTo: "Always deploy guardrails in production customer-facing agents; tune aggressiveness based on risk level — financial/medical/legal agents need strict filters, internal dev tools can be permissive.",
+    vs: [
+      { concept: "System Prompt", thisIs: "Guardrails are external validation layers that intercept requests regardless of model behavior", thatIs: "System prompts instruct the model to self-govern — bypassed by sufficiently clever prompts" },
+      { concept: "Red Teaming", thisIs: "Guardrails are runtime defenses that block violations in production", thatIs: "Red teaming proactively discovers vulnerabilities before deployment" },
+    ],
+    how: [
+      "Define input rails: topic relevance check, PII detection, prompt injection detection",
+      "Define output rails: toxicity filter, hallucination detection, PII masking",
+      "Use Guardrails AI (validators) or NeMo Guardrails (Colang dialogue rules) as framework",
+      "Log all triggered guardrails with full context for monitoring and rule tuning",
+      "Implement graceful fallback responses that help users reformulate rejected queries",
+    ],
+    code: `from guardrails import Guard
+from guardrails.hub import ToxicLanguage, DetectPII
+
+guard = Guard().use_many(
+    ToxicLanguage(threshold=0.5, on_fail="exception"),
+    DetectPII(pii_entities=["EMAIL", "PHONE_NUMBER"], on_fail="fix")
+)
+
+result = guard.validate(
+    "Call me at john@example.com or 555-1234",
+    metadata={"user_id": "u123"}
+)
+print(result.validated_output)  # PII replaced with placeholders`,
+  },
+  {
+    id: "semantic-caching", pillar: "production", name: "Semantic Caching", color: "#94a3b8", status: "live", isNew: true,
+    what: "A caching layer that stores LLM responses keyed by the semantic meaning of queries rather than exact text, returning cached answers for paraphrased versions of previously answered questions.",
+    why: "Exact-match caching misses 'What is RAG?' vs 'Explain Retrieval Augmented Generation' — semantic caching detects these as equivalent, cutting LLM costs by 30-80% for FAQ-heavy workloads.",
+    useCases: [
+      "Customer support chatbot where the same questions are asked repeatedly in different phrasings",
+      "Enterprise knowledge base where employees ask variations of the same HR/policy questions",
+      "High-traffic public-facing LLM API where cost reduction is critical at scale",
+    ],
+    pros: [
+      "Dramatically reduces LLM API costs and latency for repetitive query workloads",
+      "Improves response consistency — same semantic question always gets the same vetted answer",
+      "Works transparently across all LLM providers — provider-agnostic caching layer",
+    ],
+    cons: [
+      "Cache invalidation is hard — stale answers to 'What is our current pricing?' can misinform users",
+      "Similarity threshold tuning is critical — too loose causes wrong cache hits, too strict misses savings",
+      "Cache warm-up period means no benefit for the first N queries until cache is populated",
+    ],
+    whenTo: "Deploy semantic caching for high-traffic assistants with repetitive query patterns; skip it for agentic pipelines where every query is unique (data analysis, code generation) — cache hit rates will be near zero.",
+    vs: [
+      { concept: "Exact-match Cache (Redis)", thisIs: "Semantic caching matches by embedding similarity — catches paraphrases and synonyms", thatIs: "Exact-match caching requires byte-identical keys — misses any variation in phrasing" },
+      { concept: "Prompt Caching (Anthropic/OpenAI)", thisIs: "Semantic caching stores full responses and serves them without any LLM call", thatIs: "Provider-side prompt caching reduces cost of processing repeated prefixes but still runs inference" },
+    ],
+    how: [
+      "Choose a semantic cache library: GPTCache, Momento Semantic Cache, or build on Redis + pgvector",
+      "On each query, embed the input and search cache with cosine similarity threshold (e.g., 0.92)",
+      "If cache hit above threshold: return cached response, log cache hit, skip LLM call",
+      "If cache miss: call LLM, store (embedding, response, timestamp, ttl) in cache",
+      "Set TTL based on content volatility — pricing answers: 1 hour; conceptual answers: 7 days",
+    ],
+    code: `from gptcache import cache
+from gptcache.adapter import openai
+from gptcache.embedding import Onnx
+from gptcache.manager import get_data_manager
+from gptcache.similarity_evaluation.distance import SearchDistanceEvaluation
+
+cache.init(
+    embedding_func=Onnx().to_embeddings,
+    data_manager=get_data_manager(),
+    similarity_evaluation=SearchDistanceEvaluation(),
+)
+# Now use openai.ChatCompletion.create() as normal — caching is automatic
+response = openai.ChatCompletion.create(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": "What is RAG?"}]
+)`,
+  },
+  {
+    id: "cost-optimization", pillar: "production", name: "Cost Optimization", color: "#94a3b8", status: "live", isNew: true,
+    what: "A set of strategies for reducing LLM inference costs including model routing, prompt compression, caching, batching, and token budget enforcement without sacrificing acceptable quality.",
+    why: "LLM API costs scale with usage and can reach thousands of dollars per day for production agents — systematic cost optimization is often the difference between a viable and unviable product.",
+    useCases: [
+      "Routing simple FAQ queries to GPT-4o mini and complex reasoning to GPT-4o, cutting costs 70%",
+      "Compressing RAG context from 4,000 tokens to 1,500 tokens using LLMLingua before LLM injection",
+      "Batching 100 classification requests into a single async batch API call at 50% discount",
+    ],
+    pros: [
+      "Model routing alone can cut costs 50-80% with minimal quality regression on simple tasks",
+      "Prompt compression (LLMLingua) reduces token count 2-4x with measurable quality retention",
+      "OpenAI Batch API and Anthropic Message Batches offer 50% discount for async workloads",
+    ],
+    cons: [
+      "Complexity of multi-tier routing adds latency variance and operational overhead",
+      "Aggressive context compression can degrade answer quality for nuanced reasoning tasks",
+      "Cost visibility requires instrumentation — teams often don't know their token breakdown by feature",
+    ],
+    whenTo: "Invest in cost optimization once you have production traffic data showing which query types dominate; premature optimization before launch wastes engineering time on irrelevant bottlenecks.",
+    vs: [
+      { concept: "Semantic Caching", thisIs: "Cost optimization is a portfolio of strategies including routing, compression, and batching", thatIs: "Semantic caching is one specific cost optimization technique focused on avoiding redundant calls" },
+      { concept: "Fine-tuning", thisIs: "Cost optimization reduces inference spend through routing and efficiency techniques", thatIs: "Fine-tuning reduces costs by training a smaller model to match a larger model's quality" },
+    ],
+    how: [
+      "Instrument all LLM calls with token counts, model used, latency, and feature/query-type labels",
+      "Classify queries by complexity and route simple ones to mini/haiku tier models",
+      "Apply prompt compression (LLMLingua-2) to RAG contexts exceeding 2,000 tokens",
+      "Use provider batch APIs for offline/async workloads — same quality at half the price",
+      "Set per-request max_tokens budgets and alert when average tokens exceed baseline by 20%",
+    ],
+  },
+
+  // ── NEW: EVALUATION ───────────────────────────────────────────────────────
+  {
+    id: "deepeval", pillar: "evaluate", name: "DeepEval", color: "var(--ro)", status: "live", isNew: true,
+    what: "An open-source LLM evaluation framework with 14+ built-in metrics (answer relevancy, faithfulness, hallucination, toxicity) that can run in CI/CD pipelines like unit tests.",
+    why: "Evaluating LLM output quality manually doesn't scale — DeepEval provides pytest-compatible automated evaluation that integrates with development workflows as a quality gate.",
+    useCases: [
+      "Running RAG pipeline evaluation in CI to catch prompt or retrieval regressions before deploy",
+      "Comparing two versions of a system prompt on a golden dataset to pick the better one",
+      "Monitoring production response quality by sampling and running async eval on live traffic",
+    ],
+    pros: [
+      "pytest integration means evaluation runs naturally in existing CI/CD without new infrastructure",
+      "14+ built-in metrics cover RAG (faithfulness, contextual precision) and agent (task completion) scenarios",
+      "Confident AI dashboard provides team-visible evaluation history and regression tracking",
+    ],
+    cons: [
+      "LLM-as-judge metrics still require a capable judge model (GPT-4o), adding cost to eval runs",
+      "Metric definitions (especially 'answer relevancy') may not match your domain's quality criteria",
+      "Synthetic dataset generation quality varies — golden datasets need human review",
+    ],
+    whenTo: "Use DeepEval when you want pytest-style automated LLM quality gates in CI/CD; supplement with human evaluation for high-stakes domains where LLM-as-judge accuracy is insufficient.",
+    vs: [
+      { concept: "RAGAS", thisIs: "DeepEval is a full testing framework with CI integration, multiple metric types, and a UI dashboard", thatIs: "RAGAS is focused specifically on RAG pipeline metrics with strong research backing" },
+      { concept: "LLM-as-Judge", thisIs: "DeepEval wraps LLM-as-judge into structured metric objects with pass/fail thresholds", thatIs: "LLM-as-judge is the underlying evaluation technique — a model scoring another model's output" },
+    ],
+    how: [
+      "pip install deepeval && deepeval login to connect to Confident AI dashboard",
+      "Define test cases with LLMTestCase(input=, actual_output=, expected_output=, retrieval_context=)",
+      "Instantiate metrics: AnswerRelevancyMetric(threshold=0.7), FaithfulnessMetric(threshold=0.8)",
+      "Write pytest test functions using assert_test(test_case, [metric1, metric2])",
+      "Run deepeval test run test_rag.py in CI to get pass/fail with metric scores",
+    ],
+    code: `from deepeval import assert_test
+from deepeval.test_case import LLMTestCase
+from deepeval.metrics import AnswerRelevancyMetric, FaithfulnessMetric
+
+def test_rag_response():
+    test_case = LLMTestCase(
+        input="What is the refund policy?",
+        actual_output="You can return items within 30 days for a full refund.",
+        retrieval_context=["Our policy: 30-day returns, full refund, no questions asked."]
+    )
+    assert_test(test_case, [
+        AnswerRelevancyMetric(threshold=0.7),
+        FaithfulnessMetric(threshold=0.8)
+    ])`,
+  },
+  {
+    id: "trulens-braintrust", pillar: "evaluate", name: "TruLens / Braintrust", color: "var(--ro)", status: "live", isNew: true,
+    what: "Evaluation and observability platforms for LLM applications — TruLens focuses on RAG feedback functions and tracing; Braintrust provides end-to-end experiment tracking, scoring, and dataset management.",
+    why: "Beyond one-off metric checks, teams need to compare experiments, track evaluation history, manage golden datasets, and collaborate on quality — these platforms provide that infrastructure.",
+    useCases: [
+      "A/B testing two RAG retrieval strategies with TruLens feedback functions across 200 test queries",
+      "Braintrust experiment tracking to compare Claude vs GPT-4o on domain-specific benchmark",
+      "Continuous evaluation loop where every production deploy triggers a Braintrust eval run",
+    ],
+    pros: [
+      "TruLens TruChain and TruLlama add tracing wrappers with zero refactor to existing LangChain/LlamaIndex code",
+      "Braintrust's dataset versioning and scoring UI makes human + automated eval collaboration practical",
+      "Both support custom scoring functions alongside built-in metrics",
+    ],
+    cons: [
+      "TruLens local dashboard is not production-grade for team collaboration — use hosted Braintrust instead",
+      "Braintrust is a paid SaaS — cost scales with logged spans and eval runs at high volume",
+      "Eval coverage is only as good as your dataset quality — garbage benchmark, garbage insight",
+    ],
+    whenTo: "Use TruLens for fast local RAG evaluation during development; upgrade to Braintrust when you need team collaboration, experiment history, and production eval pipelines.",
+    vs: [
+      { concept: "DeepEval", thisIs: "TruLens/Braintrust focus on experiment tracking, dataset management, and eval history", thatIs: "DeepEval focuses on pytest-style automated metric assertion as quality gates in CI" },
+      { concept: "Monitoring (Langfuse/Langsmith)", thisIs: "TruLens/Braintrust evaluate response quality with defined metrics against datasets", thatIs: "Monitoring tracks live production behavior, latency, errors, and usage patterns" },
+    ],
+    how: [
+      "For TruLens: pip install trulens-eval and wrap your chain with TruChain(chain, feedbacks=[f_answer_relevance])",
+      "Define feedback functions: f_qa_relevance = Feedback(provider.relevance).on_input_output()",
+      "Run your test queries and open tru.get_leaderboard() to compare configurations",
+      "For Braintrust: braintrust.init(project='my-agent') and wrap evals with traced() decorator",
+      "Log scores with braintrust.log(scores={'correctness': 0.9}, metadata={'model': 'gpt-4o'})",
+    ],
+  },
+  {
+    id: "red-teaming", pillar: "evaluate", name: "Red Teaming", color: "var(--ro)", status: "live", isNew: true,
+    what: "A structured adversarial testing process where human experts and/or automated systems attempt to break an AI agent through jailbreaks, prompt injection, data poisoning, and social engineering.",
+    why: "Standard evaluation only tests happy paths — red teaming systematically discovers safety failures, policy bypasses, and unexpected behaviors before malicious users do in production.",
+    useCases: [
+      "Pre-launch security audit of a customer-facing agent for jailbreak vulnerabilities and PII leakage",
+      "Automated red-teaming using an 'attacker LLM' to generate adversarial prompts at scale",
+      "Compliance validation for a healthcare agent ensuring it never provides medical diagnoses",
+    ],
+    pros: [
+      "Discovers failure modes that automated metrics and happy-path testing completely miss",
+      "Automated red-teaming (PyRIT, Garak) generates thousands of adversarial variants cheaply",
+      "Documents security posture for regulatory compliance and enterprise procurement processes",
+    ],
+    cons: [
+      "Human red-teaming is expensive and requires specialized adversarial thinking skills",
+      "Automated tools generate many false positives — high volume of results needs human triage",
+      "Adversarial space is infinite — red teaming reduces but cannot eliminate risk",
+    ],
+    whenTo: "Red-team before every major release of a customer-facing agent and after any significant prompt or tool change; skip it for internal developer tools with known trusted users only.",
+    vs: [
+      { concept: "Guardrails", thisIs: "Red teaming finds vulnerabilities proactively before deployment through adversarial testing", thatIs: "Guardrails defend against known attack patterns reactively at runtime" },
+      { concept: "Standard Evaluation", thisIs: "Red teaming intentionally tries to make the system fail with adversarial inputs", thatIs: "Standard evaluation measures performance on expected, representative inputs" },
+    ],
+    how: [
+      "Define threat model: who are adversarial users, what's their goal, what's the blast radius?",
+      "Manual phase: human testers attempt jailbreaks, prompt injection, role-play bypasses, and data extraction",
+      "Automated phase: use PyRIT (Microsoft) or Garak to generate adversarial prompt variations at scale",
+      "Document all successful attacks with reproduction steps and severity classification",
+      "Implement fixes (guardrails, prompt hardening, scope restriction) and retest until all criticals pass",
+    ],
+  },
+];
+
+// ═══════════════════════════════════════════════════════════════════════════
+// UPDATES FEED
+// ═══════════════════════════════════════════════════════════════════════════
+
+const UPDATES: Update[] = [
+  { id:"u1", date:"May 2025",  type:"model",     isNew:true,  title:"Gemini 2.5 Pro GA",           desc:"Google's flagship thinking model now production-ready. 1M context, strong multi-step reasoning." },
+  { id:"u2", date:"May 2025",  type:"model",     isNew:true,  title:"Claude 4 Sonnet",              desc:"Anthropic's new Sonnet — improved tool use, 200K context. Best choice for production agents." },
+  { id:"u3", date:"Apr 2025",  type:"model",     isNew:true,  title:"Llama 4 Scout / Maverick",    desc:"Meta's open multimodal models. Scout: 10M token context — longest in any open model." },
+  { id:"u4", date:"Apr 2025",  type:"framework", isNew:true,  title:"Google A2A Protocol",          desc:"Open standard for agent-to-agent communication. Framework-agnostic. Start testing now." },
+  { id:"u5", date:"Mar 2025",  type:"tool",      isNew:false, title:"MCP Is Now the Industry Standard", desc:"Anthropic's Model Context Protocol adopted by OpenAI, Google, and major platforms." },
+  { id:"u6", date:"Mar 2025",  type:"framework", isNew:false, title:"LangGraph 0.3 Released",       desc:"Streaming, parallel branches, human-in-the-loop checkpointing. Upgrade if you're using it." },
+  { id:"u7", date:"Feb 2025",  type:"model",     isNew:false, title:"DeepSeek R1",                  desc:"Open-source model matching GPT-4 on reasoning. Free via Groq API." },
+  { id:"s1", date:"",          type:"suggestion",             title:"Add Perplexity Search",        desc:"Real-time search with inline citations. Cuts hallucination in research tasks by anchoring to sources." },
+  { id:"s2", date:"",          type:"suggestion",             title:"Add E2B Code Interpreter",     desc:"Sandboxed Python execution as a tool. Unlocks data analysis and complex math for your agents." },
+  { id:"s3", date:"",          type:"suggestion",             title:"Add Cohere Reranker",           desc:"Post-retrieval reranking cuts irrelevant chunks. Often improves RAG faithfulness 15-20%." },
+  { id:"s4", date:"",          type:"suggestion",             title:"Set Up RAGAS Evaluation",      desc:"You have RAG — now measure it. Automated RAGAS evals catch quality regressions before users do." },
+  { id:"s5", date:"",          type:"suggestion",             title:"Add Langfuse Observability",   desc:"One SDK line for full LLM tracing and cost tracking. Essential before going to production." },
+];
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CHAT MODELS
+// ═══════════════════════════════════════════════════════════════════════════
+
+interface Message { id: string; role: "user"|"assistant"; content: string; model?: string; }
 
 const CHAT_MODELS = [
-  { id: "gemini-2.0-flash", label: "Gemini 2.0 Flash", color: "var(--bl)", provider: "Google" },
-  { id: "gemini-2.0-flash-lite", label: "Gemini Flash Lite", color: "var(--cy)", provider: "Google" },
-  { id: "llama-3.3-70b-versatile", label: "Llama 3.3 70B", color: "var(--vi)", provider: "Groq" },
-  { id: "mistral-saba-24b", label: "Mistral Saba 24B", color: "var(--or)", provider: "Groq" },
-  { id: "gemma2-9b-it", label: "Gemma 2 9B", color: "var(--em)", provider: "Groq" },
-  { id: "qwen-qwq-32b", label: "Qwen QwQ 32B", color: "var(--am)", provider: "Groq" },
+  { id: "gemini-2.5-flash",              label: "Gemini 2.5 Flash",   hex: "#34d399", provider: "Google" },
+  { id: "gemini-2.5-flash-lite",         label: "Gemini Flash Lite",  hex: "#22d3ee", provider: "Google" },
+  { id: "llama-3.3-70b-versatile",       label: "Llama 3.3 70B",      hex: "#a78bfa", provider: "Groq"   },
+  { id: "deepseek-r1-distill-llama-70b", label: "DeepSeek R1 70B",    hex: "#f472b6", provider: "Groq"   },
+  { id: "llama-3.1-8b-instant",          label: "Llama 3.1 8B",       hex: "#fb923c", provider: "Groq"   },
+  { id: "gemma2-9b-it",                  label: "Gemma 2 9B",         hex: "#fbbf24", provider: "Groq"   },
 ];
 
-const AGENT_MODELS = [
-  { id: "llama-3.3-70b-versatile", label: "Llama 3.3 70B", color: "var(--vi)" },
-  { id: "mistral-saba-24b", label: "Mistral Saba 24B", color: "var(--or)" },
+// Chain model sequence: text models run sequentially; embed + image run independently after
+const CHAIN_MODELS_CONFIG = [
+  { id: "gemini-2.5-flash",              label: "Gemini 2.5 Flash",  hex: "#34d399", role: "Synthesize", kind: "text"  },
+  { id: "llama-3.3-70b-versatile",       label: "Llama 3.3 70B",     hex: "#a78bfa", role: "Reason",     kind: "text"  },
+  { id: "deepseek-r1-distill-llama-70b", label: "DeepSeek R1 70B",   hex: "#f472b6", role: "Deep Think", kind: "text"  },
+  { id: "gemini-2.5-flash-lite",         label: "Gemini Flash Lite", hex: "#22d3ee", role: "Refine",     kind: "text"  },
+  { id: "llama-3.1-8b-instant",          label: "Llama 3.1 8B",      hex: "#fb923c", role: "Condense",   kind: "text"  },
+  { id: "gemma2-9b-it",                  label: "Gemma 2 9B",        hex: "#fbbf24", role: "Polish",     kind: "text"  },
+  { id: "text-embedding-004",            label: "Gemini Embedding",  hex: "#818cf8", role: "Vectorize",  kind: "embed" },
+  { id: "imagen-4.0-fast-generate-001",  label: "Imagen 4 Fast",     hex: "#e879f9", role: "Visualize",  kind: "image" },
 ];
 
-// ─── Chat Tab ─────────────────────────────────────────────────────────────────
+interface ChainPanel { modelId: string; label: string; hex: string; role: string; kind: "text"|"embed"|"image"; content: string; active: boolean; done: boolean; }
+interface ChainEntry { id: string; userContent: string; panels: ChainPanel[]; }
 
-function ChatTab() {
+const CHAT_STARTERS = [
+  "Explain RAG vs fine-tuning — when do I use each?",
+  "Write a minimal ReAct agent in TypeScript",
+  "What's the difference between a Knowledge Base and Agent Skills?",
+  "How do I evaluate my RAG pipeline with RAGAS?",
+  "Compare Gemini 2.5 Pro vs Claude 3.7 Sonnet for production agents",
+];
+
+function ChatTab({ initialMessage }: { initialMessage?: string }) {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [chainEntries, setChainEntries] = useState<ChainEntry[]>([]);
+  const [chainMode, setChainMode] = useState(false);
   const [input, setInput] = useState("");
   const [model, setModel] = useState(CHAT_MODELS[0].id);
-  const [systemPrompt, setSystemPrompt] = useState("You are AXIOM — an expert AI engineering assistant. Be precise, technical, and insightful.");
+  const [system, setSystem] = useState("You are AXIOM — an expert AI engineering mentor. Be precise, technical, and teach through real examples.");
+  const [showSys, setShowSys] = useState(false);
   const [streaming, setStreaming] = useState(false);
-  const [showSystem, setShowSystem] = useState(false);
-  const [copied, setCopied] = useState<string | null>(null);
+  const [copied, setCopied] = useState<string|null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const didAutoSend = useRef(false);
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, chainEntries]);
 
-  const send = async () => {
-    if (!input.trim() || streaming) return;
-    const userMsg: Message = { id: crypto.randomUUID(), role: "user", content: input.trim(), ts: Date.now() };
-    const assistantId = crypto.randomUUID();
-    setMessages((m) => [...m, userMsg, { id: assistantId, role: "assistant", content: "", model, ts: Date.now() }]);
-    setInput("");
+  // Auto-send when arriving from "Ask AI Mentor" in Blueprint
+  useEffect(() => {
+    if (initialMessage && !didAutoSend.current && !streaming) {
+      didAutoSend.current = true;
+      sendSingle(initialMessage);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialMessage]);
+
+  const sendSingle = async (text?: string) => {
+    const content = (text ?? input).trim();
+    if (!content || streaming) return;
+    const userMsg: Message = { id: crypto.randomUUID(), role: "user", content };
+    const asstId = crypto.randomUUID();
+    setMessages(m => [...m, userMsg, { id: asstId, role: "assistant", content: "", model }]);
+    if (!text) setInput("");
     setStreaming(true);
-
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: [...messages, userMsg].map((m) => ({ role: m.role, content: m.content })),
-          model,
-          systemPrompt,
+          messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })),
+          model, systemPrompt: system,
         }),
       });
-
-      if (!res.ok) throw new Error(`API error ${res.status}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const reader = res.body?.getReader();
-      const decoder = new TextDecoder();
+      const dec = new TextDecoder();
       let full = "";
-
       while (reader) {
         const { done, value } = await reader.read();
         if (done) break;
-        const text = decoder.decode(value);
-        for (const line of text.split("\n")) {
-          if (line.startsWith("0:")) {
-            try { full += JSON.parse(line.slice(2)); } catch { /* skip */ }
-          }
-        }
-        setMessages((m) => m.map((msg) => msg.id === assistantId ? { ...msg, content: full } : msg));
+        for (const line of dec.decode(value, { stream: true }).split("\n"))
+          if (line.startsWith("0:")) try { full += JSON.parse(line.slice(2)); } catch { /* skip */ }
+        setMessages(m => m.map(msg => msg.id === asstId ? { ...msg, content: full } : msg));
       }
     } catch (err) {
-      setMessages((m) => m.map((msg) => msg.id === assistantId ? { ...msg, content: `Error: ${err}` } : msg));
-    } finally {
-      setStreaming(false);
-    }
+      setMessages(m => m.map(msg => msg.id === asstId ? { ...msg, content: `⚠️ Error: ${err}` } : msg));
+    } finally { setStreaming(false); }
   };
+
+  const sendChain = async (text?: string) => {
+    const content = (text ?? input).trim();
+    if (!content || streaming) return;
+    if (!text) setInput("");
+    setStreaming(true);
+
+    const entryId = crypto.randomUUID();
+    const panels: ChainPanel[] = CHAIN_MODELS_CONFIG.map(cm => ({
+      modelId: cm.id, label: cm.label, hex: cm.hex, role: cm.role, kind: cm.kind as "text"|"embed"|"image", content: "", active: false, done: false,
+    }));
+    setChainEntries(e => [...e, { id: entryId, userContent: content, panels }]);
+
+    try {
+      const res = await fetch("/api/chain", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: [{ role: "user", content }], systemPrompt: system }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const reader = res.body!.getReader();
+      const dec = new TextDecoder();
+      let buf = "";
+
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const ev = JSON.parse(line.slice(6));
+            if (ev.type === "model_start") {
+              setChainEntries(es => es.map(e => e.id !== entryId ? e : {
+                ...e, panels: e.panels.map(p => p.modelId === ev.modelId ? { ...p, active: true } : p),
+              }));
+            } else if (ev.type === "chunk") {
+              setChainEntries(es => es.map(e => e.id !== entryId ? e : {
+                ...e, panels: e.panels.map(p => p.modelId === ev.modelId ? { ...p, content: p.content + ev.delta } : p),
+              }));
+            } else if (ev.type === "model_done") {
+              setChainEntries(es => es.map(e => e.id !== entryId ? e : {
+                ...e, panels: e.panels.map(p => p.modelId === ev.modelId ? { ...p, active: false, done: true } : p),
+              }));
+            }
+          } catch { /* skip bad JSON */ }
+        }
+      }
+    } catch (err) {
+      setChainEntries(es => es.map(e => e.id !== entryId ? e : {
+        ...e, panels: e.panels.map(p => p.active ? { ...p, active: false, content: p.content + `\n\n⚠️ ${err}` } : p),
+      }));
+    } finally { setStreaming(false); }
+  };
+
+  const send = (text?: string) => chainMode ? sendChain(text) : sendSingle(text);
 
   const copy = (id: string, text: string) => {
     navigator.clipboard.writeText(text);
@@ -109,364 +1842,1097 @@ function ChatTab() {
     setTimeout(() => setCopied(null), 1500);
   };
 
-  const selectedModel = CHAT_MODELS.find((m) => m.id === model)!;
+  const clearAll = () => { setMessages([]); setChainEntries([]); };
+
+  const sel = CHAT_MODELS.find(m => m.id === model)!;
+  const isEmpty = chainMode ? chainEntries.length === 0 : messages.length === 0;
 
   return (
     <div className="chat-wrap">
-      {/* Config bar */}
-      <div className="config-bar">
-        <div className="model-select-wrap">
-          <div className="model-dot" style={{ background: selectedModel.color }} />
-          <select className="model-select" value={model} onChange={(e) => setModel(e.target.value)}>
-            {CHAT_MODELS.map((m) => (
-              <option key={m.id} value={m.id}>{m.label} ({m.provider})</option>
-            ))}
-          </select>
-          <ChevronDown size={13} className="select-arrow" />
+      <div className="chat-toolbar">
+        {/* Mode toggle */}
+        <div className="chain-toggle">
+          <button
+            className={`chain-toggle-btn${!chainMode ? " active" : ""}`}
+            onClick={() => setChainMode(false)}
+          >Single</button>
+          <button
+            className={`chain-toggle-btn${chainMode ? " active" : ""}`}
+            onClick={() => setChainMode(true)}
+          >
+            <Zap size={10} /> Chain
+          </button>
         </div>
-        <button className="sys-toggle" onClick={() => setShowSystem((s) => !s)}>
-          <Settings size={13} /> System
-        </button>
-        <button className="clear-btn" onClick={() => setMessages([])} disabled={messages.length === 0}>
-          <Trash2 size={13} /> Clear
-        </button>
+
+        {/* Model selector — only in single mode */}
+        {!chainMode && (
+          <div className="model-select-wrap">
+            <div className="mdot" style={{ background: sel.hex }} />
+            <select className="model-select" value={model} onChange={e => setModel(e.target.value)}>
+              {CHAT_MODELS.map(m => <option key={m.id} value={m.id}>{m.label} ({m.provider})</option>)}
+            </select>
+            <ChevronDown size={11} className="select-arr" />
+          </div>
+        )}
+
+        {/* Chain badge — shows all 6 model dots */}
+        {chainMode && (
+          <div className="chain-badge">
+            {CHAIN_MODELS_CONFIG.map(cm => (
+              <div key={cm.id} className="chain-dot" style={{ background: cm.hex }} title={cm.label} />
+            ))}
+            <span className="chain-badge-label">6 text · embed · imagen</span>
+          </div>
+        )}
+
+        <button className="chat-cfg-btn" onClick={() => setShowSys(s => !s)}>System prompt</button>
+        <button className="chat-cfg-btn" onClick={clearAll} disabled={isEmpty}>Clear</button>
       </div>
 
-      {/* System prompt */}
-      {showSystem && (
-        <div className="system-panel">
-          <label className="system-label">System Prompt</label>
-          <textarea className="system-input" value={systemPrompt} onChange={(e) => setSystemPrompt(e.target.value)} rows={3} />
+      {showSys && (
+        <div className="sys-bar">
+          <textarea className="sys-input" value={system} onChange={e => setSystem(e.target.value)} rows={2} />
         </div>
       )}
 
-      {/* Messages */}
       <div className="messages">
-        {messages.length === 0 && (
-          <div className="empty-state">
-            <Bot size={32} className="empty-icon" />
-            <p className="empty-title">AXIOM AI Studio</p>
-            <p className="empty-sub">6 models · streaming · system prompt control</p>
-            <div className="quick-prompts">
-              {["Explain RAG architecture", "Write a Python embedding pipeline", "Compare Groq vs Gemini for production"].map((q) => (
-                <button key={q} className="quick-btn" onClick={() => { setInput(q); textareaRef.current?.focus(); }}>{q}</button>
+        {isEmpty && (
+          <div className="chat-empty">
+            <Bot size={28} style={{ color: "#60a5fa", opacity: 0.45 }} />
+            <p className="chat-empty-title">
+              {chainMode ? "Chain of 6 AI Models" : "AI Engineering Mentor"}
+            </p>
+            <p className="chat-empty-sub">
+              {chainMode
+                ? "Text chain: Gemini 2.5 Flash → Llama 3.3 → DeepSeek R1 → Flash Lite → Llama 3.1 8B → Gemma2  +  Embedding analysis  +  Imagen 4"
+                : `${CHAT_MODELS.length} models · streaming · system prompt control`}
+            </p>
+            <div className="starters">
+              {CHAT_STARTERS.map(q => (
+                <button key={q} className="starter-btn" onClick={() => { setInput(q); inputRef.current?.focus(); }}>{q}</button>
               ))}
             </div>
           </div>
         )}
-        {messages.map((msg) => (
+
+        {/* ── Single mode messages ── */}
+        {!chainMode && messages.map(msg => (
           <div key={msg.id} className={`msg msg-${msg.role}`}>
-            <div className="msg-avatar">
-              {msg.role === "user" ? <User size={13} /> : <Bot size={13} />}
+            <div className="msg-av">
+              {msg.role === "user" ? <User size={11} /> : <Bot size={11} />}
             </div>
-            <div className="msg-body">
+            <div className="msg-bdy">
               {msg.role === "assistant" && msg.model && (
-                <div className="msg-model-tag" style={{ color: CHAT_MODELS.find((m) => m.id === msg.model)?.color || "var(--di)" }}>
-                  {CHAT_MODELS.find((m) => m.id === msg.model)?.label}
+                <div className="msg-model" style={{ color: CHAT_MODELS.find(m => m.id === msg.model)?.hex }}>
+                  {CHAT_MODELS.find(m => m.id === msg.model)?.label}
                 </div>
               )}
-              <div className="msg-content">
-                {msg.content || (msg.role === "assistant" && streaming ? <span className="cursor-blink">▋</span> : "")}
+              <div className="msg-txt">
+                {msg.content || (msg.role === "assistant" && streaming ? <span className="caret">▋</span> : "")}
               </div>
               {msg.content && msg.role === "assistant" && (
-                <button className="copy-btn" onClick={() => copy(msg.id, msg.content)}>
-                  {copied === msg.id ? <Check size={11} /> : <Copy size={11} />}
+                <button className="copy-msg" onClick={() => copy(msg.id, msg.content)}>
+                  {copied === msg.id ? <Check size={10} /> : <Copy size={10} />}
                 </button>
               )}
             </div>
           </div>
         ))}
+
+        {/* ── Chain mode entries ── */}
+        {chainMode && chainEntries.map(entry => (
+          <div key={entry.id} className="chain-entry">
+            {/* User bubble */}
+            <div className="msg msg-user">
+              <div className="msg-av"><User size={11} /></div>
+              <div className="msg-bdy">
+                <div className="msg-txt">{entry.userContent}</div>
+              </div>
+            </div>
+
+            {/* 6 model panels grid */}
+            <div className="chain-grid">
+              {entry.panels.map((panel) => (
+                <div
+                  key={panel.modelId}
+                  className={`chain-panel${panel.active ? " chain-panel-active" : ""}${panel.done ? " chain-panel-done" : ""}`}
+                  style={{ "--panel-hex": panel.hex } as React.CSSProperties}
+                >
+                  <div className="chain-panel-header">
+                    <div className="chain-panel-dot" style={{ background: panel.hex }} />
+                    <span className="chain-panel-label" style={{ color: panel.hex }}>{panel.label}</span>
+                    <span className="chain-panel-role" style={{ borderColor: panel.hex + "44", color: panel.hex }}>
+                      {panel.role}
+                    </span>
+                    {panel.active && <Loader2 size={10} className="spin" style={{ color: panel.hex, marginLeft: "auto" }} />}
+                    {panel.done && <CheckCircle size={10} style={{ color: panel.hex, marginLeft: "auto", opacity: 0.7 }} />}
+                    {panel.content && panel.done && panel.kind !== "image" && (
+                      <button className="copy-msg" style={{ position: "static", opacity: 1, marginLeft: 4 }} onClick={() => copy(panel.modelId + entry.id, panel.content)}>
+                        {copied === panel.modelId + entry.id ? <Check size={9} /> : <Copy size={9} />}
+                      </button>
+                    )}
+                  </div>
+                  <div className="chain-panel-body">
+                    {/* Image panel: render base64 img or message */}
+                    {panel.kind === "image" && panel.content ? (
+                      panel.content.startsWith("__IMAGE__") ? (
+                        <img
+                          src={panel.content.slice(9)}
+                          alt="Imagen 4 generated visual"
+                          style={{ width: "100%", borderRadius: 6, display: "block" }}
+                        />
+                      ) : (
+                        <span className="chain-panel-text">{panel.content}</span>
+                      )
+                    ) : panel.kind === "embed" && panel.content ? (
+                      <span className="chain-panel-text chain-panel-mono">{panel.content}</span>
+                    ) : panel.content ? (
+                      <span className="chain-panel-text">{panel.content}</span>
+                    ) : panel.active ? (
+                      <span className="caret" style={{ color: panel.hex }}>▋</span>
+                    ) : (
+                      <span className="chain-panel-wait">Waiting…</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
-      <div className="input-bar">
-        <textarea
-          ref={textareaRef}
-          className="chat-input"
-          placeholder="Ask anything..."
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
-          rows={1}
-        />
-        <button className="send-btn" onClick={send} disabled={!input.trim() || streaming}>
-          {streaming ? <Loader2 size={16} className="spin" /> : <Send size={16} />}
+      <div className="chat-input-bar">
+        <textarea ref={inputRef} className="chat-input" rows={1}
+          placeholder={chainMode ? "Ask anything — 6 text models + embedding + Imagen run in sequence…" : "Ask anything about AI engineering…"}
+          value={input} onChange={e => setInput(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }} />
+        <button className="chat-send" onClick={() => send()} disabled={!input.trim() || streaming}>
+          {streaming ? <Loader2 size={14} className="spin" /> : chainMode ? <Zap size={14} /> : <Send size={14} />}
         </button>
       </div>
     </div>
   );
 }
 
-// ─── Agent Tab ────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+// AGENT MODELS (for sandbox)
+// ═══════════════════════════════════════════════════════════════════════════
 
-function AgentTab() {
-  const [prompt, setPrompt] = useState("");
-  const [model, setModel] = useState(AGENT_MODELS[0].id);
-  const [systemPrompt, setSystemPrompt] = useState("");
+const SANDBOX_MODELS = [
+  { id: "llama-3.3-70b-versatile",       label: "Llama 3.3 70B",    color: "var(--vi)" },
+  { id: "deepseek-r1-distill-llama-70b", label: "DeepSeek R1 70B",  color: "var(--ro)" },
+];
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BLOCK DETAIL PANEL
+// ═══════════════════════════════════════════════════════════════════════════
+
+function BlockDetail({ block, onPractice }: { block: Block | null; onPractice?: (goal: string) => void }) {
+  const [detailTab, setDetailTab] = useState<"what"|"diff"|"how"|"code">("what");
+
+  if (!block) return (
+    <div className="detail-empty">
+      <Layers size={28} style={{ color: "var(--mu)", opacity: 0.5 }} />
+      <p style={{ fontWeight: 700, color: "var(--tx)", marginTop: 8 }}>Select any block</p>
+      <p style={{ color: "var(--mu)", fontSize: 12, textAlign: "center", lineHeight: 1.6 }}>
+        Click a lego piece in the blueprint to see what it is, how it compares to similar concepts, and how to build it.
+      </p>
+    </div>
+  );
+
+  return (
+    <div className="detail-panel">
+      <div className="detail-header">
+        <div className="detail-dot" style={{ background: block.color }} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <span className="detail-name">{block.name}</span>
+            {block.isNew && <span className="badge-new">NEW</span>}
+            <span className={`badge-status ${block.status}`}>{block.status}</span>
+          </div>
+          <div style={{ fontSize: 10, color: "var(--mu)", marginTop: 2 }}>
+            {PILLARS.find(p => p.id === block.pillar)?.label}
+          </div>
+        </div>
+      </div>
+
+      <div className="detail-tabs">
+        {(["what","diff","how","code"] as const).map(t => (
+          <button key={t} className={`dtab ${detailTab === t ? "active" : ""}`} onClick={() => setDetailTab(t)}>
+            {t === "what" ? "WHAT" : t === "diff" ? "vs OTHERS" : t === "how" ? "HOW" : "CODE"}
+          </button>
+        ))}
+      </div>
+      {onPractice && (
+        <div style={{ display: "flex", gap: 8, padding: "0 16px 12px" }}>
+          <button className="practice-btn" style={{ flex: 1, borderColor: block.color, color: block.color }}
+            onClick={() => onPractice(`Explain ${block.name} to me as an AI engineering mentor. Cover: what it is, why it matters, real-world use cases, advantages and disadvantages, how it compares to alternatives, and walk me through building a minimal working example.`)}>
+            <Bot size={11} /> Ask AI Mentor
+          </button>
+        </div>
+      )}
+
+      <div className="detail-body">
+        {detailTab === "what" && (
+          <div className="detail-what-content">
+            {/* Definition */}
+            <div className="detail-section-label">DEFINITION</div>
+            <p className="detail-text">{block.what}</p>
+
+            {/* Why it matters */}
+            <div className="detail-section-label" style={{ marginTop: 14 }}>WHY IT MATTERS</div>
+            <p className="detail-text">{block.why}</p>
+
+            {/* Use cases */}
+            {block.useCases && block.useCases.length > 0 && (
+              <div style={{ marginTop: 14 }}>
+                <div className="detail-section-label">REAL-WORLD USE CASES</div>
+                <ul className="usecase-list">
+                  {block.useCases.map((uc, i) => (
+                    <li key={i} className="usecase-item">
+                      <span className="usecase-dot" style={{ background: block.color }} />
+                      <span>{uc}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* When to use */}
+            {block.whenTo && (
+              <div style={{ marginTop: 14 }}>
+                <div className="detail-section-label">WHEN TO USE (DECISION GUIDE)</div>
+                <div className="whento-box" style={{ borderColor: block.color + "44" }}>
+                  <p className="detail-text" style={{ margin: 0 }}>{block.whenTo}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Pros & Cons */}
+            {(block.pros || block.cons) && (
+              <div style={{ marginTop: 14 }}>
+                <div className="detail-section-label">ADVANTAGES & DISADVANTAGES</div>
+                <div className="proscons-grid">
+                  {block.pros && block.pros.length > 0 && (
+                    <div className="pros-col">
+                      <div className="proscons-header pros-header">✓ Advantages</div>
+                      <ul className="proscons-list">
+                        {block.pros.map((p, i) => (
+                          <li key={i} className="proscons-item pro-item">{p}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {block.cons && block.cons.length > 0 && (
+                    <div className="cons-col">
+                      <div className="proscons-header cons-header">✗ Disadvantages</div>
+                      <ul className="proscons-list">
+                        {block.cons.map((c, i) => (
+                          <li key={i} className="proscons-item con-item">{c}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {detailTab === "diff" && (
+          <div>
+            {block.vs.length === 0
+              ? <p className="detail-text" style={{ color: "var(--mu)", fontStyle: "italic" }}>No direct comparisons for this concept. Select HOW to see implementation steps.</p>
+              : block.vs.map((v, i) => (
+                <div key={i} className="vs-card">
+                  <div className="vs-title">{block.name} vs {v.concept}</div>
+                  <div className="vs-grid">
+                    <div className="vs-col">
+                      <div className="vs-col-label" style={{ color: block.color }}>This ({block.name})</div>
+                      <p className="vs-text">{v.thisIs}</p>
+                    </div>
+                    <div className="vs-divider" />
+                    <div className="vs-col">
+                      <div className="vs-col-label" style={{ color: "var(--mu)" }}>That ({v.concept})</div>
+                      <p className="vs-text">{v.thatIs}</p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            }
+          </div>
+        )}
+
+        {detailTab === "how" && (
+          <ol className="how-list">
+            {block.how.map((step, i) => (
+              <li key={i} className="how-item">
+                <span className="how-num">{i + 1}</span>
+                <span>{step}</span>
+              </li>
+            ))}
+          </ol>
+        )}
+
+        {detailTab === "code" && (
+          block.code
+            ? <pre className="code-block">{block.code}</pre>
+            : <p className="detail-text" style={{ color: "var(--mu)", fontStyle: "italic" }}>No code snippet for this concept.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BLUEPRINT TAB
+// ═══════════════════════════════════════════════════════════════════════════
+
+function BlueprintTab({ selectedBlock, onSelect, onPractice }: {
+  selectedBlock: Block | null;
+  onSelect: (b: Block) => void;
+  onPractice: (goal: string) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const q = query.toLowerCase().trim();
+  const matchBlock = (b: Block) =>
+    !q || b.name.toLowerCase().includes(q) || b.pillar.includes(q) ||
+    b.what.toLowerCase().includes(q) || b.how.some(h => h.toLowerCase().includes(q));
+
+  return (
+    <div className="blueprint-layout">
+      <div className="blueprint-canvas">
+        {/* Search bar */}
+        <div className="bp-search-row">
+          <div className="bp-search">
+            <Search size={12} style={{ color: "var(--mu)", flexShrink: 0 }} />
+            <input className="bp-search-input" placeholder="Search any concept — RAG, anomaly, A2A, embeddings…"
+              value={query} onChange={e => setQuery(e.target.value)} />
+            {query && <button className="bp-clear" onClick={() => setQuery("")}>×</button>}
+          </div>
+          <span className="bp-count">{BLOCKS.filter(matchBlock).length} blocks</span>
+        </div>
+
+        {PILLARS.map(pillar => {
+          const blocks = BLOCKS.filter(b => b.pillar === pillar.id && matchBlock(b));
+          if (!blocks.length) return null;
+          return (
+            <div key={pillar.id} className="pillar-row">
+              <div className="pillar-label" style={{ color: pillar.color }}>
+                {pillar.icon}
+                <span>{pillar.label}</span>
+                <span className="pillar-count">{blocks.length}</span>
+              </div>
+              <div className="blocks-row">
+                {blocks.map(block => (
+                  <button key={block.id}
+                    className={`lego-block ${selectedBlock?.id === block.id ? "selected" : ""}`}
+                    style={{ "--block-color": block.color } as React.CSSProperties}
+                    onClick={() => onSelect(block)}
+                    title={block.what.slice(0, 120) + "…"}
+                  >
+                    <div className="lego-top" />
+                    <div className="lego-face">
+                      <div className="lego-name-row">
+                        <span className="lego-name">{block.name}</span>
+                        {block.isNew && <span className="badge-new" style={{ fontSize: 7 }}>NEW</span>}
+                      </div>
+                      {block.status === "beta" && <span style={{ fontSize: 9, color: "var(--am)" }}>β beta</span>}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+        {BLOCKS.filter(matchBlock).length === 0 && (
+          <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--mu)", fontSize: 13 }}>
+            No blocks match "{query}"
+          </div>
+        )}
+        <div className="blueprint-footer">
+          Click any block to learn it · See how it compares · Practice it in Sandbox
+        </div>
+      </div>
+      <div className="detail-sidebar">
+        <BlockDetail block={selectedBlock} onPractice={onPractice} />
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SANDBOX TAB — live agent with real tools
+// ═══════════════════════════════════════════════════════════════════════════
+
+const SANDBOX_TOOLS = [
+  { id: "web_search",        name: "Web Search",     hex: "#60a5fa", icon: <Search size={11} /> },
+  { id: "calculate",         name: "Calculator",     hex: "#22d3ee", icon: <Code2 size={11} /> },
+  { id: "anomaly_detection", name: "Anomaly Detect", hex: "#fbbf24", icon: <Activity size={11} /> },
+  { id: "weather",           name: "Weather",        hex: "#34d399", icon: <CloudSun size={11} /> },
+  { id: "summarize_url",     name: "Summarize URL",  hex: "#a78bfa", icon: <FileText size={11} /> },
+  { id: "analyze_data",      name: "Analyze Data",   hex: "#fb923c", icon: <BarChart2 size={11} /> },
+  { id: "embed_text",        name: "Embed Text",     hex: "#818cf8", icon: <Layers size={11} /> },
+  { id: "generate_image",    name: "Imagen 4",       hex: "#e879f9", icon: <Sparkles size={11} /> },
+];
+
+function SandboxTab({ initialGoal }: { initialGoal?: string }) {
+  const [goal, setGoal] = useState(initialGoal ?? "");
+  useEffect(() => { if (initialGoal) setGoal(initialGoal); }, [initialGoal]);
+  const [model, setModel] = useState(SANDBOX_MODELS[0].id);
+  const [activeTools, setActiveTools] = useState<string[]>(["web_search", "calculate"]);
   const [steps, setSteps] = useState<AgentStep[]>([]);
   const [running, setRunning] = useState(false);
-  const [done, setDone] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [steps]);
 
-  const run = async () => {
-    if (!prompt.trim() || running) return;
-    setSteps([]);
-    setDone(false);
-    setRunning(true);
+  const toggleTool = (id: string) => setActiveTools(prev =>
+    prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]
+  );
 
+  const run = async () => {
+    if (!goal.trim() || running) return;
+    setSteps([]); setRunning(true);
+    const toolsDesc = activeTools.join(", ");
+    const enhancedGoal = `[Active tools: ${toolsDesc}] ${goal}`;
     try {
       const res = await fetch("/api/agent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, model, systemPrompt }),
+        body: JSON.stringify({ prompt: enhancedGoal, model }),
       });
-
       const reader = res.body?.getReader();
       const decoder = new TextDecoder();
-
       while (reader) {
-        const { done: streamDone, value } = await reader.read();
-        if (streamDone) break;
-        const text = decoder.decode(value);
-        for (const line of text.split("\n")) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        for (const line of decoder.decode(value).split("\n")) {
           if (line.startsWith("data: ")) {
             try {
               const data = JSON.parse(line.slice(6)) as AgentStep;
-              setSteps((s) => [...s, data]);
-              if (data.type === "done") setDone(true);
+              setSteps(s => [...s, data]);
             } catch { /* skip */ }
           }
         }
       }
     } catch (err) {
-      setSteps((s) => [...s, { type: "error", message: String(err) }]);
-    } finally {
-      setRunning(false);
-      setDone(true);
-    }
+      setSteps(s => [...s, { type: "error", message: String(err) }]);
+    } finally { setRunning(false); }
   };
 
   const STEP_ICONS: Record<string, React.ReactNode> = {
-    thought: <Brain size={13} className="step-icon thought" />,
-    tool_call: <Terminal size={13} className="step-icon tool" />,
-    tool_result: <CheckCircle size={13} className="step-icon result" />,
-    final_answer: <Zap size={13} className="step-icon answer" />,
-    error: <AlertCircle size={13} className="step-icon error" />,
-    agent_start: <Cpu size={13} className="step-icon start" />,
+    thought:      <Brain size={12} style={{ color: "var(--bl)" }} />,
+    tool_call:    <Terminal size={12} style={{ color: "var(--vi)" }} />,
+    tool_result:  <CheckCircle size={12} style={{ color: "var(--em)" }} />,
+    final_answer: <Zap size={12} style={{ color: "var(--am)" }} />,
+    error:        <AlertCircle size={12} style={{ color: "var(--ro)" }} />,
+    agent_start:  <Cpu size={12} style={{ color: "var(--cy)" }} />,
   };
 
   return (
-    <div className="agent-wrap">
-      <div className="agent-config">
-        <div className="model-select-wrap">
-          <div className="model-dot" style={{ background: AGENT_MODELS.find((m) => m.id === model)?.color }} />
-          <select className="model-select" value={model} onChange={(e) => setModel(e.target.value)}>
-            {AGENT_MODELS.map((m) => (
-              <option key={m.id} value={m.id}>{m.label}</option>
-            ))}
-          </select>
-          <ChevronDown size={13} className="select-arrow" />
+    <div className="sandbox-layout">
+      {/* Tool selector */}
+      <div className="sandbox-toolbar">
+        <div className="toolbar-section">
+          <span className="toolbar-label">Tools</span>
+          <div className="tools-palette">
+            {SANDBOX_TOOLS.map(t => {
+              const on = activeTools.includes(t.id);
+              return (
+                <button key={t.id}
+                  className="tool-pill"
+                  style={on ? { color: t.hex, borderColor: t.hex, background: t.hex + "22" } : {}}
+                  onClick={() => toggleTool(t.id)}>
+                  {t.icon} {t.name}
+                  {on && <Check size={9} />}
+                </button>
+              );
+            })}
+          </div>
         </div>
-        <div className="agent-tools-info">
-          Available tools: <span className="tool-badge">web_search</span>
-          <span className="tool-badge">calculate</span>
-          <span className="tool-badge">summarize_url</span>
-          <span className="tool-badge">analyze_data</span>
+        <div className="toolbar-section" style={{ marginLeft: "auto" }}>
+          <span className="toolbar-label">Model</span>
+          <div className="model-select-wrap">
+            <div className="mdot" style={{ background: SANDBOX_MODELS.find(m => m.id === model)?.color }} />
+            <select className="model-select" value={model} onChange={e => setModel(e.target.value)}>
+              {SANDBOX_MODELS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+            </select>
+            <ChevronDown size={11} className="select-arr" />
+          </div>
         </div>
       </div>
 
-      <div className="agent-input-area">
-        <textarea
-          className="agent-input"
-          placeholder="Give the agent a goal: 'Research the latest Gemini models and compare their capabilities' or 'Calculate compound interest on $10,000 at 7% for 10 years'..."
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          rows={3}
-        />
-        <button className="agent-run-btn" onClick={run} disabled={!prompt.trim() || running}>
-          {running ? <><Loader2 size={15} className="spin" /> Running...</> : <><Zap size={15} /> Run Agent</>}
+      {/* Goal input */}
+      <div className="sandbox-input-area">
+        <textarea className="sandbox-input"
+          placeholder={`Give your agent a goal. Try: "Search for the latest AI agent frameworks released in 2025 and compare their features" or "Analyze this data for anomalies: [12, 14, 13, 15, 47, 13, 12, 14]"`}
+          value={goal} onChange={e => setGoal(e.target.value)} rows={3} />
+        <button className="run-btn" onClick={run} disabled={!goal.trim() || running}>
+          {running ? <><Loader2 size={14} className="spin" /> Running…</> : <><Zap size={14} /> Run Agent</>}
         </button>
       </div>
 
-      {steps.length > 0 && (
-        <div className="agent-trace">
-          <div className="trace-header">
-            <Terminal size={13} /> Reasoning Trace
-            {running && <span className="trace-live">● LIVE</span>}
+      {/* Reasoning trace */}
+      <div className="trace-area">
+        {steps.length === 0 && !running && (
+          <div className="trace-empty">
+            <Brain size={28} style={{ color: "var(--vi)", opacity: 0.4 }} />
+            <p style={{ fontWeight: 700, fontSize: 14 }}>ReAct Agent Sandbox</p>
+            <p style={{ fontSize: 12, color: "var(--mu)" }}>Select tools · write a goal · see live reasoning trace</p>
           </div>
-          {steps.map((step, i) => (
-            <div key={i} className={`trace-step trace-${step.type}`}>
-              <div className="trace-step-icon">{STEP_ICONS[step.type] || <ChevronRight size={13} />}</div>
-              <div className="trace-step-body">
-                {step.type === "agent_start" && <span className="trace-label">{step.message}</span>}
-                {step.type === "step_start" && <span className="trace-label muted">Step {step.step}</span>}
-                {step.type === "thought" && (
-                  <div>
-                    <span className="trace-type-tag thought-tag">THOUGHT</span>
-                    <p className="trace-text">{step.content}</p>
-                  </div>
-                )}
-                {step.type === "tool_call" && (
-                  <div>
-                    <span className="trace-type-tag tool-tag">TOOL → {step.tool}</span>
-                    <pre className="trace-args">{JSON.stringify(step.args, null, 2)}</pre>
-                  </div>
-                )}
-                {step.type === "tool_result" && (
-                  <div>
-                    <span className="trace-type-tag result-tag">RESULT from {step.tool}</span>
-                    <p className="trace-text">{typeof step.result === "string" ? step.result.slice(0, 300) : JSON.stringify(step.result)}</p>
-                  </div>
-                )}
-                {step.type === "final_answer" && (
-                  <div>
-                    <span className="trace-type-tag answer-tag">FINAL ANSWER</span>
-                    <p className="trace-text final">{step.content}</p>
-                  </div>
-                )}
-                {step.type === "error" && (
-                  <p className="trace-text error-text">{step.message}</p>
-                )}
-              </div>
+        )}
+        {steps.map((step, i) => (
+          <div key={i} className={`trace-step ts-${step.type}`}>
+            <div className="ts-icon">{STEP_ICONS[step.type] ?? <ChevronRight size={12} />}</div>
+            <div className="ts-body">
+              {step.type === "agent_start" && <span style={{ fontSize: 12, color: "var(--di)" }}>{step.message}</span>}
+              {step.type === "step_start"  && <span style={{ fontSize: 11, color: "var(--mu)" }}>Step {step.step}</span>}
+              {step.type === "thought"     && <><span className="ts-tag thought-tag">THOUGHT</span><p className="ts-text">{step.content}</p></>}
+              {step.type === "tool_call"   && <><span className="ts-tag tool-tag">TOOL → {step.tool}</span><pre className="ts-pre">{JSON.stringify(step.args, null, 2)}</pre></>}
+              {step.type === "tool_result" && <><span className="ts-tag result-tag">RESULT</span><p className="ts-text">{String(step.result ?? "").slice(0, 400)}</p></>}
+              {step.type === "final_answer"&& <><span className="ts-tag answer-tag">FINAL ANSWER</span><p className="ts-text" style={{ color: "var(--tx)", fontSize: 14 }}>{step.content}</p></>}
+              {step.type === "error"       && <p className="ts-text" style={{ color: "var(--ro)" }}>{step.message}</p>}
             </div>
-          ))}
-          <div ref={bottomRef} />
-        </div>
-      )}
+          </div>
+        ))}
+        {running && steps.length > 0 && <div style={{ textAlign: "center", color: "var(--mu)", fontSize: 12, padding: 8 }}><Loader2 size={12} className="spin" style={{ display: "inline" }} /> Reasoning…</div>}
+        <div ref={bottomRef} />
+      </div>
     </div>
   );
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+// A2A STUDIO TAB
+// ═══════════════════════════════════════════════════════════════════════════
 
-export default function StudioPage() {
-  const [tab, setTab] = useState<Tab>("chat");
+const A2A_AGENTS = [
+  {
+    id: "coordinator", name: "Coordinator", color: "var(--cy)",
+    role: "Plans the task, delegates to specialists, aggregates results",
+    tools: ["delegate_to_research", "delegate_to_anomaly", "aggregate"],
+    model: "Gemini 2.5 Pro",
+  },
+  {
+    id: "researcher", name: "Research Agent", color: "var(--bl)",
+    role: "Searches web and KB, cross-validates sources, returns structured findings",
+    tools: ["web_search", "rag_retrieve", "summarize"],
+    model: "Gemini 2.0 Flash",
+  },
+  {
+    id: "anomaly", name: "Anomaly Expert", color: "var(--am)",
+    role: "Detects statistical anomalies, classifies severity, recommends actions",
+    tools: ["detect_anomalies", "calculate", "web_search"],
+    model: "Llama 3.3 70B",
+  },
+  {
+    id: "supervisor", name: "Supervisor", color: "var(--ro)",
+    role: "Validates all outputs for accuracy, safety, and completeness",
+    tools: ["evaluate_output", "request_revision"],
+    model: "Claude 3.5 Sonnet",
+  },
+];
+
+function A2ATab() {
+  const [task, setTask] = useState("");
+  const [steps, setSteps] = useState<AgentStep[]>([]);
+  const [running, setRunning] = useState(false);
+  const [model, setModel] = useState(SANDBOX_MODELS[0].id);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [steps]);
+
+  const run = async () => {
+    if (!task.trim() || running) return;
+    setSteps([]); setRunning(true);
+    const a2aPrompt = `You are a Coordinator Agent in a multi-agent system. You have access to: research_agent (web search + RAG), anomaly_expert (statistical analysis + anomaly detection), and supervisor (quality validation).
+
+Your task: ${task}
+
+Plan which agents to involve, simulate their contributions with your tools (web_search, calculate, analyze_data), then produce a final coordinated report.`;
+    try {
+      const res = await fetch("/api/agent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: a2aPrompt, model }),
+      });
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+      while (reader) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        for (const line of decoder.decode(value).split("\n")) {
+          if (line.startsWith("data: ")) {
+            try { setSteps(s => [...s, JSON.parse(line.slice(6)) as AgentStep]); } catch { /* skip */ }
+          }
+        }
+      }
+    } catch (err) {
+      setSteps(s => [...s, { type: "error", message: String(err) }]);
+    } finally { setRunning(false); }
+  };
 
   return (
-    <div className="studio-page">
-      <div className="studio-header">
-        <div className="studio-title-row">
-          <div className="studio-icon"><Cpu size={18} /></div>
-          <h1 className="studio-title">AI Studio</h1>
+    <div className="a2a-layout">
+      {/* Agent network diagram */}
+      <div className="a2a-network">
+        <div className="network-title">Agent Network — Coordinator Pattern</div>
+        <div className="network-graph">
+          {A2A_AGENTS.map((agent, i) => (
+            <div key={agent.id} className="agent-node" style={{ "--ac": agent.color } as React.CSSProperties}>
+              <div className="agent-node-header">
+                <div className="agent-dot" style={{ background: agent.color }} />
+                <span className="agent-node-name">{agent.name}</span>
+                <span className="agent-node-model">{agent.model}</span>
+              </div>
+              <p className="agent-node-role">{agent.role}</p>
+              <div className="agent-tools">
+                {agent.tools.map(t => <span key={t} className="agent-tool">{t}</span>)}
+              </div>
+            </div>
+          ))}
         </div>
-        <div className="tab-bar">
-          <button className={`tab-btn ${tab === "chat" ? "active" : ""}`} onClick={() => setTab("chat")}>
-            <Bot size={13} /> Chat
-          </button>
-          <button className={`tab-btn ${tab === "agent" ? "active" : ""}`} onClick={() => setTab("agent")}>
-            <Brain size={13} /> ReAct Agent
-          </button>
+        <div className="network-flow">
+          <span className="nf-step">User Task</span>
+          <ArrowRight size={12} style={{ color: "var(--mu)" }} />
+          <span className="nf-step" style={{ color: "var(--cy)" }}>Coordinator</span>
+          <ArrowRight size={12} style={{ color: "var(--mu)" }} />
+          <span className="nf-step" style={{ color: "var(--bl)" }}>Research ∥ Anomaly</span>
+          <ArrowRight size={12} style={{ color: "var(--mu)" }} />
+          <span className="nf-step" style={{ color: "var(--ro)" }}>Supervisor</span>
+          <ArrowRight size={12} style={{ color: "var(--mu)" }} />
+          <span className="nf-step">Final Output</span>
         </div>
       </div>
 
-      {tab === "chat" ? <ChatTab /> : <AgentTab />}
+      {/* Task input */}
+      <div className="a2a-input-area">
+        <div className="model-select-wrap" style={{ marginBottom: 8 }}>
+          <div className="mdot" style={{ background: SANDBOX_MODELS.find(m => m.id === model)?.color }} />
+          <select className="model-select" value={model} onChange={e => setModel(e.target.value)}>
+            {SANDBOX_MODELS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+          </select>
+          <ChevronDown size={11} className="select-arr" />
+        </div>
+        <textarea className="sandbox-input"
+          placeholder={`Give the multi-agent system a task. Try: "Research the latest AI agent frameworks and check the data [5,4,6,5,42,5,6] for anomalies"`}
+          value={task} onChange={e => setTask(e.target.value)} rows={2} />
+        <button className="run-btn" style={{ background: "rgba(251,191,36,0.15)", borderColor: "rgba(251,191,36,0.35)", color: "var(--am)" }}
+          onClick={run} disabled={!task.trim() || running}>
+          {running ? <><Loader2 size={14} className="spin" /> Running A2A…</> : <><Network size={14} /> Run A2A System</>}
+        </button>
+      </div>
+
+      {/* Trace */}
+      <div className="trace-area" style={{ flex: 1 }}>
+        {steps.length === 0 && !running && (
+          <div className="trace-empty">
+            <Network size={28} style={{ color: "var(--am)", opacity: 0.4 }} />
+            <p style={{ fontWeight: 700, fontSize: 14 }}>Multi-Agent System</p>
+            <p style={{ fontSize: 12, color: "var(--mu)" }}>Coordinator · Research · Anomaly Expert · Supervisor</p>
+          </div>
+        )}
+        {steps.map((step, i) => (
+          <div key={i} className={`trace-step ts-${step.type}`}>
+            <div className="ts-icon">
+              {step.type === "thought"      ? <Brain size={12} style={{ color: "var(--bl)" }} />
+              : step.type === "tool_call"   ? <Terminal size={12} style={{ color: "var(--vi)" }} />
+              : step.type === "tool_result" ? <CheckCircle size={12} style={{ color: "var(--em)" }} />
+              : step.type === "final_answer"? <Zap size={12} style={{ color: "var(--am)" }} />
+              : step.type === "error"       ? <AlertCircle size={12} style={{ color: "var(--ro)" }} />
+              : <ChevronRight size={12} />}
+            </div>
+            <div className="ts-body">
+              {step.type === "thought"      && <><span className="ts-tag thought-tag">THOUGHT</span><p className="ts-text">{step.content}</p></>}
+              {step.type === "tool_call"    && <><span className="ts-tag tool-tag">→ {step.tool}</span><pre className="ts-pre">{JSON.stringify(step.args, null, 2)}</pre></>}
+              {step.type === "tool_result"  && <><span className="ts-tag result-tag">RESULT</span><p className="ts-text">{String(step.result ?? "").slice(0, 400)}</p></>}
+              {step.type === "final_answer" && <><span className="ts-tag answer-tag">FINAL ANSWER</span><p className="ts-text" style={{ color: "var(--tx)", fontSize: 14 }}>{step.content}</p></>}
+              {step.type === "agent_start"  && <span style={{ fontSize: 12, color: "var(--di)" }}>{step.message}</span>}
+              {step.type === "step_start"   && <span style={{ fontSize: 11, color: "var(--mu)" }}>Step {step.step}</span>}
+              {step.type === "error"        && <p className="ts-text" style={{ color: "var(--ro)" }}>{step.message}</p>}
+            </div>
+          </div>
+        ))}
+        <div ref={bottomRef} />
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// UPDATES TAB
+// ═══════════════════════════════════════════════════════════════════════════
+
+function UpdatesTab({ onGoBlueprint }: { onGoBlueprint: () => void }) {
+  const news = UPDATES.filter(u => u.type !== "suggestion");
+  const suggestions = UPDATES.filter(u => u.type === "suggestion");
+  const typeColor: Record<string, string> = {
+    model: "var(--bl)", tool: "var(--cy)", framework: "var(--vi)", suggestion: "var(--or)"
+  };
+  const typeLabel: Record<string, string> = {
+    model: "MODEL", tool: "TOOL", framework: "FRAMEWORK", suggestion: "💡 SUGGESTION"
+  };
+
+  return (
+    <div className="updates-layout">
+      <div className="updates-col">
+        <div className="updates-col-header">
+          <Clock size={13} /> What's New in AI
+          <span className="updates-live"><RefreshCw size={9} /> auto-tracked</span>
+        </div>
+        {news.map(u => (
+          <div key={u.id} className="update-card">
+            <div className="update-meta">
+              <span className="update-type" style={{ color: typeColor[u.type] }}>{typeLabel[u.type]}</span>
+              {u.isNew && <span className="badge-new">NEW</span>}
+              {u.date && <span style={{ color: "var(--mu)", fontSize: 10, marginLeft: "auto" }}>{u.date}</span>}
+            </div>
+            <div className="update-title">{u.title}</div>
+            <div className="update-desc">{u.desc}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="updates-col">
+        <div className="updates-col-header">
+          <Sparkles size={13} /> Suggested Enhancements
+          <span className="updates-live">based on what's trending</span>
+        </div>
+        {suggestions.map(s => (
+          <div key={s.id} className="suggestion-card">
+            <div className="update-meta">
+              <span className="update-type" style={{ color: typeColor.suggestion }}>{typeLabel.suggestion}</span>
+            </div>
+            <div className="update-title">{s.title}</div>
+            <div className="update-desc">{s.desc}</div>
+            <button className="try-btn" onClick={onGoBlueprint}>
+              Explore in Blueprint <ChevronRight size={11} />
+            </button>
+          </div>
+        ))}
+        <div className="updates-principle">
+          <Layers size={14} style={{ color: "var(--mu)" }} />
+          <p>
+            <strong style={{ color: "var(--tx)" }}>Stay current:</strong> AI moves fast. Each suggestion above
+            reflects a real-world release or pattern gaining adoption. Click any to explore it in the Blueprint.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MAIN PAGE
+// ═══════════════════════════════════════════════════════════════════════════
+
+export default function StudioPage() {
+  const [tab, setTab] = useState<Tab>("blueprint");
+  const [selectedBlock, setSelectedBlock] = useState<Block | null>(null);
+  const [practiceGoal, setPracticeGoal] = useState<string | undefined>();
+
+  const handlePractice = (goal: string) => {
+    setPracticeGoal(goal);
+    setTab("chat");  // conceptual questions → Chat, not Sandbox
+  };
+
+  const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
+    { id: "blueprint", label: "Blueprint",  icon: <Layers size={13} /> },
+    { id: "chat",      label: "Chat",       icon: <Bot size={13} /> },
+    { id: "sandbox",   label: "Sandbox",    icon: <Zap size={13} /> },
+    { id: "a2a",       label: "A2A Studio", icon: <Network size={13} /> },
+    { id: "updates",   label: "Updates",    icon: <Sparkles size={13} /> },
+  ];
+
+  return (
+    <div className="root">
+      {/* Top bar */}
+      <div className="topbar">
+        <div className="topbar-left">
+          <div className="topbar-icon"><Cpu size={16} /></div>
+          <div>
+            <div className="topbar-title">AI Engineer Sandbox</div>
+            <div className="topbar-sub">Blueprint · Chat · Build · A2A · Stay current</div>
+          </div>
+        </div>
+        <div className="tab-row">
+          {TABS.map(t => (
+            <button key={t.id} className={`main-tab ${tab === t.id ? "active" : ""}`}
+              onClick={() => setTab(t.id)}>
+              {t.icon} {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="content">
+        {tab === "blueprint" && <BlueprintTab selectedBlock={selectedBlock} onSelect={setSelectedBlock} onPractice={handlePractice} />}
+        {tab === "chat"      && <ChatTab initialMessage={practiceGoal} />}
+        {tab === "sandbox"   && <SandboxCanvas />}
+        {tab === "a2a"       && <A2ATab />}
+        {tab === "updates"   && <UpdatesTab onGoBlueprint={() => setTab("blueprint")} />}
+      </div>
 
       <style jsx global>{`
-        /* ── Shared ──────────────────────────────────── */
-        .studio-page { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
-        .studio-header { padding: 14px 20px 0; border-bottom: 1px solid var(--bd); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
-        .studio-title-row { display: flex; align-items: center; gap: 10px; }
-        .studio-icon { width: 34px; height: 34px; border-radius: 8px; background: rgba(96,165,250,0.14); border: 1px solid rgba(96,165,250,0.28); display: flex; align-items: center; justify-content: center; color: var(--bl); }
-        .studio-title { font-size: 16px; font-weight: 700; color: var(--tx); }
-        .tab-bar { display: flex; gap: 4px; padding-bottom: 0; }
-        .tab-btn { display: flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px 8px 0 0; background: none; border: none; color: var(--mu); font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; font-family: inherit; border-bottom: 2px solid transparent; }
-        .tab-btn.active { color: var(--cy); border-bottom-color: var(--cy); background: rgba(34,211,238,0.05); }
-        .tab-btn:hover:not(.active) { color: var(--di); }
+        /* ── Root ─────────────────────────────────────────────────────── */
+        .root { display: flex; flex-direction: column; height: 100%; overflow: hidden; background: var(--bg); }
 
-        /* ── Model selector ──────────────────────────── */
-        .config-bar { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--bd); flex-wrap: wrap; }
-        .agent-config { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--bd); flex-wrap: wrap; }
-        .model-select-wrap { position: relative; display: flex; align-items: center; gap: 8px; background: var(--bg2); border: 1px solid var(--bd); border-radius: 8px; padding: 6px 10px; }
-        .model-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-        .model-select { background: none; border: none; outline: none; color: var(--tx); font-size: 13px; padding-right: 18px; cursor: pointer; font-family: inherit; appearance: none; }
-        .select-arrow { position: absolute; right: 8px; color: var(--mu); pointer-events: none; }
-        .sys-toggle, .clear-btn { display: flex; align-items: center; gap: 5px; padding: 6px 11px; border-radius: 7px; background: var(--bg2); border: 1px solid var(--bd); color: var(--di); font-size: 12px; cursor: pointer; font-family: inherit; transition: all 0.15s; }
-        .sys-toggle:hover, .clear-btn:hover { border-color: var(--bdh); color: var(--tx); }
-        .clear-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        /* ── Topbar ───────────────────────────────────────────────────── */
+        .topbar { display: flex; align-items: center; justify-content: space-between; padding: 10px 20px 0; border-bottom: 1px solid var(--bd); flex-shrink: 0; flex-wrap: wrap; gap: 8px; }
+        .topbar-left { display: flex; align-items: center; gap: 10px; padding-bottom: 10px; }
+        .topbar-icon { width: 32px; height: 32px; border-radius: 8px; background: rgba(96,165,250,0.12); border: 1px solid rgba(96,165,250,0.25); display: flex; align-items: center; justify-content: center; color: var(--bl); }
+        .topbar-title { font-size: 14px; font-weight: 800; color: var(--tx); }
+        .topbar-sub { font-size: 10px; color: var(--mu); margin-top: 1px; }
+        .tab-row { display: flex; gap: 2px; }
+        .main-tab { display: flex; align-items: center; gap: 6px; padding: 9px 16px; background: none; border: none; border-bottom: 2px solid transparent; color: var(--mu); font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.15s; white-space: nowrap; }
+        .main-tab.active { color: var(--cy); border-bottom-color: var(--cy); }
+        .main-tab:hover:not(.active) { color: var(--di); }
 
-        /* ── System panel ────────────────────────────── */
-        .system-panel { padding: 10px 16px; border-bottom: 1px solid var(--bd); background: rgba(255,255,255,0.02); }
-        .system-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--mu); display: block; margin-bottom: 6px; }
-        .system-input { width: 100%; background: var(--bg2); border: 1px solid var(--bd); border-radius: 8px; padding: 8px 12px; color: var(--tx); font-size: 13px; outline: none; resize: vertical; font-family: 'JetBrains Mono', monospace; line-height: 1.6; }
-        .system-input:focus { border-color: var(--cy); }
+        /* ── Content ──────────────────────────────────────────────────── */
+        .content { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
 
-        /* ── Messages ────────────────────────────────── */
+        /* ── Blueprint layout ─────────────────────────────────────────── */
+        .blueprint-layout { flex: 1; display: flex; overflow: hidden; }
+        .blueprint-canvas { flex: 7; overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+        .detail-sidebar { flex: 3; min-width: 340px; max-width: 520px; border-left: 1px solid var(--bd); overflow: hidden; display: flex; flex-direction: column; flex-shrink: 0; }
+
+        /* ── Blueprint search ─────────────────────────────────────────── */
+        .bp-search-row { display: flex; align-items: center; gap: 10px; }
+        .bp-search { flex: 1; display: flex; align-items: center; gap: 8px; background: var(--bg1); border: 1px solid var(--bd); border-radius: 8px; padding: 7px 12px; transition: border-color 0.15s; }
+        .bp-search:focus-within { border-color: var(--cy); }
+        .bp-search-input { flex: 1; background: none; border: none; outline: none; font-size: 13px; color: var(--tx); font-family: inherit; }
+        .bp-search-input::placeholder { color: var(--mu); }
+        .bp-clear { background: none; border: none; color: var(--mu); cursor: pointer; font-size: 16px; padding: 0; line-height: 1; }
+        .bp-count { font-size: 11px; color: var(--mu); white-space: nowrap; }
+        .pillar-count { font-size: 10px; color: var(--mu); background: var(--bg2); border: 1px solid var(--bd); border-radius: 10px; padding: 1px 6px; margin-left: 4px; font-weight: 400; }
+        .lego-name-row { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+
+        /* ── Pillar rows ──────────────────────────────────────────────── */
+        .pillar-row { display: flex; flex-direction: column; gap: 8px; }
+        .pillar-label { display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; }
+        .blocks-row { display: flex; flex-wrap: wrap; gap: 8px; }
+
+        /* ── Lego blocks ──────────────────────────────────────────────── */
+        .lego-block { position: relative; cursor: pointer; background: none; border: none; padding: 0; transition: transform 0.1s; }
+        .lego-block:hover { transform: translateY(-2px); }
+        .lego-block.selected .lego-face { border-color: var(--block-color); box-shadow: 0 0 0 1px var(--block-color); }
+        .lego-top { height: 6px; background: var(--block-color); border-radius: 4px 4px 0 0; opacity: 0.6; margin: 0 6px; }
+        .lego-face { min-width: 110px; padding: 8px 12px; background: var(--bg1); border: 1px solid var(--bd); border-top: 2px solid var(--block-color); border-radius: 0 0 7px 7px; display: flex; flex-direction: column; gap: 4px; transition: all 0.15s; }
+        .lego-block:hover .lego-face { background: var(--bg2); border-color: var(--bdh); }
+        .lego-name { font-size: 11px; font-weight: 700; color: var(--tx); white-space: nowrap; }
+
+        /* ── Practice button ─────────────────────────────────────────── */
+        .practice-btn { display: flex; align-items: center; gap: 6px; margin: 0 16px 12px; padding: 7px 12px; border-radius: 7px; border: 1px solid; background: transparent; font-size: 11px; font-weight: 700; cursor: pointer; font-family: inherit; transition: all 0.15s; opacity: 0.85; }
+        .practice-btn:hover { opacity: 1; filter: brightness(1.2); }
+
+        /* ── Detail panel ─────────────────────────────────────────────── */
+        .detail-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px 20px; gap: 6px; }
+        .detail-panel { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+        .detail-header { padding: 12px 16px; border-bottom: 1px solid var(--bd); display: flex; align-items: flex-start; gap: 10px; flex-shrink: 0; }
+        .detail-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+        .detail-name { font-size: 14px; font-weight: 800; color: var(--tx); }
+        .detail-tabs { display: flex; border-bottom: 1px solid var(--bd); flex-shrink: 0; }
+        .dtab { flex: 1; padding: 8px 4px; background: none; border: none; border-bottom: 2px solid transparent; color: var(--mu); font-size: 10px; font-weight: 700; letter-spacing: 0.06em; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+        .dtab.active { color: var(--cy); border-bottom-color: var(--cy); }
+        .dtab:hover:not(.active) { color: var(--di); }
+        .detail-body { flex: 1; overflow-y: auto; padding: 14px 16px; }
+        .detail-text { font-size: 12px; color: var(--di); line-height: 1.75; margin: 0; }
+        .detail-section-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--mu); margin-bottom: 6px; }
+
+        /* ── WHAT tab enriched content ───────────────────────────────── */
+        .detail-what-content { display: flex; flex-direction: column; gap: 0; }
+        .usecase-list { padding: 0; margin: 6px 0 0; list-style: none; display: flex; flex-direction: column; gap: 7px; }
+        .usecase-item { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; color: var(--di); line-height: 1.6; }
+        .usecase-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+        .whento-box { margin-top: 6px; padding: 10px 12px; background: var(--bg1); border: 1px solid; border-radius: 8px; }
+        .proscons-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px; }
+        .pros-col, .cons-col { display: flex; flex-direction: column; gap: 6px; }
+        .proscons-header { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px; }
+        .pros-header { background: rgba(52,211,153,0.1); color: var(--em); }
+        .cons-header { background: rgba(248,113,113,0.1); color: var(--ro); }
+        .proscons-list { padding: 0; margin: 0; list-style: none; display: flex; flex-direction: column; gap: 5px; }
+        .proscons-item { font-size: 11px; line-height: 1.55; padding-left: 10px; position: relative; }
+        .pro-item { color: var(--di); }
+        .pro-item::before { content: "•"; position: absolute; left: 0; color: var(--em); font-weight: 700; }
+        .con-item { color: var(--di); }
+        .con-item::before { content: "•"; position: absolute; left: 0; color: var(--ro); font-weight: 700; }
+
+        /* ── VS comparison cards ──────────────────────────────────────── */
+        .vs-card { background: var(--bg1); border: 1px solid var(--bd); border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+        .vs-title { font-size: 10px; font-weight: 700; color: var(--mu); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 10px; }
+        .vs-grid { display: grid; grid-template-columns: 1fr 1px 1fr; gap: 10px; }
+        .vs-divider { background: var(--bd); }
+        .vs-col { display: flex; flex-direction: column; gap: 5px; }
+        .vs-col-label { font-size: 10px; font-weight: 700; }
+        .vs-text { font-size: 11px; color: var(--di); line-height: 1.6; margin: 0; }
+
+        /* ── HOW list ─────────────────────────────────────────────────── */
+        .how-list { padding: 0; margin: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+        .how-item { display: flex; align-items: flex-start; gap: 10px; font-size: 12px; color: var(--di); line-height: 1.6; }
+        .how-num { width: 20px; height: 20px; border-radius: 50%; background: rgba(34,211,238,0.1); border: 1px solid rgba(34,211,238,0.25); color: var(--cy); font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+
+        /* ── Code block ───────────────────────────────────────────────── */
+        .code-block { font-size: 10px; background: var(--bg0); border: 1px solid var(--bd); border-radius: 8px; padding: 12px; overflow: auto; color: var(--cy); font-family: 'JetBrains Mono', 'Fira Code', monospace; line-height: 1.65; white-space: pre; margin: 0; }
+
+        /* ── Blueprint footer ─────────────────────────────────────────── */
+        .blueprint-footer { font-size: 11px; color: var(--mu); text-align: center; padding: 8px 0 4px; }
+
+        /* ── Chat tab ────────────────────────────────────────────────── */
         .chat-wrap { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
-        .messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-        .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; gap: 8px; text-align: center; padding: 40px 20px; }
-        .empty-icon { color: var(--bl); opacity: 0.4; }
-        .empty-title { font-size: 16px; font-weight: 700; color: var(--tx); }
-        .empty-sub { font-size: 12px; color: var(--mu); }
-        .quick-prompts { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 8px; }
-        .quick-btn { padding: 7px 14px; border-radius: 8px; background: var(--bg2); border: 1px solid var(--bd); color: var(--di); font-size: 12px; cursor: pointer; font-family: inherit; transition: all 0.15s; }
-        .quick-btn:hover { border-color: var(--bdh); color: var(--tx); }
-        .msg { display: flex; gap: 10px; align-items: flex-start; }
-        .msg-assistant { }
+        .chat-toolbar { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-bottom: 1px solid var(--bd); flex-wrap: wrap; flex-shrink: 0; }
+        .chat-cfg-btn { padding: 5px 10px; border-radius: 6px; background: var(--bg2); border: 1px solid var(--bd); color: var(--di); font-size: 11px; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+        .chat-cfg-btn:hover { color: var(--tx); border-color: var(--bdh); }
+        .chat-cfg-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .sys-bar { padding: 8px 14px; border-bottom: 1px solid var(--bd); background: rgba(255,255,255,0.02); flex-shrink: 0; }
+        .sys-input { width: 100%; background: var(--bg2); border: 1px solid var(--bd); border-radius: 7px; padding: 7px 10px; color: var(--tx); font-size: 12px; outline: none; resize: vertical; font-family: monospace; line-height: 1.5; }
+        .sys-input:focus { border-color: var(--cy); }
+        .messages { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+        .chat-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; gap: 8px; text-align: center; padding: 40px 20px; }
+        .chat-empty-title { font-size: 15px; font-weight: 700; color: var(--tx); }
+        .chat-empty-sub { font-size: 12px; color: var(--mu); }
+        .starters { display: flex; flex-wrap: wrap; gap: 7px; justify-content: center; margin-top: 8px; max-width: 560px; }
+        .starter-btn { padding: 6px 12px; border-radius: 7px; background: var(--bg2); border: 1px solid var(--bd); color: var(--di); font-size: 11px; cursor: pointer; font-family: inherit; transition: all 0.15s; text-align: left; }
+        .starter-btn:hover { border-color: var(--bdh); color: var(--tx); }
+        .msg { display: flex; gap: 8px; align-items: flex-start; }
         .msg-user { flex-direction: row-reverse; }
-        .msg-avatar { width: 28px; height: 28px; border-radius: 7px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
-        .msg-user .msg-avatar { background: rgba(34,211,238,0.12); border: 1px solid rgba(34,211,238,0.25); color: var(--cy); }
-        .msg-assistant .msg-avatar { background: rgba(96,165,250,0.1); border: 1px solid rgba(96,165,250,0.22); color: var(--bl); }
-        .msg-body { max-width: 75%; position: relative; }
-        .msg-user .msg-body { align-items: flex-end; }
-        .msg-model-tag { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 4px; }
-        .msg-content { font-size: 14px; line-height: 1.75; color: var(--tx); white-space: pre-wrap; word-break: break-word; }
-        .msg-user .msg-content { background: rgba(34,211,238,0.08); border: 1px solid rgba(34,211,238,0.18); border-radius: 12px 4px 12px 12px; padding: 10px 14px; }
-        .msg-assistant .msg-content { background: var(--bg2); border: 1px solid var(--bd); border-radius: 4px 12px 12px 12px; padding: 10px 14px; }
-        .copy-btn { position: absolute; top: 6px; right: 6px; background: none; border: none; cursor: pointer; color: var(--mu); opacity: 0; transition: opacity 0.15s; padding: 3px; border-radius: 4px; display: flex; }
-        .msg-body:hover .copy-btn { opacity: 1; }
-        .copy-btn:hover { color: var(--cy); }
-        .cursor-blink { animation: blink 1s step-end infinite; }
+        .msg-av { width: 24px; height: 24px; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+        .msg-user .msg-av { background: rgba(34,211,238,0.1); border: 1px solid rgba(34,211,238,0.22); color: #22d3ee; }
+        .msg-assistant .msg-av { background: rgba(96,165,250,0.08); border: 1px solid rgba(96,165,250,0.2); color: #60a5fa; }
+        .msg-bdy { max-width: 78%; position: relative; }
+        .msg-model { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 3px; }
+        .msg-txt { font-size: 13px; line-height: 1.75; color: var(--tx); white-space: pre-wrap; word-break: break-word; }
+        .msg-user .msg-txt { background: rgba(34,211,238,0.07); border: 1px solid rgba(34,211,238,0.16); border-radius: 10px 3px 10px 10px; padding: 8px 12px; }
+        .msg-assistant .msg-txt { background: var(--bg2); border: 1px solid var(--bd); border-radius: 3px 10px 10px 10px; padding: 8px 12px; }
+        .copy-msg { position: absolute; top: 5px; right: 5px; background: none; border: none; cursor: pointer; color: var(--mu); opacity: 0; transition: opacity 0.15s; padding: 3px; border-radius: 4px; display: flex; }
+        .msg-bdy:hover .copy-msg { opacity: 1; }
+        .copy-msg:hover { color: var(--cy); }
+        .caret { animation: blink 1s step-end infinite; }
         @keyframes blink { 50% { opacity: 0; } }
-
-        /* ── Input ───────────────────────────────────── */
-        .input-bar { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--bd); }
-        .chat-input { flex: 1; background: var(--bg2); border: 1px solid var(--bd); border-radius: 10px; padding: 10px 14px; color: var(--tx); font-size: 14px; outline: none; resize: none; font-family: inherit; line-height: 1.6; transition: border-color 0.15s; }
+        .chat-input-bar { display: flex; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--bd); flex-shrink: 0; }
+        .chat-input { flex: 1; background: var(--bg2); border: 1px solid var(--bd); border-radius: 9px; padding: 9px 12px; color: var(--tx); font-size: 13px; outline: none; resize: none; font-family: inherit; line-height: 1.6; transition: border-color 0.15s; }
         .chat-input:focus { border-color: var(--cy); }
         .chat-input::placeholder { color: var(--mu); }
-        .send-btn { width: 42px; height: 42px; border-radius: 10px; background: var(--cy); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--bg0); flex-shrink: 0; transition: opacity 0.2s; align-self: flex-end; }
-        .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .chat-send { width: 38px; height: 38px; border-radius: 9px; background: var(--cy); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--bg0); flex-shrink: 0; align-self: flex-end; transition: opacity 0.2s; }
+        .chat-send:disabled { opacity: 0.4; cursor: not-allowed; }
 
-        /* ── Agent ───────────────────────────────────── */
-        .agent-wrap { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
-        .agent-tools-info { font-size: 11px; color: var(--mu); display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
-        .tool-badge { padding: 2px 7px; background: rgba(167,139,250,0.1); border: 1px solid rgba(167,139,250,0.22); border-radius: 4px; color: var(--vi); font-size: 10px; font-family: 'JetBrains Mono', monospace; }
-        .agent-input-area { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; border-bottom: 1px solid var(--bd); }
-        .agent-input { background: var(--bg2); border: 1px solid var(--bd); border-radius: 10px; padding: 12px 14px; color: var(--tx); font-size: 14px; outline: none; resize: vertical; font-family: inherit; line-height: 1.6; width: 100%; }
-        .agent-input:focus { border-color: var(--vi); }
-        .agent-input::placeholder { color: var(--mu); }
-        .agent-run-btn { align-self: flex-end; display: flex; align-items: center; gap: 7px; padding: 9px 18px; border-radius: 9px; background: rgba(167,139,250,0.15); border: 1px solid rgba(167,139,250,0.35); color: var(--vi); font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; transition: all 0.15s; }
-        .agent-run-btn:hover { background: rgba(167,139,250,0.25); }
-        .agent-run-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-        .agent-trace { flex: 1; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
-        .trace-header { display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--mu); padding-bottom: 8px; border-bottom: 1px solid var(--bd); margin-bottom: 4px; }
-        .trace-live { color: var(--ro); animation: blink 1s step-end infinite; }
-        .trace-step { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border-radius: 8px; background: var(--bg1); border: 1px solid var(--bd); }
-        .trace-step-icon { flex-shrink: 0; margin-top: 2px; }
-        .trace-step-body { flex: 1; min-width: 0; }
-        .trace-label { font-size: 12px; color: var(--di); }
-        .trace-label.muted { color: var(--mu); font-size: 11px; }
-        .trace-type-tag { display: inline-block; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; padding: 2px 7px; border-radius: 3px; margin-bottom: 5px; }
-        .thought-tag { background: rgba(96,165,250,0.12); color: var(--bl); }
-        .tool-tag { background: rgba(167,139,250,0.12); color: var(--vi); }
-        .result-tag { background: rgba(52,211,153,0.1); color: var(--em); }
-        .answer-tag { background: rgba(252,211,77,0.12); color: var(--am); }
-        .trace-text { font-size: 13px; color: var(--di); line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
-        .trace-text.final { color: var(--tx); font-size: 14px; }
-        .trace-args { font-size: 11px; color: var(--mu); font-family: 'JetBrains Mono', monospace; background: var(--bg2); padding: 6px 10px; border-radius: 6px; overflow-x: auto; }
-        .error-text { color: var(--ro); font-size: 13px; }
-        .step-icon { }
-        .step-icon.thought { color: var(--bl); }
-        .step-icon.tool { color: var(--vi); }
-        .step-icon.result { color: var(--em); }
-        .step-icon.answer { color: var(--am); }
-        .step-icon.error { color: var(--ro); }
-        .step-icon.start { color: var(--cy); }
+        /* ── Chain mode ─────────────────────────────────────────────────── */
+        .chain-toggle { display: flex; background: var(--bg2); border: 1px solid var(--bd); border-radius: 7px; overflow: hidden; flex-shrink: 0; }
+        .chain-toggle-btn { padding: 5px 11px; border: none; background: none; color: var(--mu); font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 5px; transition: all 0.15s; }
+        .chain-toggle-btn.active { background: rgba(167,139,250,0.15); color: var(--vi); }
+        .chain-toggle-btn:hover:not(.active) { color: var(--di); }
+        .chain-badge { display: flex; align-items: center; gap: 5px; padding: 4px 10px; background: rgba(167,139,250,0.08); border: 1px solid rgba(167,139,250,0.2); border-radius: 7px; }
+        .chain-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+        .chain-badge-label { font-size: 10px; color: var(--vi); font-weight: 600; white-space: nowrap; margin-left: 3px; }
+        .chain-entry { display: flex; flex-direction: column; gap: 8px; }
+        .chain-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        @media (max-width: 900px) { .chain-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 600px) { .chain-grid { grid-template-columns: 1fr; } }
+        .chain-panel { border-radius: 9px; border: 1px solid var(--bd); background: var(--bg1); overflow: hidden; display: flex; flex-direction: column; transition: border-color 0.2s; }
+        .chain-panel-active { border-color: var(--panel-hex, var(--vi)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--panel-hex, var(--vi)) 18%, transparent); }
+        .chain-panel-done { border-color: var(--bd); }
+        .chain-panel-header { display: flex; align-items: center; gap: 6px; padding: 7px 10px; border-bottom: 1px solid var(--bd); background: rgba(255,255,255,0.02); flex-shrink: 0; }
+        .chain-panel-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+        .chain-panel-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; }
+        .chain-panel-role { font-size: 9px; font-weight: 600; padding: 1px 6px; border-radius: 3px; border: 1px solid; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.85; white-space: nowrap; }
+        .chain-panel-body { flex: 1; padding: 9px 11px; overflow-y: auto; max-height: 240px; }
+        .chain-panel-text { font-size: 12px; line-height: 1.7; color: var(--tx); white-space: pre-wrap; word-break: break-word; }
+        .chain-panel-mono { font-family: monospace; font-size: 11px; line-height: 1.6; }
+        .chain-panel-wait { font-size: 11px; color: var(--mu); font-style: italic; }
 
+        /* ── Sandbox & A2A shared ─────────────────────────────────────── */
+        .sandbox-layout, .a2a-layout { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+        .sandbox-toolbar { display: flex; align-items: center; gap: 16px; padding: 10px 16px; border-bottom: 1px solid var(--bd); flex-wrap: wrap; flex-shrink: 0; }
+        .toolbar-section { display: flex; align-items: center; gap: 8px; }
+        .toolbar-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--mu); white-space: nowrap; }
+        .tools-palette { display: flex; flex-wrap: wrap; gap: 5px; }
+        .tool-pill { display: flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 6px; background: var(--bg2); border: 1px solid var(--bd); color: var(--mu); font-size: 11px; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+        .tool-pill:hover { border-color: var(--bdh); color: var(--di); }
+
+        .model-select-wrap { position: relative; display: flex; align-items: center; gap: 7px; background: var(--bg2); border: 1px solid var(--bd); border-radius: 7px; padding: 5px 10px; }
+        .mdot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+        .model-select { background: none; border: none; outline: none; color: var(--tx); font-size: 12px; padding-right: 16px; cursor: pointer; font-family: inherit; appearance: none; }
+        .select-arr { position: absolute; right: 7px; color: var(--mu); pointer-events: none; }
+
+        .sandbox-input-area { padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; border-bottom: 1px solid var(--bd); flex-shrink: 0; }
+        .a2a-input-area { padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; border-bottom: 1px solid var(--bd); flex-shrink: 0; }
+        .sandbox-input { background: var(--bg2); border: 1px solid var(--bd); border-radius: 9px; padding: 10px 13px; color: var(--tx); font-size: 13px; outline: none; resize: vertical; font-family: inherit; line-height: 1.6; width: 100%; transition: border-color 0.15s; }
+        .sandbox-input:focus { border-color: var(--cy); }
+        .sandbox-input::placeholder { color: var(--mu); }
+        .run-btn { align-self: flex-end; display: flex; align-items: center; gap: 7px; padding: 8px 18px; border-radius: 8px; background: rgba(167,139,250,0.12); border: 1px solid rgba(167,139,250,0.3); color: var(--vi); font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+        .run-btn:hover { background: rgba(167,139,250,0.22); }
+        .run-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* ── Trace ────────────────────────────────────────────────────── */
+        .trace-area { flex: 1; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 5px; }
+        .trace-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; color: var(--tx); padding: 40px 20px; }
+        .trace-step { display: flex; gap: 9px; align-items: flex-start; padding: 7px 10px; border-radius: 7px; background: var(--bg1); border: 1px solid var(--bd); }
+        .ts-icon { flex-shrink: 0; margin-top: 2px; }
+        .ts-body { flex: 1; min-width: 0; }
+        .ts-tag { display: inline-block; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; padding: 2px 6px; border-radius: 3px; margin-bottom: 4px; }
+        .thought-tag { background: rgba(96,165,250,0.1); color: var(--bl); }
+        .tool-tag    { background: rgba(167,139,250,0.1); color: var(--vi); }
+        .result-tag  { background: rgba(52,211,153,0.08); color: var(--em); }
+        .answer-tag  { background: rgba(252,211,77,0.1); color: var(--am); }
+        .ts-text { font-size: 12px; color: var(--di); line-height: 1.6; white-space: pre-wrap; word-break: break-word; margin: 0; }
+        .ts-pre  { font-size: 10px; color: var(--mu); font-family: monospace; background: var(--bg2); padding: 4px 8px; border-radius: 4px; overflow-x: auto; margin: 0; }
+
+        /* ── A2A network ──────────────────────────────────────────────── */
+        .a2a-network { padding: 14px 16px; border-bottom: 1px solid var(--bd); flex-shrink: 0; }
+        .network-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--mu); margin-bottom: 12px; }
+        .network-graph { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin-bottom: 12px; }
+        .agent-node { background: var(--bg1); border: 1px solid var(--bd); border-top: 2px solid var(--ac); border-radius: 8px; padding: 10px; }
+        .agent-node-header { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+        .agent-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+        .agent-node-name { font-size: 12px; font-weight: 700; color: var(--tx); flex: 1; }
+        .agent-node-model { font-size: 9px; color: var(--mu); }
+        .agent-node-role { font-size: 10px; color: var(--di); line-height: 1.5; margin: 0 0 6px; }
+        .agent-tools { display: flex; flex-wrap: wrap; gap: 3px; }
+        .agent-tool { padding: 1px 5px; background: var(--bg2); border: 1px solid var(--bd); border-radius: 3px; font-size: 9px; color: var(--mu); font-family: monospace; }
+        .network-flow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .nf-step { font-size: 11px; color: var(--di); padding: 3px 8px; background: var(--bg2); border: 1px solid var(--bd); border-radius: 5px; }
+
+        /* ── Updates ──────────────────────────────────────────────────── */
+        .updates-layout { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 0; overflow-y: auto; }
+        .updates-col { padding: 16px 20px; display: flex; flex-direction: column; gap: 10px; border-right: 1px solid var(--bd); }
+        .updates-col:last-child { border-right: none; }
+        .updates-col-header { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700; color: var(--tx); padding-bottom: 8px; border-bottom: 1px solid var(--bd); margin-bottom: 2px; }
+        .updates-live { font-size: 10px; color: var(--mu); margin-left: auto; display: flex; align-items: center; gap: 4px; }
+        .update-card, .suggestion-card { background: var(--bg1); border: 1px solid var(--bd); border-radius: 9px; padding: 12px; display: flex; flex-direction: column; gap: 5px; transition: border-color 0.15s; }
+        .update-card:hover, .suggestion-card:hover { border-color: var(--bdh); }
+        .update-meta { display: flex; align-items: center; gap: 6px; }
+        .update-type { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
+        .update-title { font-size: 13px; font-weight: 700; color: var(--tx); }
+        .update-desc { font-size: 11px; color: var(--mu); line-height: 1.6; }
+        .try-btn { display: flex; align-items: center; gap: 4px; align-self: flex-start; margin-top: 4px; padding: 4px 10px; border-radius: 5px; background: rgba(251,146,60,0.08); border: 1px solid rgba(251,146,60,0.25); color: var(--or); font-size: 11px; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+        .try-btn:hover { background: rgba(251,146,60,0.16); }
+        .updates-principle { display: flex; gap: 10px; padding: 12px; background: var(--bg0); border: 1px solid var(--bd); border-radius: 8px; }
+        .updates-principle p { font-size: 11px; color: var(--mu); line-height: 1.6; margin: 0; }
+
+        /* ── Badges ───────────────────────────────────────────────────── */
+        .badge-new { padding: 1px 5px; background: rgba(52,211,153,0.12); border: 1px solid rgba(52,211,153,0.28); border-radius: 3px; font-size: 9px; font-weight: 700; color: var(--em); }
+        .badge-status { padding: 1px 5px; border-radius: 3px; font-size: 9px; font-weight: 600; }
+        .badge-status.live { background: rgba(52,211,153,0.08); color: var(--em); }
+        .badge-status.beta { background: rgba(252,211,77,0.08); color: var(--am); }
+        .badge-status.soon { background: rgba(148,163,184,0.08); color: var(--mu); }
+
+        /* ── Shared utils ─────────────────────────────────────────────── */
         .spin { animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Mobile ───────────────────────────────────────────────────── */
+        @media (max-width: 900px) {
+          .detail-sidebar { min-width: 280px; max-width: 320px; }
+        }
+        @media (max-width: 768px) {
+          .detail-sidebar { display: none; }
+          .updates-layout { grid-template-columns: 1fr; }
+          .network-graph { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 600px) {
+          .proscons-grid { grid-template-columns: 1fr; }
+        }
       `}</style>
     </div>
   );
