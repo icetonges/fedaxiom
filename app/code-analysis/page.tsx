@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback, type ReactNode } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo, type ReactNode } from "react";
 import {
   Code2, FolderOpen, Folder, FileText, ChevronRight, ChevronDown,
   Send, Download, Map, LayoutPanelLeft, Cpu, Sparkles, Bug, BookOpen,
   Copy, Check, Zap, RefreshCw, FileCode2, AlignLeft,
   ArrowRight, Lightbulb, Link2, Layers, MessageSquare, HelpCircle,
   GraduationCap, Network, GitBranch, Shield, Star,
-  Terminal, Building2, Search, Wrench, AlertCircle, CheckCircle,
+  Terminal, Building2, Search, Wrench, AlertCircle, CheckCircle, Boxes,
 } from "lucide-react";
 
 // ─── FILE TREE ────────────────────────────────────────────────────────────────
@@ -736,10 +736,19 @@ const QUICK_ACTIONS = [
 ] as const;
 type QuickActionId = typeof QUICK_ACTIONS[number]["id"];
 
+// ─── DICT CATEGORY COLORS (module scope for perf) ────────────────────────────
+const DICT_CAT_COLOR: Record<string, string> = {
+  "Agentic Core":"#4f8ef7","LLM & Models":"#34d399","Protocols":"#fbbf24",
+  "Memory & Storage":"#a78bfa","Infrastructure":"#38bdf8","Security & Compliance":"#f87171",
+};
+
 // ─── SYNTAX HIGHLIGHT ─────────────────────────────────────────────────────────
 function highlight(line: string): string {
-  return line
-    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+  const esc = line.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  // Bash / Dockerfile / Python: lines starting with # are comments
+  if (esc.trimStart().startsWith("#"))
+    return `<span style="color:#6b7499;font-style:italic">${esc}</span>`;
+  return esc
     .replace(/(`[^`]*`|"[^"]*"|'[^']*')/g,'<span style="color:#a3e635">$1</span>')
     .replace(/\b(import|export|from|const|let|var|function|class|interface|type|extends|implements|return|async|await|new|if|else|for|while|of|in|true|false|null|undefined|void|break|continue|throw|try|catch|finally|default)\b/g,'<span style="color:#c084fc">$1</span>')
     .replace(/\b([A-Z][A-Za-z0-9_]+)\b/g,'<span style="color:#38bdf8">$1</span>')
@@ -765,13 +774,14 @@ const DIFF_COLOR: Record<string, string> = {
 };
 
 // ─── PAGE TABS ────────────────────────────────────────────────────────────────
-type PageTab = "codeintel" | "architecture" | "dictionary" | "dod" | "shell";
+type PageTab = "codeintel" | "architecture" | "dictionary" | "dod" | "shell" | "blueprint";
 const PAGE_TABS: { id: PageTab; label: string; color: string; icon: ReactNode }[] = [
   { id: "codeintel",    label: "Code Intel",    color: "#4f8ef7", icon: <Code2 size={13}/> },
   { id: "architecture", label: "Architecture",  color: "#34d399", icon: <Layers size={13}/> },
   { id: "dictionary",   label: "AI Dictionary", color: "#a78bfa", icon: <BookOpen size={13}/> },
   { id: "dod",          label: "DoD Example",   color: "#fb923c", icon: <Building2 size={13}/> },
   { id: "shell",        label: "Prod Shell",    color: "#f472b6", icon: <Terminal size={13}/> },
+  { id: "blueprint",    label: "AI Blueprint",  color: "#e879f9", icon: <Boxes size={13}/> },
 ];
 
 // ─── ARCHITECTURE LAYERS ─────────────────────────────────────────────────────
@@ -1227,6 +1237,1319 @@ const DOD_SECURITY = [
   { control: "Secret Management", detail: "No secrets in code or environment variables. All API keys retrieved from HashiCorp Vault or AWS Secrets Manager at runtime. Rotated every 90 days.", icon: "🔑" },
 ];
 
+// ─── AI BLUEPRINT ─────────────────────────────────────────────────────────────
+interface BpStep {
+  n: number;
+  action: string;
+  title: string;
+  file: string;
+  folder: string;
+  desc: string;
+  code: string;
+  note?: string;
+}
+interface BpSection {
+  id: string; title: string; color: string; icon: string; tagline: string;
+  overview: string; steps: BpStep[]; tips: string[];
+  fileTree: { path: string; type: "file"|"dir"; desc: string }[];
+}
+
+const BLUEPRINT_SECTIONS: BpSection[] = [
+
+  /* ── 1. MODEL SELECTION ─────────────────────────────────────────────── */
+  {
+    id: "models", title: "Model Selection", color: "#4f8ef7", icon: "🧠",
+    tagline: "Tier-based LLM selection — right model for each task = 3× cheaper, equally accurate",
+    overview:
+      "Every agent task has a cost/quality sweet spot. A 3-tier model strategy routes tasks by complexity: " +
+      "Haiku handles high-frequency lightweight tasks (tool parsing, formatting), Sonnet handles the main reasoning " +
+      "and code generation loop, and Opus handles rare complex architecture decisions. This single file in src/config/ " +
+      "drives the entire selection logic — every agent reads from it rather than hardcoding model names.",
+    fileTree: [
+      { path: "src/config/",            type: "dir",  desc: "All agent configuration" },
+      { path: "src/config/models.ts",   type: "file", desc: "Model tier definitions + selector function" },
+      { path: "src/config/agentConfig.ts", type: "file", desc: "Agent behaviour, permissions, budgets" },
+      { path: "src/config/environment.ts", type: "file", desc: "Env-var loading with zod validation" },
+      { path: ".env.local",             type: "file", desc: "ANTHROPIC_API_KEY, VAULT_ADDR, etc." },
+    ],
+    steps: [
+      {
+        n: 1, action: "Create", title: "Define model tiers",
+        file: "models.ts", folder: "src/config/",
+        desc: "Enumerate all supported models and assign each a tier (fast/balanced/powerful). Tier drives automatic selection throughout the codebase — change once here, propagates everywhere.",
+        code:
+`// src/config/models.ts
+// ── 3-tier strategy: match model to task complexity ──────────────────────────
+
+export type ModelTier = "fast" | "balanced" | "powerful";
+
+export const MODEL_REGISTRY = {
+  // Tier 1 — fast & cheap: tool call parsing, formatting, simple Q&A
+  fast: {
+    anthropic: "claude-haiku-4-5",        // $0.25/MTok in, $1.25/MTok out
+    google:    "gemini-2.0-flash",
+    openai:    "gpt-4o-mini",
+  },
+  // Tier 2 — balanced: main reasoning loop, code gen, analysis
+  balanced: {
+    anthropic: "claude-sonnet-4-5",       // $3/MTok in, $15/MTok out
+    google:    "gemini-2.5-pro",
+    openai:    "gpt-4o",
+  },
+  // Tier 3 — powerful: architecture decisions, complex planning
+  powerful: {
+    anthropic: "claude-opus-4-5",         // $15/MTok in, $75/MTok out
+    google:    "gemini-2.5-ultra",
+    openai:    "o3",
+  },
+} as const;
+
+export type Provider = keyof (typeof MODEL_REGISTRY)["fast"];
+
+/** Select the right model for a given task tier and provider */
+export function selectModel(tier: ModelTier, provider: Provider = "anthropic"): string {
+  return MODEL_REGISTRY[tier][provider];
+}`,
+        note: "Rule of thumb: 90% of agent work runs on 'balanced'. Use 'fast' only for pure formatting or classification tasks under 200 tokens. Reserve 'powerful' for once-per-session planning passes.",
+      },
+      {
+        n: 2, action: "Create", title: "Build environment config with validation",
+        file: "environment.ts", folder: "src/config/",
+        desc: "Centralise all environment variable loading. Fail fast at startup if required vars are missing — never let the agent run with missing credentials and silently fail mid-task.",
+        code:
+`// src/config/environment.ts
+import { z } from "zod";
+
+const EnvSchema = z.object({
+  ANTHROPIC_API_KEY: z.string().min(1, "Anthropic key required"),
+  VAULT_ADDR:        z.string().url().optional(),
+  PINECONE_API_KEY:  z.string().optional(),
+  NODE_ENV:          z.enum(["development", "production", "test"]).default("development"),
+  AGENT_PERMISSION_MODE: z.enum(["bypass","auto","default","plan"]).default("default"),
+  MAX_SESSION_COST_USD:  z.coerce.number().positive().default(5.0),
+  LOG_LEVEL: z.enum(["debug","info","warn","error"]).default("info"),
+});
+
+export type Env = z.infer<typeof EnvSchema>;
+
+let _env: Env;
+export function getEnv(): Env {
+  if (!_env) {
+    const result = EnvSchema.safeParse(process.env);
+    if (!result.success) {
+      console.error("❌ Environment validation failed:");
+      result.error.issues.forEach(i => console.error("  ", i.path.join("."), "→", i.message));
+      process.exit(1);  // Hard fail — never run with broken config
+    }
+    _env = result.data;
+  }
+  return _env;
+}`,
+        note: "Never import process.env directly across the codebase. Always go through getEnv(). This makes testing trivial — just mock getEnv() once.",
+      },
+      {
+        n: 3, action: "Create", title: "Wire model selection into the agent engine",
+        file: "agentConfig.ts", folder: "src/config/",
+        desc: "Define per-agent model assignments, permission rules, and budget caps. Each agent in your system references this single config — changing a model for all agents takes one line.",
+        code:
+`// src/config/agentConfig.ts
+import { selectModel } from "./models.js";
+import { getEnv }      from "./environment.js";
+
+export interface AgentConfig {
+  name:          string;
+  model:         string;
+  maxTokens:     number;
+  permissionMode: "bypass" | "auto" | "default" | "plan";
+  maxCostUSD:    number;
+  systemPromptFile: string;  // path relative to src/prompts/
+  allowedTools:  string[];
+  denyTools:     string[];
+}
+
+const env = getEnv();
+
+// ── Per-agent configs — change model here, not in each agent file ─────────────
+export const AGENT_CONFIGS: Record<string, AgentConfig> = {
+  coordinator: {
+    name: "Coordinator",
+    model: selectModel("powerful"),          // Planning requires deep reasoning
+    maxTokens: 8096,
+    permissionMode: env.AGENT_PERMISSION_MODE,
+    maxCostUSD: env.MAX_SESSION_COST_USD,
+    systemPromptFile: "prompts/coordinator.md",
+    allowedTools: ["AgentTool", "TeamCreateTool", "SendMessageTool", "FileReadTool"],
+    denyTools:    ["BashTool", "FileEditTool", "FileWriteTool"],
+  },
+  worker: {
+    name: "Worker",
+    model: selectModel("balanced"),          // Main reasoning loop
+    maxTokens: 8096,
+    permissionMode: "auto",
+    maxCostUSD: 1.0,
+    systemPromptFile: "prompts/worker.md",
+    allowedTools: ["FileReadTool", "GlobTool", "GrepTool", "BashTool", "WebFetchTool"],
+    denyTools:    ["AgentTool"],             // Workers cannot spawn sub-agents
+  },
+  formatter: {
+    name: "Formatter",
+    model: selectModel("fast"),              // Pure formatting = Haiku
+    maxTokens: 2048,
+    permissionMode: "auto",
+    maxCostUSD: 0.10,
+    systemPromptFile: "prompts/formatter.md",
+    allowedTools: ["FileReadTool"],
+    denyTools:    [],
+  },
+};`,
+        note: "The systemPromptFile field points to a Markdown file in src/prompts/. Keeping prompts in .md files (not inline strings) lets non-engineers edit agent behaviour without touching TypeScript.",
+      },
+    ],
+    tips: [
+      "Cache the model selection result — don't call selectModel() on every token. The config is static per-session.",
+      "Add a --model-override CLI flag in main.ts to let power users swap the model at runtime for debugging.",
+      "Log model name + tier at session start so cost anomalies are easy to diagnose in logs.",
+      "Use 'fast' tier for all tool result summarisation steps — the observation text is already structured, it just needs a brief reformat.",
+    ],
+  },
+
+  /* ── 2. KNOWLEDGE BASE ──────────────────────────────────────────────── */
+  {
+    id: "knowledge", title: "Knowledge Base", color: "#34d399", icon: "📚",
+    tagline: "RAG pipeline: documents → embeddings → retrieval → context injection",
+    overview:
+      "A knowledge base turns your domain documents (regulations, policies, API docs, past findings) into a " +
+      "searchable vector store the agent queries before each reasoning pass. The folder structure separates raw " +
+      "source documents (knowledge-base/docs/) from processed indexes (knowledge-base/indexes/). " +
+      "The code that builds and queries the KB lives in src/knowledge/. " +
+      "Retrieval results are injected into the system prompt, giving the agent grounded facts rather than hallucinated ones.",
+    fileTree: [
+      { path: "knowledge-base/",                    type: "dir",  desc: "Root KB directory — outside src/" },
+      { path: "knowledge-base/docs/",               type: "dir",  desc: "Raw source documents (Markdown, PDF text)" },
+      { path: "knowledge-base/docs/domain/",        type: "dir",  desc: "Domain-specific knowledge (e.g. DoD FMR chapters)" },
+      { path: "knowledge-base/docs/regulations/",   type: "dir",  desc: "Regulatory texts (FISMA, NDAA, OMB circulars)" },
+      { path: "knowledge-base/docs/examples/",      type: "dir",  desc: "Few-shot examples for the agent" },
+      { path: "knowledge-base/indexes/",            type: "dir",  desc: "Persisted vector indexes (gitignored — regenerated)" },
+      { path: "knowledge-base/metadata/",           type: "dir",  desc: "Document metadata JSON (source, version, tags)" },
+      { path: "src/knowledge/",                     type: "dir",  desc: "KB processing code" },
+      { path: "src/knowledge/index.ts",             type: "file", desc: "Public KB API — exported functions only" },
+      { path: "src/knowledge/loader.ts",            type: "file", desc: "Loads & chunks documents from knowledge-base/docs/" },
+      { path: "src/knowledge/embedder.ts",          type: "file", desc: "Calls embedding API, caches results" },
+      { path: "src/knowledge/retriever.ts",         type: "file", desc: "Similarity search → returns top-K chunks" },
+      { path: "src/knowledge/indexer.ts",           type: "file", desc: "CLI script: build/rebuild the vector index" },
+    ],
+    steps: [
+      {
+        n: 1, action: "Populate", title: "Add domain documents",
+        file: "*.md  (e.g. dod-fmr-vol4.md)", folder: "knowledge-base/docs/domain/",
+        desc: "Convert source material to plain Markdown files. Name files descriptively — the filename becomes part of the retrieval citation. One file = one logical document (a regulation chapter, an API reference page, a standard procedure).",
+        code:
+`# knowledge-base/docs/domain/dod-fmr-vol4-ch03.md
+---
+title: "DoD FMR Volume 4 Chapter 3 — Accounting"
+source: "https://comptroller.defense.gov/fmr/"
+version: "2024-03"
+tags: ["accounting", "obligations", "expenditures"]
+classification: "UNCLASSIFIED"
+---
+
+## 030101. General
+Obligations are recorded when legal commitments are made...
+
+## 030102. Obligation Adjustments
+Adjustments to prior-year obligations require...
+# Each ## heading becomes a separate retrieval chunk
+# The YAML frontmatter is stored as metadata for citation`,
+        note: "Chunk at heading boundaries (## level), not arbitrary character counts. A chunk = one coherent concept. Too small = no context; too large = noisy retrieval. Target 300–600 tokens per chunk.",
+      },
+      {
+        n: 2, action: "Create", title: "Build the document loader",
+        file: "loader.ts", folder: "src/knowledge/",
+        desc: "The loader reads files from knowledge-base/docs/, extracts frontmatter metadata, and splits content into chunks at heading boundaries. Output is an array of {text, metadata, id} objects ready for embedding.",
+        code:
+`// src/knowledge/loader.ts
+import { readdir, readFile } from "fs/promises";
+import { join, relative }    from "path";
+import { createHash }        from "crypto";
+
+export interface KbChunk {
+  id:       string;        // SHA-256 of (filePath + chunkIndex) — stable across runs
+  text:     string;        // The chunk content (300–600 tokens)
+  metadata: {
+    source:   string;      // Filename for citation: "dod-fmr-vol4-ch03.md"
+    title:    string;      // From YAML frontmatter
+    tags:     string[];    // For category filtering
+    section:  string;      // Heading the chunk lives under
+    chunkIdx: number;      // Position in document (for ordering results)
+  };
+}
+
+const DOCS_ROOT = join(process.cwd(), "knowledge-base", "docs");
+
+export async function loadAllChunks(): Promise<KbChunk[]> {
+  const chunks: KbChunk[] = [];
+  await walkDir(DOCS_ROOT, async (filePath: string) => {
+    if (!filePath.endsWith(".md")) return;
+    const raw      = await readFile(filePath, "utf-8");
+    const rel      = relative(DOCS_ROOT, filePath);
+    const fileChunks = splitIntoChunks(raw, rel);
+    chunks.push(...fileChunks);
+  });
+  return chunks;
+}
+
+function splitIntoChunks(content: string, source: string): KbChunk[] {
+  // Extract YAML frontmatter
+  const fmMatch = content.match(/^---\n([\s\S]*?)\n---\n/);
+  const body    = fmMatch ? content.slice(fmMatch[0].length) : content;
+  const meta    = parseFrontmatter(fmMatch?.[1] ?? "");
+
+  // Split at ## headings — each section = one chunk
+  const sections = body.split(/(?=^## )/m).filter(s => s.trim());
+  return sections.map((text, i) => {
+    const section = text.match(/^##\s+(.+)/m)?.[1] ?? "Introduction";
+    const id = createHash("sha256").update(source + i).digest("hex").slice(0, 12);
+    return { id, text: text.trim(), metadata: { source, title: meta.title ?? source, tags: meta.tags ?? [], section, chunkIdx: i } };
+  });
+}
+
+async function walkDir(dir: string, fn: (path: string) => Promise<void>) {
+  const entries = await readdir(dir, { withFileTypes: true });
+  for (const e of entries) {
+    const full = join(dir, e.name);
+    if (e.isDirectory()) await walkDir(full, fn);
+    else await fn(full);
+  }
+}
+function parseFrontmatter(fm: string): Record<string, any> {
+  const obj: Record<string, any> = {};
+  fm.split("\n").forEach(line => {
+    const [k, ...v] = line.split(": ");
+    if (k && v.length) obj[k.trim()] = v.join(": ").trim().replace(/^"(.*)"$/, "$1");
+  });
+  return obj;
+}`,
+        note: "The chunk ID is deterministic (SHA-256 of path+index). If you re-index, existing IDs stay stable — Pinecone won't re-embed unchanged chunks if you use upsert.",
+      },
+      {
+        n: 3, action: "Create", title: "Build the embedder with caching",
+        file: "embedder.ts", folder: "src/knowledge/",
+        desc: "Converts chunks to embedding vectors. Caches results in knowledge-base/indexes/ so re-runs are instant. Only re-embeds chunks whose content has changed.",
+        code:
+`// src/knowledge/embedder.ts
+import Anthropic  from "@anthropic-ai/sdk";
+import { writeFile, readFile, mkdir } from "fs/promises";
+import { join }   from "path";
+import type { KbChunk } from "./loader.js";
+
+const CACHE_DIR = join(process.cwd(), "knowledge-base", "indexes");
+const CACHE_FILE = join(CACHE_DIR, "embeddings.json");
+
+export interface EmbeddedChunk extends KbChunk {
+  vector: number[];   // 1536-dim float array
+}
+
+export async function embedChunks(chunks: KbChunk[]): Promise<EmbeddedChunk[]> {
+  await mkdir(CACHE_DIR, { recursive: true });
+
+  // Load cache: {chunkId → vector}
+  let cache: Record<string, number[]> = {};
+  try { cache = JSON.parse(await readFile(CACHE_FILE, "utf-8")); } catch {}
+
+  const client   = new Anthropic();
+  const toEmbed  = chunks.filter(c => !cache[c.id]);
+  console.log(\`Embedding \${toEmbed.length} new chunks (\${chunks.length - toEmbed.length} cached)...\`);
+
+  // Batch in groups of 100 to respect API rate limits
+  for (let i = 0; i < toEmbed.length; i += 100) {
+    const batch = toEmbed.slice(i, i + 100);
+    // Note: use text-embedding-3-small via OpenAI or voyage-3 via Anthropic
+    // Here we use a generic fetch pattern — swap for your provider SDK
+    const res = await client.messages.create({
+      model: "claude-haiku-4-5",         // Fast model for embedding proxy
+      max_tokens: 10,
+      messages: [{ role: "user", content: "embed:" + batch.map(c=>c.text).join("\n---\n") }],
+    });
+    // In production: use voyage-3 embeddings API directly
+    // For now: store placeholder (replace with real embedding call)
+    batch.forEach(c => { cache[c.id] = Array(1536).fill(0); });  // ← replace with real vectors
+  }
+
+  await writeFile(CACHE_FILE, JSON.stringify(cache, null, 2));
+  return chunks.map(c => ({ ...c, vector: cache[c.id] }));
+}`,
+        note: "In production use voyage-3 (Anthropic's embedding model) or text-embedding-3-small (OpenAI). Both produce 1536-dim vectors. voyage-3 is better for domain-specific retrieval. Cost: ~$0.06 per 1M tokens.",
+      },
+      {
+        n: 4, action: "Create", title: "Build the retriever",
+        file: "retriever.ts", folder: "src/knowledge/",
+        desc: "Given a query string, returns the top-K most semantically relevant chunks. Runs cosine similarity against the in-memory vector index. Results are formatted as system prompt context.",
+        code:
+`// src/knowledge/retriever.ts
+import type { EmbeddedChunk } from "./embedder.js";
+
+let _index: EmbeddedChunk[] = [];
+
+/** Load the pre-built index into memory (call once at startup) */
+export function loadIndex(chunks: EmbeddedChunk[]) { _index = chunks; }
+
+/** Cosine similarity between two vectors */
+function cosine(a: number[], b: number[]): number {
+  let dot = 0, na = 0, nb = 0;
+  for (let i = 0; i < a.length; i++) { dot += a[i]*b[i]; na += a[i]**2; nb += b[i]**2; }
+  return dot / (Math.sqrt(na) * Math.sqrt(nb) + 1e-8);
+}
+
+export interface RetrievalResult {
+  chunk: EmbeddedChunk;
+  score: number;
+}
+
+/** Retrieve top-K chunks relevant to a query vector */
+export function retrieveByVector(queryVec: number[], topK = 5): RetrievalResult[] {
+  return _index
+    .map(chunk => ({ chunk, score: cosine(queryVec, chunk.vector) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topK)
+    .filter(r => r.score > 0.65);  // Minimum relevance threshold — discard noise
+}
+
+/** Format retrieved chunks as system-prompt context block */
+export function formatContext(results: RetrievalResult[]): string {
+  if (results.length === 0) return "";
+  return [
+    "## Relevant Knowledge Base Context",
+    "(Retrieved from your knowledge base — cite [Source: filename] in responses)",
+    "",
+    ...results.map(r =>
+      \`### [Source: \${r.chunk.metadata.source} § \${r.chunk.metadata.section}] (relevance: \${(r.score*100).toFixed(0)}%)\n\${r.chunk.text}\`
+    ),
+    "",
+  ].join("\n");
+}`,
+        note: "The 0.65 cosine similarity threshold is critical. Below this, retrieved chunks are noise that degrades answers. Tune this threshold on 20–30 representative queries before deploying.",
+      },
+      {
+        n: 5, action: "Create", title: "Create the KB public API + indexer script",
+        file: "index.ts + indexer.ts", folder: "src/knowledge/",
+        desc: "index.ts is the only file other modules import — a clean public API. indexer.ts is a CLI script run via 'bun run src/knowledge/indexer.ts' to rebuild the index after adding new documents.",
+        code:
+`// src/knowledge/index.ts — public API (only this file is imported by others)
+export { loadAllChunks }   from "./loader.js";
+export { embedChunks }     from "./embedder.js";
+export { loadIndex, retrieveByVector, formatContext } from "./retriever.js";
+
+/** Initialise KB at agent startup — call from main.ts */
+export async function initKnowledgeBase(): Promise<void> {
+  const { loadAllChunks } = await import("./loader.js");
+  const { embedChunks }   = await import("./embedder.js");
+  const { loadIndex }     = await import("./retriever.js");
+  const chunks   = await loadAllChunks();
+  const embedded = await embedChunks(chunks);
+  loadIndex(embedded);
+  console.log(\`✅ Knowledge base ready: \${embedded.length} chunks indexed\`);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// src/knowledge/indexer.ts — run with: bun run src/knowledge/indexer.ts
+// Rebuilds the vector index from scratch. Run after adding new documents.
+import { loadAllChunks } from "./loader.js";
+import { embedChunks }   from "./embedder.js";
+import { writeFile }     from "fs/promises";
+import { join }          from "path";
+
+const chunks   = await loadAllChunks();
+const embedded = await embedChunks(chunks);
+const meta = embedded.map(e => ({ id: e.id, source: e.metadata.source, section: e.metadata.section }));
+await writeFile(join(process.cwd(), "knowledge-base", "metadata", "index-manifest.json"), JSON.stringify(meta, null, 2));
+console.log(\`✅ Indexed \${embedded.length} chunks → knowledge-base/indexes/embeddings.json\`);`,
+        note: "Add 'bun run src/knowledge/indexer.ts' as a pre-deploy step in your CI pipeline. The index file is gitignored but regenerated on each deploy from source documents (which ARE committed).",
+      },
+    ],
+    tips: [
+      "Namespace your Pinecone index by environment: 'prod-dod-fmr', 'dev-dod-fmr'. Never share production indexes with dev agents.",
+      "Add a metadata field 'effective_date' to regulatory documents. Retrieval can then filter to only return currently-effective controls.",
+      "Store the query used to retrieve each context chunk in the audit log — this lets you trace exactly why the agent cited a particular regulation.",
+      "Set a context budget: if formatContext() output > 4,000 tokens, only keep top 3 results. The KB context competes with conversation history in the context window.",
+      "Re-index weekly for live regulatory knowledge bases. Set up a cron job: 'bun run src/knowledge/indexer.ts' in CI/CD.",
+    ],
+  },
+
+  /* ── 3. SKILLS ──────────────────────────────────────────────────────── */
+  {
+    id: "skills", title: "Skills Architecture", color: "#a78bfa", icon: "⚡",
+    tagline: "Skills = composable agent capabilities. Tools = atomic actions. Skills orchestrate tools.",
+    overview:
+      "A Skill is a higher-level capability composed of multiple tool calls, reasoning steps, and sub-agent delegations. " +
+      "While a Tool is atomic (run bash command, read file), a Skill is a workflow (analyze code quality = read files + grep patterns + run linter + synthesize findings). " +
+      "Skills live in src/skills/ organised by category. Each skill exports a single execute() function. " +
+      "A SkillRegistry in src/skills/index.ts maps skill names to implementations, enabling the coordinator to invoke any skill by name.",
+    fileTree: [
+      { path: "src/skills/",                      type: "dir",  desc: "All skill implementations" },
+      { path: "src/skills/index.ts",              type: "file", desc: "SkillRegistry + Skill interface" },
+      { path: "src/skills/analyze/",              type: "dir",  desc: "Analysis skills category" },
+      { path: "src/skills/analyze/analyzeCode.ts",type: "file", desc: "Skill: deep code quality analysis" },
+      { path: "src/skills/analyze/detectAnomaly.ts",type:"file",desc: "Skill: statistical anomaly detection" },
+      { path: "src/skills/analyze/index.ts",      type: "file", desc: "Barrel re-export for analyze skills" },
+      { path: "src/skills/generate/",             type: "dir",  desc: "Generation skills category" },
+      { path: "src/skills/generate/writeReport.ts",type:"file", desc: "Skill: structured report generation" },
+      { path: "src/skills/generate/summarize.ts", type: "file", desc: "Skill: multi-document summarization" },
+      { path: "src/skills/generate/index.ts",     type: "file", desc: "Barrel re-export" },
+      { path: "src/skills/integrate/",            type: "dir",  desc: "External system integration skills" },
+      { path: "src/skills/integrate/fetchRecords.ts",type:"file",desc:"Skill: fetch + normalise from source systems" },
+      { path: "src/skills/integrate/index.ts",    type: "file", desc: "Barrel re-export" },
+      { path: "src/skills/validate/",             type: "dir",  desc: "Validation skills category" },
+      { path: "src/skills/validate/checkCompliance.ts",type:"file",desc:"Skill: multi-standard compliance check" },
+      { path: "src/skills/validate/index.ts",     type: "file", desc: "Barrel re-export" },
+    ],
+    steps: [
+      {
+        n: 1, action: "Create", title: "Define the Skill interface",
+        file: "index.ts", folder: "src/skills/",
+        desc: "The Skill interface is the contract all skill files implement. It parallels the Tool interface but operates at a higher level — a Skill takes a natural-language goal and returns a structured result, not just a string.",
+        code:
+`// src/skills/index.ts
+import type { AppState } from "../state/AppState.js";
+
+// ── The Skill interface — higher-level than Tool ──────────────────────────────
+export interface SkillInput {
+  goal:    string;          // Natural-language description of what to achieve
+  context: Record<string, unknown>;  // Domain-specific inputs (file paths, IDs, etc.)
+  options?: {
+    maxSteps?: number;      // Cap the internal ReAct loop iterations
+    timeout?:  number;      // MS before the skill times out
+    dryRun?:   boolean;     // Simulate without side effects
+  };
+}
+
+export interface SkillResult {
+  success:   boolean;
+  output:    string;        // Human-readable result summary
+  artifacts: string[];      // File paths created/modified by the skill
+  findings?: unknown[];     // Structured findings (domain-specific)
+  costUSD?:  number;        // Actual LLM cost incurred
+}
+
+export interface Skill {
+  name:        string;      // "analyze.detectAnomaly" — dot-notation category.name
+  description: string;      // What the LLM coordinator reads to decide when to invoke this skill
+  inputSchema: Record<string, { type: string; description: string; required: boolean }>;
+  execute(input: SkillInput, state: AppState): Promise<SkillResult>;
+}
+
+// ── Skill Registry — maps skill name → implementation ────────────────────────
+class SkillRegistryClass {
+  private skills = new Map<string, Skill>();
+  register(skill: Skill) { this.skills.set(skill.name, skill); }
+  get(name: string): Skill | undefined { return this.skills.get(name); }
+  list(): string[] { return [...this.skills.keys()]; }
+  describe(): string {
+    return this.list().map(n => {
+      const s = this.skills.get(n)!;
+      return \`- \${s.name}: \${s.description}\`;
+    }).join("\n");
+  }
+}
+export const SkillRegistry = new SkillRegistryClass();
+
+// Auto-register all skills at module load
+import "./analyze/index.js";
+import "./generate/index.js";
+import "./integrate/index.js";
+import "./validate/index.js";`,
+        note: "The dot-notation naming (category.skillName) lets the coordinator say 'invoke skill analyze.detectAnomaly' unambiguously. Always use this format.",
+      },
+      {
+        n: 2, action: "Implement", title: "Create a concrete skill",
+        file: "detectAnomaly.ts", folder: "src/skills/analyze/",
+        desc: "Each skill file exports one class implementing Skill. The skill's execute() method orchestrates multiple tool calls internally — it's a mini-agent with its own goal.",
+        code:
+`// src/skills/analyze/detectAnomaly.ts
+import type { Skill, SkillInput, SkillResult } from "../index.js";
+import type { AppState } from "../../state/AppState.js";
+
+export class DetectAnomalySkill implements Skill {
+  name        = "analyze.detectAnomaly";
+  description =
+    "Detect statistical anomalies in a dataset. Use when you have a set of " +
+    "numeric records and need to identify outliers, unusual patterns, or " +
+    "values that deviate significantly from the mean. Returns a list of " +
+    "flagged records with anomaly scores and explanations.";
+
+  inputSchema = {
+    dataPath: { type: "string",  description: "Path to CSV/JSON data file", required: true },
+    column:   { type: "string",  description: "Column/field name to analyse", required: true },
+    threshold:{ type: "number",  description: "Z-score threshold (default 2.5)", required: false },
+  };
+
+  async execute(input: SkillInput, state: AppState): Promise<SkillResult> {
+    const { dataPath, column, threshold = 2.5 } = input.context as {
+      dataPath: string; column: string; threshold?: number;
+    };
+
+    // Step 1: Read the data file using the FileRead tool
+    const rawData = await state.tools.get("FileReadTool")!.execute({ path: dataPath }, state);
+
+    // Step 2: Use the agent's LLM to analyse the data
+    // (In production, run actual statistics; here we delegate to the LLM for flexibility)
+    const analysisPrompt = \`
+Analyse this dataset for anomalies in the '\${column}' column.
+Use z-score > \${threshold} as the threshold for flagging.
+Data: \${rawData.slice(0, 3000)}  [truncated if large]
+
+Return a JSON array of: {rowIndex, value, zScore, reason}
+\`;
+    // Delegate to a fast model for the statistical analysis
+    const result = await state.llmCall(analysisPrompt, "fast");  // Uses Haiku tier
+
+    let findings: unknown[] = [];
+    try { findings = JSON.parse(result.match(/\[[\s\S]*\]/)?.[0] ?? "[]"); } catch {}
+
+    const outputPath = \`\${state.scratchDir}/anomalies-\${Date.now()}.json\`;
+    await state.tools.get("FileWriteTool")!.execute({ path: outputPath, content: JSON.stringify(findings, null, 2) }, state);
+
+    return {
+      success:  true,
+      output:   \`Found \${findings.length} anomalies in \${column}. Results saved to \${outputPath}\`,
+      artifacts:[outputPath],
+      findings,
+      costUSD:  result.costUSD,
+    };
+  }
+}`,
+        note: "Notice how the skill calls state.llmCall() with a tier hint ('fast'). The skill controls which model tier it uses for each internal sub-task — heavy reasoning uses 'balanced', formatting uses 'fast'.",
+      },
+      {
+        n: 3, action: "Create", title: "Create the category barrel + register",
+        file: "index.ts", folder: "src/skills/analyze/",
+        desc: "Each category folder has an index.ts that imports all skills in the category and registers them. This is the only file that needs to be updated when adding a new skill to a category.",
+        code:
+`// src/skills/analyze/index.ts
+// Register all analysis skills — add new skills here
+import { SkillRegistry } from "../index.js";
+import { DetectAnomalySkill } from "./detectAnomaly.js";
+import { AnalyzeCodeSkill }   from "./analyzeCode.js";
+// import { NewSkill } from "./newSkill.js";   ← just add this line for a new skill
+
+SkillRegistry.register(new DetectAnomalySkill());
+SkillRegistry.register(new AnalyzeCodeSkill());
+// SkillRegistry.register(new NewSkill());
+
+// ─────────────────────────────────────────────────────────────────────────────
+// src/skills/generate/index.ts
+import { SkillRegistry }    from "../index.js";
+import { WriteReportSkill } from "./writeReport.js";
+import { SummarizeSkill }   from "./summarize.js";
+
+SkillRegistry.register(new WriteReportSkill());
+SkillRegistry.register(new SummarizeSkill());`,
+        note: "The coordinator invokes skills via SkillRegistry.get('analyze.detectAnomaly')?.execute(). The description field is injected into the coordinator's system prompt — write it like a tool description.",
+      },
+      {
+        n: 4, action: "Connect", title: "Inject skill descriptions into coordinator prompt",
+        file: "prompts/coordinator.md", folder: "src/",
+        desc: "The coordinator's system prompt dynamically includes all registered skill descriptions. This is assembled at startup so the coordinator always knows about newly-added skills.",
+        code:
+`// In your system prompt composition (src/utils/systemPromptType.ts):
+import { SkillRegistry } from "../skills/index.js";
+
+export function composeCoordinatorPrompt(state: AppState): string {
+  return \`
+# Available Skills
+You can invoke these skills to complete complex sub-tasks.
+Invoke a skill by calling: invoke_skill({ name: "...", goal: "...", context: {...} })
+
+\${SkillRegistry.describe()}
+
+# Orchestration Rules
+1. For analysis tasks → use analyze.* skills
+2. For document generation → use generate.* skills
+3. For data fetching → use integrate.* skills
+4. For compliance checking → use validate.* skills
+5. Skills can be run in parallel by spawning multiple agent workers
+6. Chain skills: output of one skill's artifacts[] becomes input context for the next
+\`;
+}`,
+        note: "SkillRegistry.describe() outputs all registered skill names + descriptions in a format Claude reads to decide which skill to invoke. The more precise your description, the more accurately the coordinator routes tasks.",
+      },
+    ],
+    tips: [
+      "Name skills as verb.noun (analyze.detectAnomaly, generate.writeReport) — the verb indicates action, the category noun groups related capabilities.",
+      "Skills should be idempotent: running the same skill twice with the same input should produce the same output. This enables retry without side effects.",
+      "Each skill must declare artifacts[] — paths to files it creates. Downstream skills can then chain by consuming these artifacts as input.",
+      "Test skills in isolation before wiring into the coordinator: 'bun run -e \"const s=new DetectAnomalySkill(); console.log(await s.execute(testInput, mockState))\"'",
+      "Keep skills under 200 lines. If a skill grows larger, decompose it into sub-skills that chain together.",
+    ],
+  },
+
+  /* ── 4. ORCHESTRATION ───────────────────────────────────────────────── */
+  {
+    id: "orchestration", title: "Orchestration", color: "#fbbf24", icon: "🎯",
+    tagline: "3 patterns: sequential pipeline, parallel workers, event-driven routing",
+    overview:
+      "Orchestration determines the order and parallelism of agent/skill execution. Three patterns cover 95% of use cases: " +
+      "(1) Sequential Pipeline — each step's output feeds the next (data harvest → reconcile → validate → report). " +
+      "(2) Parallel Workers — independent subtasks distributed across N agents simultaneously. " +
+      "(3) Event-Driven — agents react to incoming messages/events from external systems. " +
+      "All three patterns live in src/orchestration/. Workflows (the specific sequences for your domain) " +
+      "live in src/orchestration/workflows/.",
+    fileTree: [
+      { path: "src/orchestration/",                       type: "dir",  desc: "All orchestration code" },
+      { path: "src/orchestration/pipeline.ts",            type: "file", desc: "Sequential step executor" },
+      { path: "src/orchestration/parallel.ts",            type: "file", desc: "Parallel worker pool" },
+      { path: "src/orchestration/coordinator.ts",         type: "file", desc: "Multi-agent task coordinator" },
+      { path: "src/orchestration/channel.ts",             type: "file", desc: "Inter-agent message channel" },
+      { path: "src/orchestration/workflows/",             type: "dir",  desc: "Domain-specific workflow definitions" },
+      { path: "src/orchestration/workflows/auditWorkflow.ts",type:"file",desc:"Audit reconciliation workflow definition" },
+      { path: "src/orchestration/workflows/reportWorkflow.ts",type:"file",desc:"Report generation workflow" },
+      { path: "src/prompts/",                             type: "dir",  desc: "Agent system prompts as Markdown files" },
+      { path: "src/prompts/coordinator.md",               type: "file", desc: "Coordinator agent system prompt" },
+      { path: "src/prompts/worker.md",                    type: "file", desc: "Worker agent system prompt" },
+    ],
+    steps: [
+      {
+        n: 1, action: "Create", title: "Define the sequential pipeline",
+        file: "pipeline.ts", folder: "src/orchestration/",
+        desc: "A pipeline is an ordered list of steps where each step receives the accumulated state from all previous steps. Perfect for workflows where order matters (fetch → validate → transform → save).",
+        code:
+`// src/orchestration/pipeline.ts
+import type { AppState }  from "../state/AppState.js";
+import type { SkillResult } from "../skills/index.js";
+
+export interface PipelineStep {
+  name:     string;        // Human-readable step name for logging
+  skillName: string;       // "integrate.fetchRecords" — must be registered in SkillRegistry
+  goal:     string;        // What this step achieves (injected into the skill call)
+  // Context builder: receives accumulated results from prior steps
+  buildContext: (priorResults: Record<string, SkillResult>) => Record<string, unknown>;
+  // Optional: skip this step based on prior results
+  skipIf?: (priorResults: Record<string, SkillResult>) => boolean;
+}
+
+export interface PipelineResult {
+  success: boolean;
+  stepResults: Record<string, SkillResult>;
+  failedStep?: string;
+  totalCostUSD: number;
+}
+
+export async function runPipeline(
+  steps: PipelineStep[],
+  state: AppState,
+): Promise<PipelineResult> {
+  const { SkillRegistry } = await import("../skills/index.js");
+  const accumulated: Record<string, SkillResult> = {};
+  let totalCost = 0;
+
+  for (const step of steps) {
+    if (step.skipIf?.(accumulated)) {
+      console.log(\`⏭  Skipping \${step.name}\`);
+      continue;
+    }
+    console.log(\`▶  Running \${step.name} → \${step.skillName}\`);
+    const skill = SkillRegistry.get(step.skillName);
+    if (!skill) throw new Error(\`Skill not found: \${step.skillName}\`);
+
+    const result = await skill.execute(
+      { goal: step.goal, context: step.buildContext(accumulated) },
+      state,
+    );
+    accumulated[step.name] = result;
+    totalCost += result.costUSD ?? 0;
+
+    if (!result.success) {
+      console.error(\`❌ Step \${step.name} failed: \${result.output}\`);
+      return { success: false, stepResults: accumulated, failedStep: step.name, totalCostUSD: totalCost };
+    }
+    console.log(\`✅ \${step.name}: \${result.output}\`);
+  }
+  return { success: true, stepResults: accumulated, totalCostUSD: totalCost };
+}`,
+        note: "The buildContext() function is the key to chaining steps: it gets ALL prior step results and picks what the next step needs. This avoids hard coupling between steps.",
+      },
+      {
+        n: 2, action: "Create", title: "Define parallel worker pool",
+        file: "parallel.ts", folder: "src/orchestration/",
+        desc: "Distributes independent subtasks across N concurrent agents. Each task gets its own isolated scratchpad and agent instance. Results are collected and merged after all tasks complete.",
+        code:
+`// src/orchestration/parallel.ts
+import type { AppState }   from "../state/AppState.js";
+import type { SkillResult } from "../skills/index.js";
+
+export interface ParallelTask {
+  id:       string;   // Unique task identifier ("harvest-sfis", "harvest-gfebs")
+  skillName: string;
+  goal:     string;
+  context:  Record<string, unknown>;
+  // Worker isolation: each task gets its own scratchpad dir
+  scratchDir?: string;  // auto-generated if omitted
+}
+
+export interface ParallelResult {
+  results:     Record<string, SkillResult>;  // taskId → result
+  succeeded:   string[];
+  failed:      string[];
+  totalCostUSD: number;
+  durationMs:  number;
+}
+
+export async function runParallel(
+  tasks: ParallelTask[],
+  state: AppState,
+  maxConcurrency = 5,
+): Promise<ParallelResult> {
+  const { SkillRegistry } = await import("../skills/index.js");
+  const start  = Date.now();
+  const results: Record<string, SkillResult> = {};
+  let totalCost = 0;
+
+  // Chunk tasks by maxConcurrency (avoid spawning 100 agents at once)
+  for (let i = 0; i < tasks.length; i += maxConcurrency) {
+    const batch = tasks.slice(i, i + maxConcurrency);
+    const settled = await Promise.allSettled(
+      batch.map(async task => {
+        const skill = SkillRegistry.get(task.skillName);
+        if (!skill) throw new Error(\`Skill not found: \${task.skillName}\`);
+        // Each task gets isolated state with its own scratchDir
+        const taskState = { ...state, scratchDir: task.scratchDir ?? \`/tmp/task-\${task.id}\` };
+        return { id: task.id, result: await skill.execute({ goal: task.goal, context: task.context }, taskState) };
+      })
+    );
+    settled.forEach((s, j) => {
+      if (s.status === "fulfilled") {
+        results[s.value.id] = s.value.result;
+        totalCost += s.value.result.costUSD ?? 0;
+      } else {
+        results[batch[j].id] = { success: false, output: s.reason?.message ?? "Unknown error", artifacts: [] };
+      }
+    });
+  }
+  return {
+    results,
+    succeeded:    Object.entries(results).filter(([,r]) => r.success).map(([id]) => id),
+    failed:       Object.entries(results).filter(([,r]) => !r.success).map(([id]) => id),
+    totalCostUSD: totalCost,
+    durationMs:   Date.now() - start,
+  };
+}`,
+        note: "maxConcurrency=5 is a safe default. Your Anthropic API tier has per-minute RPM limits — too many parallel agents burn through them. Monitor rate limit errors and reduce concurrency if you see 429s.",
+      },
+      {
+        n: 3, action: "Create", title: "Define a complete domain workflow",
+        file: "auditWorkflow.ts", folder: "src/orchestration/workflows/",
+        desc: "A workflow combines pipeline and parallel patterns for a specific domain task. This is the top-level definition of 'how we do a financial audit'. It's declarative — all the intelligence is in the skills.",
+        code:
+`// src/orchestration/workflows/auditWorkflow.ts
+import { runParallel }  from "../parallel.js";
+import { runPipeline }  from "../pipeline.js";
+import type { AppState } from "../../state/AppState.js";
+
+export interface AuditWorkflowInput {
+  fiscalYear: number;
+  fundCode:   string;
+  systemIds:  string[];   // ["SFIS-001", "GFEBS-HQ", "PIEE-CONTRACT"]
+}
+
+export async function runAuditWorkflow(input: AuditWorkflowInput, state: AppState) {
+  console.log(\`🚀 Starting audit workflow: FY\${input.fiscalYear} fund \${input.fundCode}\`);
+
+  // ── PHASE 1: Parallel data collection from all source systems ─────────────
+  // Each system is harvested simultaneously — 3× faster than sequential
+  const harvestResult = await runParallel(
+    input.systemIds.map(systemId => ({
+      id:        \`harvest-\${systemId}\`,
+      skillName: "integrate.fetchRecords",
+      goal:      \`Fetch all transactions for FY\${input.fiscalYear} fund \${input.fundCode} from \${systemId}\`,
+      context:   { systemId, fiscalYear: input.fiscalYear, fundCode: input.fundCode },
+    })),
+    state,
+    5,   // Up to 5 parallel harvests
+  );
+
+  if (harvestResult.failed.length > 0)
+    console.warn(\`⚠️  Failed harvests: \${harvestResult.failed.join(", ")}\`);
+
+  // Collect all artifact paths from all harvests
+  const stagedFiles = Object.values(harvestResult.results)
+    .flatMap(r => r.artifacts);
+
+  // ── PHASE 2: Sequential reconciliation pipeline ───────────────────────────
+  const pipelineResult = await runPipeline([
+    {
+      name:      "reconcile",
+      skillName: "analyze.reconcileTransactions",
+      goal:      "Compare transactions across all staged data sources, identify discrepancies",
+      buildContext: () => ({ stagedFiles, threshold: 0.01 }),  // $0.01 tolerance
+    },
+    {
+      name:      "validate",
+      skillName: "validate.checkCompliance",
+      goal:      "Validate all discrepancies against DoD FMR regulations, flag violations",
+      buildContext: (prior) => ({
+        discrepancyFile: prior.reconcile.artifacts[0],
+        regulations:     ["DoD FMR Vol 4 Ch 3", "NDAA FY2024 Section 1004"],
+      }),
+      skipIf: (prior) => prior.reconcile.findings?.length === 0,  // Skip if no discrepancies
+    },
+    {
+      name:      "report",
+      skillName: "generate.writeReport",
+      goal:      "Generate GAGAS-compliant audit report from all findings",
+      buildContext: (prior) => ({
+        reconcileArtifacts: prior.reconcile.artifacts,
+        validateArtifacts:  prior.validate?.artifacts ?? [],
+        fiscalYear:         input.fiscalYear,
+        fundCode:           input.fundCode,
+      }),
+    },
+  ], state);
+
+  console.log(\`✅ Audit complete. Total cost: \$\${(harvestResult.totalCostUSD + pipelineResult.totalCostUSD).toFixed(2)}\`);
+  return { harvestResult, pipelineResult };
+}`,
+        note: "The workflow is the ONLY place that knows about execution order and parallelism. Skills don't know they're being called in parallel — they just execute their task. This separation means you can reorder/parallelize without changing any skill code.",
+      },
+    ],
+    tips: [
+      "Workflows belong in src/orchestration/workflows/, NOT in main.ts. Main.ts should just call: runAuditWorkflow(input, state).",
+      "Add a workflow dry-run mode: set options.dryRun=true on all skill calls. Skills check this flag and simulate without side effects.",
+      "Log phase boundaries explicitly (PHASE 1, PHASE 2) — audit trails need to show which phase a finding originated from.",
+      "If a pipeline step fails, save accumulated results to disk before re-throwing. This enables resuming a failed workflow from the last successful step.",
+    ],
+  },
+
+  /* ── 5. MCP INTEGRATION ─────────────────────────────────────────────── */
+  {
+    id: "mcp", title: "MCP Integration", color: "#38bdf8", icon: "🔌",
+    tagline: "Expose your tools to any compatible agent via the Model Context Protocol",
+    overview:
+      "MCP (Model Context Protocol) is an open standard that lets any compatible agent (Claude, GPT-4, Gemini, custom) " +
+      "call your internal tools without custom integration. You run an MCP server that declares capabilities via a manifest; " +
+      "agents discover and invoke them via the protocol. This means: build your tools once, " +
+      "use them from any agent framework. The MCP code lives entirely in src/mcp/.",
+    fileTree: [
+      { path: "src/mcp/",                  type: "dir",  desc: "All MCP server code" },
+      { path: "src/mcp/server.ts",         type: "file", desc: "MCP server entry — starts HTTP/stdio listener" },
+      { path: "src/mcp/manifest.json",     type: "file", desc: "Capability declaration (tools, resources, prompts)" },
+      { path: "src/mcp/router.ts",         type: "file", desc: "Routes incoming MCP requests to tool handlers" },
+      { path: "src/mcp/tools/",            type: "dir",  desc: "Tool implementation files (one per tool)" },
+      { path: "src/mcp/tools/queryData.ts",type: "file", desc: "MCP tool: query staging data" },
+      { path: "src/mcp/tools/writeFinding.ts",type:"file",desc:"MCP tool: write audit finding" },
+      { path: "src/mcp/tools/index.ts",    type: "file", desc: "Tool registry — import all tools here" },
+      { path: ".claude/mcp.json",          type: "file", desc: "Claude Code MCP config — connects to your server" },
+    ],
+    steps: [
+      {
+        n: 1, action: "Create", title: "Write the MCP manifest",
+        file: "manifest.json", folder: "src/mcp/",
+        desc: "The manifest declares everything your MCP server offers: tools (callable functions), resources (readable data), and prompts (reusable templates). Agents read this manifest to discover capabilities.",
+        code:
+`// src/mcp/manifest.json
+{
+  "name": "my-domain-mcp",
+  "version": "1.0.0",
+  "description": "Domain tools for financial audit reconciliation",
+  "protocol": "mcp/1.0",
+  "capabilities": {
+    "tools": true,
+    "resources": true,
+    "prompts": false
+  },
+  "tools": [
+    {
+      "name": "query_staging_data",
+      "description": "Query staged financial records from the data lake. Use this to retrieve transaction data that has been previously harvested from source systems.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "system_id":   { "type": "string",  "description": "Source system identifier (SFIS, GFEBS, PIEE)" },
+          "fiscal_year": { "type": "integer", "description": "4-digit fiscal year" },
+          "fund_code":   { "type": "string",  "description": "4-char DoD fund code" },
+          "limit":       { "type": "integer", "description": "Max records to return (default 500)" }
+        },
+        "required": ["system_id", "fiscal_year", "fund_code"]
+      }
+    },
+    {
+      "name": "write_audit_finding",
+      "description": "Record an audit finding to the immutable findings ledger. Use after identifying a compliance violation or discrepancy that requires management action.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "severity":     { "type": "string", "enum": ["Critical","High","Medium","Low"] },
+          "finding_text": { "type": "string", "description": "Full finding description with regulation citation" },
+          "evidence_ids": { "type": "array",  "items": { "type": "string" } }
+        },
+        "required": ["severity", "finding_text"]
+      }
+    }
+  ],
+  "resources": [
+    {
+      "uri": "knowledge://dod-fmr",
+      "name": "DoD Financial Management Regulation",
+      "description": "Full text of DoD FMR — searchable by chapter and section",
+      "mimeType": "text/plain"
+    }
+  ]
+}`,
+        note: "The manifest is the most important file in your MCP server. Write tool descriptions as if you're writing them for an LLM that has never seen your codebase. Specific, unambiguous, with examples of when to use them.",
+      },
+      {
+        n: 2, action: "Create", title: "Implement the MCP server",
+        file: "server.ts", folder: "src/mcp/",
+        desc: "The server handles the MCP wire protocol — manifest serving, tool invocation, and resource access. It listens on stdio (for Claude Code integration) or HTTP (for remote agents).",
+        code:
+`// src/mcp/server.ts — MCP server using @modelcontextprotocol/sdk
+import { McpServer }   from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { z }          from "zod";
+import { queryDataHandler }    from "./tools/queryData.js";
+import { writeFindingHandler } from "./tools/writeFinding.js";
+import manifest from "./manifest.json" assert { type: "json" };
+
+const server = new McpServer({
+  name:    manifest.name,
+  version: manifest.version,
+});
+
+// ── Register tools from manifest ─────────────────────────────────────────────
+server.tool(
+  "query_staging_data",
+  "Query staged financial records from the data lake",
+  {
+    system_id:   z.string().describe("Source system identifier"),
+    fiscal_year: z.number().int().describe("4-digit fiscal year"),
+    fund_code:   z.string().describe("4-char DoD fund code"),
+    limit:       z.number().int().default(500),
+  },
+  async (args) => {
+    const result = await queryDataHandler(args);
+    return { content: [{ type: "text", text: result }] };
+  }
+);
+
+server.tool(
+  "write_audit_finding",
+  "Record an audit finding to the immutable findings ledger",
+  {
+    severity:    z.enum(["Critical", "High", "Medium", "Low"]),
+    finding_text: z.string().min(20),
+    evidence_ids: z.array(z.string()).default([]),
+  },
+  async (args) => {
+    const result = await writeFindingHandler(args);
+    return { content: [{ type: "text", text: result }] };
+  }
+);
+
+// ── Start server on stdio (compatible with Claude Code's MCP client) ──────────
+const transport = new StdioServerTransport();
+await server.connect(transport);
+console.error(\`MCP server '\${manifest.name}' running on stdio\`);`,
+        note: "Run via stdio for Claude Code integration: add to .claude/mcp.json. Run via HTTP for remote agent integration: swap StdioServerTransport for HttpServerTransport and listen on a port.",
+      },
+      {
+        n: 3, action: "Configure", title: "Register your MCP server with Claude Code",
+        file: "mcp.json", folder: ".claude/",
+        desc: "Tell Claude Code how to launch and connect to your MCP server. After adding this, restart Claude Code — it will auto-discover all tools declared in your manifest.",
+        code:
+`// .claude/mcp.json
+{
+  "mcpServers": {
+    "my-domain-mcp": {
+      "command": "bun",
+      "args": ["run", "src/mcp/server.ts"],
+      "env": {
+        "NODE_ENV": "development"
+      },
+      "description": "Domain tools for financial audit — query staging data, write findings"
+    }
+  }
+}
+
+// After adding this file:
+// 1. Restart Claude Code (claude --reload-mcp)
+// 2. Verify connection: /mcp list
+// 3. Test a tool: /mcp call my-domain-mcp query_staging_data '{"system_id":"SFIS","fiscal_year":2024,"fund_code":"A123"}'`,
+        note: "Claude Code starts your MCP server as a child process on demand and communicates via stdio. Zero networking config required for local dev. For production, use the HTTP transport and a load balancer.",
+      },
+    ],
+    tips: [
+      "Keep MCP tool implementations thin — they should delegate to your existing skill/tool layer. The MCP layer is just the wire protocol adapter.",
+      "Add a health check tool to every MCP server: 'ping' that returns server status and version. Useful for monitoring and debugging.",
+      "Version your manifest. When you add breaking changes to a tool schema, bump the manifest version so agents using the old schema get clear errors.",
+      "MCP resources (the 'knowledge://dod-fmr' example) let agents stream large documents without fitting them in a single tool response. Use for knowledge base access.",
+    ],
+  },
+
+  /* ── 6. A2A PROTOCOL ────────────────────────────────────────────────── */
+  {
+    id: "a2a", title: "A2A Protocol", color: "#fb923c", icon: "🔗",
+    tagline: "Agent-to-Agent communication — cross-framework task delegation with typed messages",
+    overview:
+      "A2A (Agent-to-Agent) protocol enables different agents — potentially built on different frameworks (Claude Code, " +
+      "LangChain, AutoGen, custom) — to communicate, delegate tasks, and share results in a standardised format. " +
+      "Unlike MCP (which is tool invocation), A2A is peer-to-peer task delegation: Agent A sends a task to Agent B, " +
+      "Agent B executes autonomously and responds with results. The protocol files live in src/a2a/.",
+    fileTree: [
+      { path: "src/a2a/",                    type: "dir",  desc: "Agent-to-Agent protocol implementation" },
+      { path: "src/a2a/protocol.ts",         type: "file", desc: "Message type definitions (Task, Result, Error)" },
+      { path: "src/a2a/router.ts",           type: "file", desc: "Routes incoming A2A tasks to local agents" },
+      { path: "src/a2a/channel.ts",          type: "file", desc: "Transport layer (HTTP or WebSocket)" },
+      { path: "src/a2a/client.ts",           type: "file", desc: "A2A client — send tasks to remote agents" },
+      { path: "src/a2a/server.ts",           type: "file", desc: "A2A server — receive tasks from remote agents" },
+      { path: "src/a2a/handlers/",           type: "dir",  desc: "Task handler implementations" },
+      { path: "src/a2a/handlers/auditTask.ts",type:"file", desc: "Handles incoming audit delegation requests" },
+      { path: "src/a2a/agentCard.json",      type: "file", desc: "This agent's capability advertisement (A2A discovery)" },
+    ],
+    steps: [
+      {
+        n: 1, action: "Create", title: "Define A2A message types",
+        file: "protocol.ts", folder: "src/a2a/",
+        desc: "The protocol types define the contract between all A2A participants. Every message has an envelope with: task ID, sender/receiver identity, task payload, and reply routing. These types are the ONLY shared contract between agents.",
+        code:
+`// src/a2a/protocol.ts
+// A2A protocol message types — compatible with Google A2A spec
+
+export interface A2ATask {
+  id:          string;      // UUID — for correlation and idempotency
+  sessionId?:  string;      // Multi-turn conversation session
+  sender: {
+    agentId:  string;       // "coordinator-v1.my-org.mil"
+    endpoint: string;       // URL for reply routing
+    publicKey?: string;     // For authenticated replies
+  };
+  receiver: {
+    agentId:  string;       // "audit-worker-v1.my-org.mil"
+    skill?:   string;       // Optional: hint which skill to invoke
+  };
+  message: {
+    role:     "user";
+    parts:    A2APart[];
+  };
+  configuration?: {
+    maxSteps?:    number;
+    timeout?:     number;
+    outputModes?: ("text" | "data" | "artifacts")[];
+  };
+}
+
+export type A2APart =
+  | { type: "text";     text: string }
+  | { type: "data";     data: Record<string, unknown>; mimeType?: string }
+  | { type: "fileRef";  uri: string; name?: string };
+
+export interface A2AResult {
+  taskId:   string;
+  agentId:  string;
+  status:   "completed" | "failed" | "working" | "cancelled";
+  message: {
+    role:   "agent";
+    parts:  A2APart[];
+  };
+  artifacts?: { name: string; uri: string; mimeType: string }[];
+  metadata?:  { costUSD?: number; durationMs?: number; modelUsed?: string };
+  error?: { code: string; message: string };
+}
+
+export interface A2AAgentCard {
+  agentId:     string;
+  name:        string;
+  description: string;
+  version:     string;
+  url:         string;      // This agent's A2A endpoint
+  skills:      { name: string; description: string; inputModes: string[] }[];
+  auth:        { scheme: "jwt" | "apikey" | "none" };
+}`,
+        note: "The A2ATask.sender.endpoint enables push-style replies — the receiving agent calls BACK to the sender with results rather than holding an open connection. This makes A2A more reliable for long-running tasks.",
+      },
+      {
+        n: 2, action: "Create", title: "Build the A2A client (send tasks out)",
+        file: "client.ts", folder: "src/a2a/",
+        desc: "The client sends A2A tasks to remote agents. It handles serialization, auth, and result polling/webhook reception. Other agents in your system call this to delegate work.",
+        code:
+`// src/a2a/client.ts
+import { createHash, randomUUID }  from "crypto";
+import type { A2ATask, A2AResult } from "./protocol.js";
+import { getEnv } from "../config/environment.js";
+
+export class A2AClient {
+  constructor(
+    private localAgentId: string,
+    private localEndpoint: string,
+  ) {}
+
+  /** Delegate a task to a remote agent and await the result */
+  async sendTask(
+    targetEndpoint: string,
+    skill:          string,
+    parts:          A2ATask["message"]["parts"],
+    options:        A2ATask["configuration"] = {},
+  ): Promise<A2AResult> {
+    const task: A2ATask = {
+      id:       randomUUID(),
+      sender:   { agentId: this.localAgentId, endpoint: this.localEndpoint },
+      receiver: { agentId: targetEndpoint,    skill },
+      message:  { role: "user", parts },
+      configuration: { maxSteps: 10, timeout: 300_000, ...options },
+    };
+
+    const env = getEnv();
+    const response = await fetch(\`\${targetEndpoint}/tasks\`, {
+      method:  "POST",
+      headers: {
+        "Content-Type":  "application/json",
+        "Authorization": \`Bearer \${env.ANTHROPIC_API_KEY}\`,  // Replace with A2A JWT
+        "X-Agent-Id":    this.localAgentId,
+      },
+      body: JSON.stringify(task),
+    });
+
+    if (!response.ok) throw new Error(\`A2A task failed: \${response.status} \${await response.text()}\`);
+    const result: A2AResult = await response.json();
+
+    // Poll if task is still working (async pattern)
+    if (result.status === "working") return this.pollResult(targetEndpoint, task.id);
+    return result;
+  }
+
+  private async pollResult(endpoint: string, taskId: string, maxWaitMs = 300_000): Promise<A2AResult> {
+    const deadline = Date.now() + maxWaitMs;
+    while (Date.now() < deadline) {
+      await new Promise(r => setTimeout(r, 2000));
+      const res = await fetch(\`\${endpoint}/tasks/\${taskId}\`);
+      const result: A2AResult = await res.json();
+      if (result.status !== "working") return result;
+    }
+    throw new Error(\`A2A task \${taskId} timed out after \${maxWaitMs}ms\`);
+  }
+}`,
+        note: "In a multi-org setup, replace the Bearer token with a proper A2A JWT signed with your agent's private key. The receiving agent validates the JWT to confirm the task genuinely comes from your agent.",
+      },
+      {
+        n: 3, action: "Create", title: "Build the A2A server (receive tasks in)",
+        file: "server.ts", folder: "src/a2a/",
+        desc: "The server accepts incoming A2A tasks from other agents and routes them to your local skills. Register your agent's capabilities in agentCard.json so other agents can discover what you offer.",
+        code:
+`// src/a2a/server.ts — HTTP server accepting incoming A2A tasks
+import { createServer }  from "http";
+import type { A2ATask, A2AResult, A2AAgentCard } from "./protocol.js";
+import { SkillRegistry } from "../skills/index.js";
+import agentCard         from "./agentCard.json" assert { type: "json" };
+import type { AppState } from "../state/AppState.js";
+
+export function startA2AServer(state: AppState, port = 8080) {
+  const server = createServer(async (req, res) => {
+    const url = new URL(req.url!, \`http://localhost:\${port}\`);
+
+    // GET /.well-known/agent.json — agent discovery (A2A spec requirement)
+    if (req.method === "GET" && url.pathname === "/.well-known/agent.json") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(agentCard));
+      return;
+    }
+
+    // POST /tasks — receive incoming task
+    if (req.method === "POST" && url.pathname === "/tasks") {
+      const body = await readBody(req);
+      const task: A2ATask = JSON.parse(body);
+      // Respond 202 immediately (async task pattern)
+      res.writeHead(202, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ taskId: task.id, status: "working" }));
+      // Process asynchronously
+      processTask(task, state).then(result => {
+        // Push result back to sender's endpoint
+        fetch(task.sender.endpoint + "/results", {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify(result),
+        }).catch(e => console.error("Failed to push A2A result:", e));
+      });
+      return;
+    }
+    res.writeHead(404); res.end("Not Found");
+  });
+
+  server.listen(port, () => console.log(\`A2A server listening on port \${port}\`));
+}
+
+async function processTask(task: A2ATask, state: AppState): Promise<A2AResult> {
+  const skillName = task.receiver.skill ?? "analyze.detectAnomaly";
+  const skill     = SkillRegistry.get(skillName);
+  if (!skill) return { taskId: task.id, agentId: agentCard.agentId, status: "failed",
+    message: { role: "agent", parts: [] }, error: { code: "SKILL_NOT_FOUND", message: \`Skill '\${skillName}' not registered\` } };
+
+  const textPart = task.message.parts.find(p => p.type === "text") as { type:"text"; text:string }|undefined;
+  const dataPart = task.message.parts.find(p => p.type === "data") as { type:"data"; data:Record<string,unknown> }|undefined;
+
+  const result = await skill.execute({ goal: textPart?.text ?? "Complete the task", context: dataPart?.data ?? {} }, state);
+  return {
+    taskId: task.id, agentId: agentCard.agentId, status: result.success ? "completed" : "failed",
+    message: { role: "agent", parts: [{ type: "text", text: result.output }] },
+    artifacts: result.artifacts.map(a => ({ name: a.split("/").pop()!, uri: \`file://\${a}\`, mimeType: "application/json" })),
+    metadata:  { costUSD: result.costUSD },
+  };
+}
+function readBody(req: any): Promise<string> {
+  return new Promise((res, rej) => { let d=""; req.on("data",(c:any)=>d+=c); req.on("end",()=>res(d)); req.on("error",rej); });
+}`,
+        note: "The /.well-known/agent.json endpoint is required by the A2A spec for agent discovery. Agents query this endpoint to learn what skills you offer before sending tasks.",
+      },
+      {
+        n: 4, action: "Create", title: "Define your agent card",
+        file: "agentCard.json", folder: "src/a2a/",
+        desc: "The agent card is your public identity on the A2A network. It tells other agents who you are, what skills you offer, how to reach you, and how to authenticate with you.",
+        code:
+`// src/a2a/agentCard.json
+{
+  "agentId":     "audit-agent-v1.myorg.mil",
+  "name":        "DoD Financial Audit Agent",
+  "description": "Specialised agent for DoD financial management audit reconciliation. Offers skills for transaction analysis, compliance validation, and GAGAS-compliant report generation.",
+  "version":     "1.0.0",
+  "url":         "https://audit-agent.myorg.mil",
+  "defaultInputModes":  ["text", "data"],
+  "defaultOutputModes": ["text", "data", "artifacts"],
+  "skills": [
+    {
+      "name":        "analyze.reconcileTransactions",
+      "description": "Reconcile financial transactions across SFIS, GFEBS, and PIEE. Input: staged data file paths. Output: discrepancy report with severity ratings.",
+      "inputModes":  ["data"],
+      "outputModes": ["data", "artifacts"]
+    },
+    {
+      "name":        "validate.checkCompliance",
+      "description": "Validate financial entries against DoD FMR and NDAA. Input: transaction list + regulation references. Output: compliance violations with FMR citations.",
+      "inputModes":  ["data"],
+      "outputModes": ["data"]
+    },
+    {
+      "name":        "generate.writeReport",
+      "description": "Generate a GAGAS-compliant audit report. Input: findings data. Output: PDF + structured JSON report.",
+      "inputModes":  ["data"],
+      "outputModes": ["artifacts"]
+    }
+  ],
+  "auth": {
+    "scheme":    "jwt",
+    "algorithms":["RS256"],
+    "jwksUri":   "https://audit-agent.myorg.mil/.well-known/jwks.json"
+  },
+  "supportsAuthenticatedExtendedCard": true
+}`,
+        note: "Publish your agentCard.json at /.well-known/agent.json and register with any A2A discovery service your organisation uses. Other agents query this URL before sending tasks.",
+      },
+    ],
+    tips: [
+      "Use UUIDs for task IDs and store them in a task ledger (SQLite or DynamoDB). This enables status queries, retry logic, and audit trails for all A2A interactions.",
+      "A2A tasks should be idempotent by task ID — if the same taskId arrives twice (network retry), return the cached result without re-executing.",
+      "For DoD use cases: all A2A traffic must use mTLS (mutual TLS) between known agent endpoints. No unauthenticated A2A in production.",
+      "Agent discovery: maintain an internal registry (a simple JSON file or small service) mapping agentId → endpoint URL. Update it as agents are deployed.",
+      "Rate limit incoming A2A tasks per sender agent. A misconfigured coordinator can flood your agent with thousands of tasks per minute.",
+    ],
+  },
+];
+
 // ─── PRODUCTION SHELL STEPS ───────────────────────────────────────────────────
 const SHELL_STEPS = [
   {
@@ -1664,6 +2987,12 @@ export default function CodeAnalysisPage() {
   const [dictSearch, setDictSearch]       = useState("");
   const [dictCategory, setDictCategory]   = useState("All");
   const [shellHighlight, setShellHighlight] = useState<number | null>(null);
+  const filteredTerms = useMemo(() =>
+    DICTIONARY
+      .filter(t => dictCategory === "All" || t.category === dictCategory)
+      .filter(t => !dictSearch || t.term.toLowerCase().includes(dictSearch.toLowerCase()) || t.definition.toLowerCase().includes(dictSearch.toLowerCase())),
+    [dictSearch, dictCategory]
+  );
   const [selectedFile, setSelectedFile]   = useState("src/main.tsx");
   const [expanded, setExpanded]           = useState<Set<string>>(
     new Set(["src","src/tools","src/services","src/bridge","src/buddy"])
@@ -2160,7 +3489,7 @@ ${[["182K","Lines of Code"],["1,884","TypeScript Files"],["40+","Built-in Tools"
 
       {/* ── ARCHITECTURE TAB ────────────────────────────────────────────────── */}
       {pageTab === "architecture" && (
-        <div style={{overflowY:"auto",height:"calc(100dvh - 96px)",background:"var(--bg)",padding:"24px 28px"}}>
+        <div style={{overflowY:"auto",height:"calc(100dvh - 96px)",background:"#0d0f1a",padding:"24px 28px"}}>
           {/* Header */}
           <div style={{marginBottom:24}}>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
@@ -2249,7 +3578,7 @@ ${[["182K","Lines of Code"],["1,884","TypeScript Files"],["40+","Built-in Tools"
 
       {/* ── DICTIONARY TAB ──────────────────────────────────────────────────── */}
       {pageTab === "dictionary" && (
-        <div style={{overflowY:"auto",height:"calc(100dvh - 96px)",background:"var(--bg)",padding:"24px 28px"}}>
+        <div style={{overflowY:"auto",height:"calc(100dvh - 96px)",background:"#0d0f1a",padding:"24px 28px"}}>
           {/* Header */}
           <div style={{marginBottom:20}}>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
@@ -2261,17 +3590,18 @@ ${[["182K","Lines of Code"],["1,884","TypeScript Files"],["40+","Built-in Tools"
           </div>
           {/* Search + Filter */}
           <div style={{display:"flex",gap:10,marginBottom:18,flexWrap:"wrap",alignItems:"center"}}>
-            <div style={{display:"flex",alignItems:"center",gap:8,flex:1,minWidth:200,padding:"8px 12px",borderRadius:8,background:"#12141f",border:"1px solid var(--bd)"}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,flex:1,minWidth:200,padding:"8px 12px",borderRadius:8,background:"#12141f",border:"1px solid #252840"}}>
               <Search size={13} color="#6b7499"/>
               <input value={dictSearch} onChange={e=>setDictSearch(e.target.value)} placeholder="Search terms…"
+                aria-label="Search dictionary terms"
                 style={{flex:1,background:"transparent",border:"none",outline:"none",fontSize:13,color:"#eaedf8"}}/>
             </div>
             <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
               {DICT_CATEGORIES.map(cat=>(
-                <button key={cat} onClick={()=>setDictCategory(cat)} style={{
+                <button key={cat} onClick={()=>setDictCategory(cat)} aria-pressed={dictCategory===cat} style={{
                   padding:"5px 10px",borderRadius:6,fontSize:11,fontWeight:700,cursor:"pointer",
                   background: dictCategory===cat ? "rgba(167,139,250,0.2)" : "#12141f",
-                  border: dictCategory===cat ? "1px solid rgba(167,139,250,0.5)" : "1px solid var(--bd)",
+                  border: dictCategory===cat ? "1px solid rgba(167,139,250,0.5)" : "1px solid #252840",
                   color: dictCategory===cat ? "#a78bfa" : "#6b7499",
                 }}>{cat}</button>
               ))}
@@ -2279,15 +3609,8 @@ ${[["182K","Lines of Code"],["1,884","TypeScript Files"],["40+","Built-in Tools"
           </div>
           {/* Terms grid */}
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(480px,1fr))",gap:14}}>
-            {DICTIONARY
-              .filter(t => dictCategory==="All" || t.category===dictCategory)
-              .filter(t => !dictSearch || t.term.toLowerCase().includes(dictSearch.toLowerCase()) || t.definition.toLowerCase().includes(dictSearch.toLowerCase()))
-              .map(term=>{
-                const catColor: Record<string,string> = {
-                  "Agentic Core":"#4f8ef7","LLM & Models":"#34d399","Protocols":"#fbbf24",
-                  "Memory & Storage":"#a78bfa","Infrastructure":"#38bdf8","Security & Compliance":"#f87171",
-                };
-                const c = catColor[term.category] ?? "#818cf8";
+            {filteredTerms.map(term=>{
+                const c = DICT_CAT_COLOR[term.category] ?? "#818cf8";
                 return (
                   <div key={term.term} style={{borderRadius:10,background:"#12141f",border:"1px solid #252840",overflow:"hidden",transition:"border 0.15s"}}
                     onMouseEnter={e=>(e.currentTarget.style.border=`1px solid ${c}50`)}
@@ -2334,7 +3657,7 @@ ${[["182K","Lines of Code"],["1,884","TypeScript Files"],["40+","Built-in Tools"
 
       {/* ── DOD EXAMPLE TAB ─────────────────────────────────────────────────── */}
       {pageTab === "dod" && (
-        <div style={{overflowY:"auto",height:"calc(100dvh - 96px)",background:"var(--bg)",padding:"24px 28px"}}>
+        <div style={{overflowY:"auto",height:"calc(100dvh - 96px)",background:"#0d0f1a",padding:"24px 28px"}}>
           {/* Hero */}
           <div style={{marginBottom:28,padding:"22px 24px",borderRadius:12,background:"linear-gradient(135deg,rgba(79,142,247,0.08),rgba(251,146,60,0.06))",border:"1px solid rgba(79,142,247,0.2)"}}>
             <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:10}}>
@@ -2463,7 +3786,7 @@ ${[["182K","Lines of Code"],["1,884","TypeScript Files"],["40+","Built-in Tools"
 
       {/* ── PRODUCTION SHELL TAB ────────────────────────────────────────────── */}
       {pageTab === "shell" && (
-        <div style={{overflowY:"auto",height:"calc(100dvh - 96px)",background:"var(--bg)",padding:"24px 28px"}}>
+        <div style={{overflowY:"auto",height:"calc(100dvh - 96px)",background:"#0d0f1a",padding:"24px 28px"}}>
           {/* Header */}
           <div style={{marginBottom:24}}>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
@@ -2492,8 +3815,9 @@ ${[["182K","Lines of Code"],["1,884","TypeScript Files"],["40+","Built-in Tools"
           <div style={{display:"flex",flexDirection:"column",gap:16}}>
             {SHELL_STEPS.map(step=>(
               <div key={step.n} style={{borderRadius:10,background:"#12141f",border:`1px solid ${shellHighlight===step.n?"#f472b6":"#252840"}`,overflow:"hidden",transition:"border 0.15s"}}
-                onMouseEnter={()=>setShellHighlight(step.n)}
-                onMouseLeave={()=>setShellHighlight(null)}>
+                onMouseEnter={()=>setShellHighlight(step.n)} onMouseLeave={()=>setShellHighlight(null)}
+                onFocus={()=>setShellHighlight(step.n)} onBlur={()=>setShellHighlight(null)}
+                tabIndex={0} role="region" aria-label={`Step ${step.n}: ${step.title}`}>
                 {/* Step header */}
                 <div style={{display:"flex",alignItems:"center",gap:12,padding:"14px 18px",background:"#0d0f1a"}}>
                   <div style={{width:32,height:32,borderRadius:8,background:"rgba(244,114,182,0.15)",border:"1px solid rgba(244,114,182,0.35)",color:"#f472b6",fontSize:13,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{step.n}</div>
@@ -2514,7 +3838,7 @@ ${[["182K","Lines of Code"],["1,884","TypeScript Files"],["40+","Built-in Tools"
                 <div style={{margin:"12px 18px 16px",borderRadius:8,background:"#0a0c15",border:"1px solid #1a1d2e",overflow:"hidden"}}>
                   <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 12px",background:"#0d0f1a",borderBottom:"1px solid #1a1d2e"}}>
                     <span style={{fontSize:10,color:"#3d4460",fontFamily:"monospace"}}>Step {step.n}</span>
-                    <button onClick={()=>navigator.clipboard.writeText(step.code)} style={{display:"flex",alignItems:"center",gap:4,padding:"2px 7px",borderRadius:4,fontSize:10,background:"rgba(79,142,247,0.1)",border:"1px solid rgba(79,142,247,0.25)",color:"#4f8ef7",cursor:"pointer"}}>
+                    <button onClick={()=>navigator.clipboard.writeText(step.code)} aria-label={`Copy code for step ${step.n}`} style={{display:"flex",alignItems:"center",gap:4,padding:"2px 7px",borderRadius:4,fontSize:10,background:"rgba(79,142,247,0.1)",border:"1px solid rgba(79,142,247,0.25)",color:"#4f8ef7",cursor:"pointer"}}>
                       <Copy size={9}/>Copy
                     </button>
                   </div>
