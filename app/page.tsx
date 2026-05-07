@@ -1218,6 +1218,56 @@ const ADVANCED = [
   { icon: <GitBranch size={16}/>,  color: "#94a3b8", title: "Agentic CI/CD",            tag: "PRODUCTION",    desc: "Eval suites run on every commit. Quality gates block bad deploys. Failures become regression tests. The Quality Flywheel in your pipeline." },
 ];
 
+// ─── Extended reading resources (per course day) ─────────────────────────────
+
+const EXTENDED_READING: Record<number, { label: string; url: string; tag: string; note?: string }[]> = {
+  1: [
+    { label: "Agentic Design Patterns (Andrew Ng, 4-part series)", url: "https://www.deeplearning.ai/the-batch/agentic-design-patterns-part-1-reflection/", tag: "BLOG", note: "Best conceptual overview" },
+    { label: "Build an Agent from Scratch (Karpathy, video)", url: "https://www.youtube.com/watch?v=LqM6PNBDXKY", tag: "VIDEO", note: "Hands-on deep-dive" },
+    { label: "ReAct: Reason+Act (arXiv 2210.03629)", url: "https://arxiv.org/abs/2210.03629", tag: "PAPER" },
+    { label: "LLM Powered Autonomous Agents (Lilian Weng)", url: "https://lilianweng.github.io/posts/2023-06-23-agent/", tag: "BLOG", note: "Comprehensive reference" },
+    { label: "Google ADK Full Documentation", url: "https://google.github.io/adk-docs/", tag: "DOCS" },
+    { label: "Multi-Agent Systems Design (LangGraph)", url: "https://langchain-ai.github.io/langgraph/concepts/multi_agent/", tag: "DOCS" },
+  ],
+  2: [
+    { label: "MCP Official Specification", url: "https://spec.modelcontextprotocol.io/specification/", tag: "DOCS", note: "Primary reference" },
+    { label: "A2A Protocol Specification", url: "https://a2a-protocol.org/latest/specification/", tag: "DOCS" },
+    { label: "MCP Explained — Fireship (video)", url: "https://www.youtube.com/watch?v=7j_NE3Vs-MQ", tag: "VIDEO", note: "5-min explainer" },
+    { label: "Instructor: Structured Outputs (Python)", url: "https://python.useinstructor.com/", tag: "TOOL", note: "Best pydantic+LLM library" },
+    { label: "Tool Use Best Practices (Anthropic)", url: "https://docs.anthropic.com/en/docs/build-with-claude/tool-use/best-practices-for-tool-definitions", tag: "DOCS" },
+    { label: "FastMCP — MCP Server Framework", url: "https://github.com/jlowin/fastmcp", tag: "REPO" },
+  ],
+  3: [
+    { label: "Mem0 — Production Memory Layer", url: "https://docs.mem0.ai/", tag: "DOCS", note: "Drop-in agent memory" },
+    { label: "RAG Survey (Gao et al., arXiv 2312.10997)", url: "https://arxiv.org/abs/2312.10997", tag: "PAPER", note: "Comprehensive RAG survey" },
+    { label: "LlamaIndex RAG Guide", url: "https://docs.llamaindex.ai/en/stable/understanding/rag/", tag: "DOCS" },
+    { label: "Build a RAG Pipeline (DeepLearning.AI)", url: "https://learn.deeplearning.ai/courses/building-evaluating-advanced-rag", tag: "COURSE" },
+    { label: "Context Engineering (Simon Willison)", url: "https://simonwillison.net/2025/Jun/27/context-engineering/", tag: "BLOG", note: "Modern framing of prompting" },
+    { label: "pgvector: Postgres Vector Extension", url: "https://github.com/pgvector/pgvector", tag: "REPO" },
+  ],
+  4: [
+    { label: "LLM-as-a-Judge (Zheng et al., arXiv 2306.05685)", url: "https://arxiv.org/abs/2306.05685", tag: "PAPER", note: "Foundational paper" },
+    { label: "RAGAS Evaluation Framework Docs", url: "https://docs.ragas.io/en/latest/", tag: "DOCS" },
+    { label: "Evals 101 (OpenAI Cookbook)", url: "https://cookbook.openai.com/examples/evaluation/getting_started_with_openai_evals", tag: "DOCS" },
+    { label: "Arize Phoenix — Observability for LLMs", url: "https://docs.arize.com/phoenix/", tag: "TOOL" },
+    { label: "DeepEval — Unit Testing for LLMs", url: "https://docs.confident-ai.com/", tag: "TOOL", note: "Pytest for LLMs" },
+    { label: "Brex Prompt Engineering Guide", url: "https://github.com/brexhq/prompt-engineering", tag: "REPO" },
+  ],
+  5: [
+    { label: "Reliable, Scalable and Maintainable LLM Apps (blog)", url: "https://eugeneyan.com/writing/llm-patterns/", tag: "BLOG", note: "Production patterns" },
+    { label: "Cost Optimization for LLM APIs (Anthropic)", url: "https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching", tag: "DOCS" },
+    { label: "LangSmith — LLM Observability", url: "https://docs.smith.langchain.com/", tag: "TOOL" },
+    { label: "Semantic Caching with Redis", url: "https://redis.io/solutions/vector-search/", tag: "TOOL" },
+    { label: "AI Engineering — Chip Huyen (book)", url: "https://www.oreilly.com/library/view/ai-engineering/9781098166298/", tag: "BOOK", note: "Best production AI book" },
+    { label: "Building LLM Applications (DeepLearning.AI path)", url: "https://learn.deeplearning.ai/", tag: "COURSE" },
+  ],
+};
+
+const EXT_TAG_COLOR: Record<string, string> = {
+  PAPER: "#818cf8", VIDEO: "#f472b6", DOCS: "#34d399",
+  BLOG: "#38bdf8", TOOL: "#fbbf24", REPO: "#94a3b8", COURSE: "#fb923c", BOOK: "#a78bfa",
+};
+
 // ─── Code copy hook ───────────────────────────────────────────────────────────
 
 function useCodeCopy() {
@@ -1372,6 +1422,40 @@ function DayCard({ d }: { d: typeof COURSE_DAYS[0] }) {
               </div>
             </div>
           </div>
+
+          {/* Extended Reading */}
+          {EXTENDED_READING[d.day] && (
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7499", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>
+                🔭 Extended Reading — go deeper
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(270px, 1fr))", gap: 7 }}>
+                {EXTENDED_READING[d.day].map((r, ri) => (
+                  <a key={ri} href={r.url} target="_blank" rel="noopener noreferrer" style={{
+                    display: "flex", alignItems: "flex-start", gap: 9, textDecoration: "none",
+                    padding: "8px 10px", borderRadius: 7,
+                    background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)",
+                    transition: "border-color 0.15s",
+                  }}
+                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = (EXT_TAG_COLOR[r.tag] || d.color) + "55"}
+                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.08)"}
+                  >
+                    <span style={{
+                      fontSize: 9, fontWeight: 800, padding: "2px 6px", borderRadius: 4, flexShrink: 0, marginTop: 2,
+                      background: (EXT_TAG_COLOR[r.tag] || d.color) + "22", color: (EXT_TAG_COLOR[r.tag] || d.color),
+                      border: `1px solid ${(EXT_TAG_COLOR[r.tag] || d.color)}44`,
+                      textTransform: "uppercase", letterSpacing: "0.07em",
+                    }}>{r.tag}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12.5, fontWeight: 600, color: "#c9d1f0", lineHeight: 1.4 }}>{r.label}</div>
+                      {r.note && <div style={{ fontSize: 11, color: "#4f8ef7", marginTop: 2 }}>★ {r.note}</div>}
+                    </div>
+                    <ExternalLink size={11} style={{ color: "#3d4460", flexShrink: 0, marginTop: 3 }} />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -1656,7 +1740,7 @@ function RoadmapSection() {
         <div style={{ fontSize: 11, fontWeight: 700, color: "#3d4460", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>
           Which phases each role needs most
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(195px, 1fr))", gap: 8 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(268px, 1fr))", gap: 8 }}>
           {CAREER_PATHS.map(cp => (
             <div key={cp.role} style={{
               background: "#1c1f30", border: "1px solid rgba(255,255,255,0.10)",
@@ -1690,7 +1774,18 @@ function RoadmapSection() {
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
+type MainTab = "process" | "course" | "roadmap" | "advanced";
+
+const MAIN_TABS: { id: MainTab; label: string; icon: React.ReactNode; color: string }[] = [
+  { id: "process",  label: "Process Flow",  icon: <GitBranch size={14}/>, color: "#4f8ef7" },
+  { id: "course",   label: "5-Day Course",  icon: <BookOpen size={14}/>,  color: "#34d399" },
+  { id: "roadmap",  label: "Roadmap",       icon: <Map size={14}/>,       color: "#a78bfa" },
+  { id: "advanced", label: "Advanced",      icon: <TrendingUp size={14}/>,color: "#fb923c" },
+];
+
 export default function HomePage() {
+  const [mainTab, setMainTab] = useState<MainTab>("process");
+
   return (
     <div style={{ maxWidth: 1100, margin: "0 auto", padding: "36px 24px 90px" }}>
 
@@ -1723,18 +1818,47 @@ export default function HomePage() {
           }}>
             <Zap size={16} /> Open AI Studio
           </Link>
-          <a href="#fundamentals" style={{
+          <a href="#content" onClick={e => { e.preventDefault(); setMainTab("course"); }} style={{
             display: "flex", alignItems: "center", gap: 9,
             padding: "13px 26px", borderRadius: 10,
             background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)",
-            color: "#eaedf8", fontSize: 15, fontWeight: 600, textDecoration: "none",
+            color: "#eaedf8", fontSize: 15, fontWeight: 600, textDecoration: "none", cursor: "pointer",
           }}>
             <BookOpen size={16} /> Course Guide
           </a>
         </div>
       </div>
 
+      {/* ── MAIN TAB BAR ──────────────────────────────────────────────── */}
+      <div id="content" style={{
+        display: "flex", gap: 0, marginBottom: 36,
+        background: "#1c1f30",
+        border: "1px solid rgba(255,255,255,0.10)",
+        borderRadius: 12, padding: 4, overflow: "hidden",
+      }}>
+        {MAIN_TABS.map(t => (
+          <button
+            key={t.id}
+            onClick={() => setMainTab(t.id)}
+            style={{
+              flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+              padding: "10px 16px", borderRadius: 9,
+              background: mainTab === t.id ? t.color + "18" : "transparent",
+              border: `1px solid ${mainTab === t.id ? t.color + "60" : "transparent"}`,
+              color: mainTab === t.id ? t.color : "#6b7499",
+              fontSize: 13, fontWeight: mainTab === t.id ? 700 : 500,
+              cursor: "pointer", transition: "all 0.18s", fontFamily: "inherit",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {t.icon}
+            <span className="tab-label">{t.label}</span>
+          </button>
+        ))}
+      </div>
+
       {/* ── PROCESS FLOW ──────────────────────────────────────────────── */}
+      {mainTab === "process" && (<>
       <section id="process" style={{ marginBottom: 64 }}>
         <SectionHeader icon={<GitBranch size={18}/>} label="End-to-End Process" title="AI Agent Engineering — Full Lifecycle" sub="10 stages from goal definition to production monitoring — click any stage to practice in AI Studio" color="#4f8ef7" />
 
@@ -1756,8 +1880,10 @@ export default function HomePage() {
           ))}
         </div>
       </section>
+      </>)}
 
       {/* ── 5-DAY COURSE GUIDE ────────────────────────────────────────── */}
+      {mainTab === "course" && (<>
       <section id="fundamentals" style={{ marginBottom: 64 }}>
         <SectionHeader icon={<BookOpen size={18}/>} label="5-Day AI Agents Course — Google / Kaggle" title="Comprehensive Knowledge Guide" sub="11 Kaggle notebooks across 5 days — each card has core concepts, working production code, platform deployment (GCP, Databricks, Palantir, AWS), whitepaper links, and direct notebook links" color="#34d399" />
 
@@ -1820,11 +1946,13 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+      </>)}
 
       {/* ── AI ENGINEER ROADMAP ───────────────────────────────────────── */}
-      <RoadmapSection />
+      {mainTab === "roadmap" && <RoadmapSection />}
 
       {/* ── ADVANCED & TRENDING ───────────────────────────────────────── */}
+      {mainTab === "advanced" && (<>
       <section id="advanced" style={{ marginBottom: 64 }}>
         <SectionHeader icon={<TrendingUp size={18}/>} label="Advanced Topics" title="Trending Technology & Best Practices" sub="What's shipping in production AI engineering right now — stay current" color="#fb923c" />
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(310px, 1fr))", gap: 14 }}>
@@ -1890,6 +2018,12 @@ export default function HomePage() {
           ))}
         </div>
       </section>
+      </>)}
+
+      {/* Responsive tab label hiding */}
+      <style>{`
+        @media (max-width: 520px) { .tab-label { display: none !important; } }
+      `}</style>
 
     </div>
   );
