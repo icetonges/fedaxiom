@@ -3879,6 +3879,207 @@ ${[["182K","Lines of Code"],["1,884","TypeScript Files"],["40+","Built-in Tools"
         </div>
       )}
 
+      {/* ── AI BLUEPRINT TAB ────────────────────────────────────────────────── */}
+      {pageTab === "blueprint" && (
+        <div style={{overflowY:"auto",height:"calc(100dvh - 96px)",background:"#0d0f1a",padding:"24px 28px"}}>
+
+          {/* ── HERO ── */}
+          <div style={{marginBottom:28,padding:"22px 26px",borderRadius:12,background:"linear-gradient(135deg,rgba(232,121,249,0.08),rgba(79,142,247,0.06))",border:"1px solid rgba(232,121,249,0.22)"}}>
+            <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:8}}>
+              <span style={{fontSize:26}}>🏗️</span>
+              <div>
+                <h1 style={{fontSize:22,fontWeight:800,color:"#eaedf8",margin:0}}>AI Agent Blueprint</h1>
+                <p style={{fontSize:13,color:"#e879f9",margin:"3px 0 0",fontWeight:600}}>Step-by-step architecture for production agentic systems</p>
+              </div>
+            </div>
+            <p style={{fontSize:14,color:"#9aa3c0",margin:"8px 0 0",lineHeight:1.7}}>
+              Six essential pillars — Model Selection, Knowledge Base, Skills, Orchestration, MCP, and A2A —
+              with concrete folder structures, exact file names, and numbered steps. Each step shows
+              <em style={{color:"#c084fc"}}> what to write, where to put it, and why it matters</em>.
+            </p>
+            {/* Section nav pills */}
+            <div style={{display:"flex",flexWrap:"wrap",gap:7,marginTop:14}}>
+              {BLUEPRINT_SECTIONS.map(s=>(
+                <a key={s.id} href={`#bp-${s.id}`} style={{
+                  fontSize:11,fontWeight:700,padding:"4px 12px",borderRadius:20,textDecoration:"none",
+                  background:`${s.color}15`,border:`1px solid ${s.color}40`,color:s.color,
+                  transition:"all 0.15s",
+                }}>{s.icon} {s.title}</a>
+              ))}
+            </div>
+          </div>
+
+          {/* ── SECTIONS ── */}
+          <div style={{display:"flex",flexDirection:"column",gap:36}}>
+            {BLUEPRINT_SECTIONS.map((sec)=>(
+              <div key={sec.id} id={`bp-${sec.id}`} style={{borderRadius:12,background:"#12141f",border:`1px solid ${sec.color}25`,overflow:"hidden"}}>
+
+                {/* Section header */}
+                <div style={{padding:"18px 22px",background:`${sec.color}08`,borderBottom:`1px solid ${sec.color}18`}}>
+                  <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
+                    <span style={{fontSize:22}}>{sec.icon}</span>
+                    <h2 style={{fontSize:19,fontWeight:800,color:"#eaedf8",margin:0}}>{sec.title}</h2>
+                    <span style={{fontSize:10,fontWeight:700,padding:"2px 9px",borderRadius:12,background:`${sec.color}18`,border:`1px solid ${sec.color}35`,color:sec.color,marginLeft:"auto",flexShrink:0}}>{sec.steps.length} STEPS</span>
+                  </div>
+                  <p style={{fontSize:12.5,fontWeight:600,color:sec.color,margin:"0 0 6px",fontStyle:"italic"}}>{sec.tagline}</p>
+                  <p style={{fontSize:13.5,color:"#9aa3c0",margin:0,lineHeight:1.7}}>{sec.overview}</p>
+                </div>
+
+                <div style={{padding:"18px 22px",display:"flex",flexDirection:"column",gap:18}}>
+
+                  {/* File tree */}
+                  <div>
+                    <div style={{fontSize:10,fontWeight:800,color:"#5c6480",letterSpacing:"0.1em",marginBottom:9}}>📁 FILE STRUCTURE</div>
+                    <div style={{borderRadius:8,background:"#0a0c15",border:"1px solid #1a1d2e",padding:"12px 16px",fontFamily:"'JetBrains Mono','Fira Code',Consolas,monospace"}}>
+                      {sec.fileTree.map((ft,fi)=>{
+                        const depth = (ft.path.match(/\//g)||[]).length - 1;
+                        const isDir = ft.type === "dir";
+                        const isLast = fi === sec.fileTree.length - 1 || sec.fileTree[fi+1].path.split("/").length < ft.path.split("/").length;
+                        const indent = depth > 0 ? depth * 16 : 0;
+                        return (
+                          <div key={ft.path} style={{display:"flex",alignItems:"flex-start",gap:8,marginBottom:5,paddingLeft:indent}}>
+                            <span style={{flexShrink:0,color:"#3d4460",fontSize:11,marginTop:1}}>{isDir ? "📂" : "📄"}</span>
+                            <div style={{flex:1,minWidth:0}}>
+                              <code style={{fontSize:11.5,color: isDir ? "#fbbf24" : sec.color,fontWeight: isDir ? 700 : 500}}>{ft.path.split("/").pop()}{isDir ? "/" : ""}</code>
+                              <span style={{fontSize:11,color:"#5c6480",marginLeft:10}}>{ft.desc}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Numbered steps */}
+                  <div>
+                    <div style={{fontSize:10,fontWeight:800,color:"#5c6480",letterSpacing:"0.1em",marginBottom:12}}>⚡ IMPLEMENTATION STEPS</div>
+                    <div style={{display:"flex",flexDirection:"column",gap:20}}>
+                      {sec.steps.map((step, si)=>(
+                        <div key={step.n} style={{borderRadius:10,background:"#0d0f1a",border:`1px solid ${sec.color}20`,overflow:"hidden"}}>
+
+                          {/* Step header row */}
+                          <div style={{display:"flex",alignItems:"center",gap:10,padding:"12px 16px",background:`${sec.color}06`,borderBottom:`1px solid ${sec.color}15`,flexWrap:"wrap"}}>
+                            {/* Step number badge */}
+                            <div style={{
+                              width:28,height:28,borderRadius:7,flexShrink:0,
+                              background:`${sec.color}20`,border:`1px solid ${sec.color}45`,
+                              color:sec.color,fontSize:12,fontWeight:800,
+                              display:"flex",alignItems:"center",justifyContent:"center",
+                            }}>{step.n}</div>
+                            {/* Action badge */}
+                            <span style={{
+                              fontSize:9,fontWeight:800,padding:"2px 8px",borderRadius:10,flexShrink:0,
+                              background:"rgba(251,191,36,0.12)",border:"1px solid rgba(251,191,36,0.3)",color:"#fbbf24",
+                              textTransform:"uppercase",letterSpacing:"0.07em",
+                            }}>{step.action}</span>
+                            {/* Title */}
+                            <span style={{fontSize:14,fontWeight:700,color:"#eaedf8",flex:1}}>{step.title}</span>
+                            {/* File pill */}
+                            <div style={{display:"flex",alignItems:"center",gap:5,padding:"3px 10px",borderRadius:20,background:"rgba(255,255,255,0.04)",border:"1px solid #252840",flexShrink:0}}>
+                              <span style={{fontSize:9,color:"#6b7499"}}>📄</span>
+                              <code style={{fontSize:10,color:sec.color,fontWeight:600}}>{step.file}</code>
+                            </div>
+                            {/* Folder pill */}
+                            <div style={{display:"flex",alignItems:"center",gap:5,padding:"3px 10px",borderRadius:20,background:"rgba(255,255,255,0.04)",border:"1px solid #252840",flexShrink:0}}>
+                              <span style={{fontSize:9,color:"#6b7499"}}>📁</span>
+                              <code style={{fontSize:10,color:"#fbbf24",fontWeight:600}}>{step.folder}</code>
+                            </div>
+                          </div>
+
+                          {/* Description */}
+                          <div style={{padding:"12px 16px 0"}}>
+                            <p style={{fontSize:13,color:"#9aa3c0",lineHeight:1.72,margin:0}}>{step.desc}</p>
+                          </div>
+
+                          {/* Code block */}
+                          <div style={{margin:"12px 16px",borderRadius:8,background:"#0a0c15",border:"1px solid #1a1d2e",overflow:"hidden"}}>
+                            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 12px",background:"#0d0f1a",borderBottom:"1px solid #1a1d2e"}}>
+                              <span style={{fontSize:10,color:sec.color,fontFamily:"monospace",fontWeight:600}}>{step.file}</span>
+                              <button
+                                onClick={()=>navigator.clipboard.writeText(step.code)}
+                                aria-label={`Copy code for step ${step.n}`}
+                                style={{display:"flex",alignItems:"center",gap:4,padding:"2px 7px",borderRadius:4,fontSize:10,background:`${sec.color}15`,border:`1px solid ${sec.color}35`,color:sec.color,cursor:"pointer"}}
+                              ><Copy size={9}/>Copy</button>
+                            </div>
+                            <pre style={{margin:0,padding:"14px 16px",fontSize:11.5,lineHeight:1.75,fontFamily:"'JetBrains Mono','Fira Code',Consolas,monospace",color:"#c9d1f0",overflowX:"auto",whiteSpace:"pre"}}>
+                              {step.code.split("\n").map((line,i)=>(
+                                <div key={i} style={{display:"flex"}}>
+                                  <span style={{width:28,flexShrink:0,color:"#2a2e46",userSelect:"none",textAlign:"right",paddingRight:10,fontSize:10}}>{i+1}</span>
+                                  <span dangerouslySetInnerHTML={{__html: highlight(line)||"&nbsp;"}}/>
+                                </div>
+                              ))}
+                            </pre>
+                          </div>
+
+                          {/* Note callout */}
+                          {step.note && (
+                            <div style={{margin:"0 16px 14px",display:"flex",gap:8,alignItems:"flex-start",padding:"9px 12px",borderRadius:7,background:"rgba(232,121,249,0.06)",border:"1px solid rgba(232,121,249,0.2)"}}>
+                              <span style={{fontSize:12,flexShrink:0,marginTop:1}}>💡</span>
+                              <span style={{fontSize:12,color:"#c084fc",lineHeight:1.65}}>{step.note}</span>
+                            </div>
+                          )}
+
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Pro tips */}
+                  {sec.tips && sec.tips.length > 0 && (
+                    <div style={{padding:"14px 18px",borderRadius:9,background:"rgba(255,255,255,0.02)",border:`1px solid ${sec.color}20`}}>
+                      <div style={{fontSize:10,fontWeight:800,color:sec.color,letterSpacing:"0.1em",marginBottom:9}}>🚀 PRO TIPS — {sec.title.toUpperCase()}</div>
+                      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(320px,1fr))",gap:7}}>
+                        {sec.tips.map((tip,ti)=>(
+                          <div key={ti} style={{display:"flex",gap:8,alignItems:"flex-start"}}>
+                            <div style={{width:16,height:16,borderRadius:"50%",flexShrink:0,background:`${sec.color}18`,border:`1px solid ${sec.color}35`,color:sec.color,fontSize:9,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",marginTop:2}}>{ti+1}</div>
+                            <span style={{fontSize:12,color:"#9aa3c0",lineHeight:1.65}}>{tip}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* ── BOTTOM SUMMARY: putting it all together ── */}
+          <div style={{marginTop:32,padding:"22px 26px",borderRadius:12,background:"#0a0c15",border:"1px solid rgba(232,121,249,0.2)"}}>
+            <div style={{fontSize:13,fontWeight:800,color:"#e879f9",marginBottom:14,display:"flex",alignItems:"center",gap:8}}>
+              <span>🎯</span> How the 6 Pillars Wire Together
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:10}}>
+              {[
+                {from:"Model Selection",to:"Orchestration",desc:"agentConfig.ts feeds model names into pipeline.ts so each phase uses the right tier.",color:"#4f8ef7"},
+                {from:"Knowledge Base",to:"Skills",desc:"retriever.ts is imported by skills — detectAnomaly calls retrieve() to ground its analysis.",color:"#34d399"},
+                {from:"Skills",to:"Orchestration",desc:"SkillRegistry.get() is called inside auditWorkflow.ts to run named skills per phase.",color:"#a78bfa"},
+                {from:"MCP",to:"Skills",desc:"MCP server exposes skills as tools; Claude calls them via function-calling without code changes.",color:"#38bdf8"},
+                {from:"A2A",to:"Orchestration",desc:"A2AClient.sendTask() is used in parallel.ts to delegate sub-tasks to remote agent instances.",color:"#fb923c"},
+                {from:"Orchestration",to:"All",desc:"pipeline.ts is the glue — it chains models, skills, knowledge, MCP tools, and A2A agents.",color:"#e879f9"},
+              ].map(w=>(
+                <div key={w.from} style={{padding:"12px 14px",borderRadius:8,background:"#12141f",border:`1px solid ${w.color}20`}}>
+                  <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:5}}>
+                    <code style={{fontSize:11,color:w.color,fontWeight:700}}>{w.from}</code>
+                    <span style={{fontSize:10,color:"#3d4460"}}>→</span>
+                    <code style={{fontSize:11,color:"#eaedf8",fontWeight:600}}>{w.to}</code>
+                  </div>
+                  <p style={{fontSize:12,color:"#7d88a8",lineHeight:1.6,margin:0}}>{w.desc}</p>
+                </div>
+              ))}
+            </div>
+            <div style={{marginTop:18,padding:"14px 16px",borderRadius:8,background:"rgba(232,121,249,0.06)",border:"1px solid rgba(232,121,249,0.18)"}}>
+              <div style={{fontSize:12,fontWeight:700,color:"#e879f9",marginBottom:6}}>🧩 Recommended Build Order</div>
+              <div style={{display:"flex",flexWrap:"wrap",alignItems:"center",gap:4,fontSize:12,color:"#9aa3c0",fontFamily:"monospace"}}>
+                {["1. environment.ts","→","2. models.ts","→","3. knowledge loader","→","4. embedder + retriever","→","5. skills","→","6. pipeline","→","7. MCP server","→","8. A2A server","→","9. auditWorkflow","→","10. deploy"].map((item,i)=>(
+                  <span key={i} style={{color: item.startsWith("→") ? "#3d4460" : item.startsWith("10") ? "#e879f9" : "#9aa3c0"}}>{item}</span>
+                ))}
+              </div>
+            </div>
+          </div>
+
+        </div>
+      )}
+
       <style>{`
         @keyframes spin  { to { transform: rotate(360deg); } }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
