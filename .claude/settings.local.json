@@ -41,7 +41,8 @@
       "Bash(node_modules\\\\.bin\\\\next build *)",
       "PowerShell(cd \"C:\\\\Users\\\\Peter-HP\\\\git peter note\\\\ClaudeCode\\\\axiom\\\\tender-mirzakhani-08fca3\"; $env:PATH = \".\\\\node_modules\\\\.bin;\" + $env:PATH; if \\(Test-Path \".next\"\\) { \"Found .next dir\" } else { \"No .next\" }; Get-ChildItem \".next\" -ErrorAction SilentlyContinue | Select-Object -First 5)",
       "PowerShell(Get-ChildItem \"C:\\\\Users\\\\Peter-HP\" -Name -Depth 1 | Where-Object { $_ -eq \"node_modules\" })",
-      "mcp__Claude_Preview__preview_start"
+      "mcp__Claude_Preview__preview_start",
+      "Bash(npx prisma *)"
     ]
   }
 }

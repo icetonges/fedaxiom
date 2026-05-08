@@ -96,3 +96,15 @@ model Qualification {
   completedAt DateTime?
   createdAt   DateTime  @default(now())
 }
+
+// Flat log of every AI prompt + response across all pages
+model AILog {
+  id        String   @id @default(cuid())
+  page      String                       // "knowledge" | "notebook" | "studio" | "career" | "code-analysis"
+  prompt    String
+  response  String
+  model     String
+  tokens    Int?
+  metadata  Json?                        // latencyMs, sourceCount, confidence, etc.
+  createdAt DateTime @default(now())
+}
