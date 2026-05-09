@@ -3061,7 +3061,7 @@ const DIFF_COLOR: Record<string, string> = {
 };
 
 // ─── PAGE TABS ────────────────────────────────────────────────────────────────
-type PageTab = "codeintel" | "architecture" | "dictionary" | "dod" | "shell" | "blueprint" | "learn";
+type PageTab = "codeintel" | "architecture" | "dictionary" | "dod" | "shell" | "blueprint" | "learn" | "reference";
 const PAGE_TABS: { id: PageTab; label: string; color: string; icon: ReactNode }[] = [
   { id: "codeintel",    label: "Code Intel",    color: "#4f8ef7", icon: <Code2 size={13}/> },
   { id: "architecture", label: "Architecture",  color: "#34d399", icon: <Layers size={13}/> },
@@ -3070,6 +3070,7 @@ const PAGE_TABS: { id: PageTab; label: string; color: string; icon: ReactNode }[
   { id: "shell",        label: "Prod Shell",    color: "#f472b6", icon: <Terminal size={13}/> },
   { id: "blueprint",    label: "AI Blueprint",  color: "#e879f9", icon: <Boxes size={13}/> },
   { id: "learn",        label: "🎓 Beginner Guide", color: "#f59e0b", icon: <GraduationCap size={13}/> },
+  { id: "reference",    label: "📁 Reference",  color: "#22d3ee", icon: <FolderOpen size={13}/> },
 ];
 
 // ─── ARCHITECTURE LAYERS ─────────────────────────────────────────────────────
@@ -5267,11 +5268,324 @@ networks:
   },
 ];
 
+// ─── REFERENCE GUIDE DATA ────────────────────────────────────────────────────
+interface RefFolder { path: string; emoji: string; purpose: string; features: string[]; interaction: string; }
+interface RefTool   { name: string; emoji: string; category: string; purpose: string; inputs: string; outputs: string; keyBehavior: string; usedBy: string[]; }
+interface RefModule { name: string; emoji: string; path: string; role: string; keyFiles: string[]; connects: string[]; }
+interface RefCommand{ cmd: string; category: string; emoji: string; description: string; usage: string; }
+interface RefTask   { name: string; emoji: string; shortId: string; purpose: string; killMechanism: string; outputMethod: string; usedBy: string[]; }
+
+const FOLDER_GUIDE: RefFolder[] = [
+  // ── Root ──────────────────────────────────────────────────────────────────
+  { path:"src", emoji:"🏗️", purpose:"Root source directory — the single top-level module containing all code. Node/Bun resolves imports starting here.", features:["Contains main.tsx entry point","Hosts all sub-modules as subdirectories","TypeScript path aliases map to this root"], interaction:"main.tsx bootstraps by importing from nearly every subdirectory. All inter-module communication flows upward through this root." },
+  // ── Core engine files ─────────────────────────────────────────────────────
+  { path:"src/tools", emoji:"🔧", purpose:"42 self-contained tool modules + shared utilities. Each tool is a directory with a prompt, JSON schema, execute function, and tests.", features:["Every tool exports a Tool interface object","Tool directories are individually versioned","shared/ holds cross-tool permission + diff utilities","utils.ts provides sanitisation helpers used by all tools"], interaction:"main.tsx calls loadAllTools() which imports each tool directory's index.ts. QueryEngine receives the resulting Map<string,Tool> and dispatches by name when Claude requests a tool call." },
+  { path:"src/tools/AgentTool", emoji:"🤖", purpose:"Spawn sub-agents, load agent definition directories (.claude/agents/), and support Explore/Plan built-in agents.", features:["Reads agent .md files from .claude/agents/","Forks isolated QueryEngine instances for each sub-agent","Supports swarm (parallel) and sequential agent spawning","Built-in Explore (read-only search) and Plan (design) agents"], interaction:"Calls coordinatorMode.ts to wire multi-agent channels. Sub-agents communicate back via SendMessageTool." },
+  { path:"src/tools/BashTool", emoji:"💻", purpose:"Execute shell commands with sandbox enforcement, timeout, and cross-platform path resolution.", features:["AST-based safe command analysis before execution","Timeout wrapper with SIGKILL fallback","Detects macOS/Linux/Windows shell paths","Sandbox adapter restricts filesystem access"], interaction:"Calls utils/bash/bashProvider.ts for execution. Validates commands through utils/permissions/bashClassifier.ts before running." },
+  { path:"src/tools/PowerShellTool", emoji:"🪟", purpose:"Execute PowerShell scripts on Windows with proper escaping and output formatting.", features:["Detects pwsh vs legacy powershell.exe","Script argument escaping for special characters","Formats PSObject output as readable strings","Here-string safe execution"], interaction:"Calls utils/shell/powershellProvider.ts. Feeds output back to QueryEngine as tool_result text." },
+  { path:"src/tools/FileEditTool", emoji:"✏️", purpose:"Precise old→new string replacement in files, with uniqueness enforcement to prevent accidental multi-replacement.", features:["Requires old_string to appear exactly once","Validates the replacement doesn't break uniqueness","Saves a before/after diff for the UI","Triggers LSP re-diagnostics after edit"], interaction:"Works with services/lsp to get post-edit diagnostics. FileEditToolDiff.tsx in components renders the visual diff." },
+  { path:"src/tools/FileReadTool", emoji:"📖", purpose:"Read files with optional offset/limit, line numbers, PDF support, and Jupyter notebook rendering.", features:["offset+limit for reading large files in chunks","Adds cat -n style line numbers","PDF page range support (max 20 pages)","Jupyter .ipynb cell rendering"], interaction:"Used by QueryEngine to let Claude read source files. FileReadTool feeds content directly into the conversation as tool_result." },
+  { path:"src/tools/FileWriteTool", emoji:"💾", purpose:"Write or overwrite full file contents, creating parent directories as needed.", features:["Creates nested parent directories automatically","Enforces reading the file first before overwriting","Triggers post-write LSP diagnostics"], interaction:"Called after FileReadTool in the typical read-modify-write flow. Edit is preferred for partial changes; Write is for new files." },
+  { path:"src/tools/GlobTool", emoji:"🔍", purpose:"Fast file pattern matching (glob) returning results sorted by modification time.", features:["Supports ** recursive patterns","Returns absolute paths sorted newest-first","Respects .gitignore via filesystem service"], interaction:"Used by QueryEngine when Claude needs to discover files. Results are fed back as a newline-delimited list." },
+  { path:"src/tools/GrepTool", emoji:"🔎", purpose:"ripgrep-powered content search with context lines, file type filtering, and multi-mode output.", features:["content / files_with_matches / count output modes","-A/-B/-C context line support","--type flag for language-specific search","head_limit and offset for pagination"], interaction:"Uses ripgrep binary on the system. Results feed into conversation for Claude to reason about code locations." },
+  { path:"src/tools/WebFetchTool", emoji:"🌐", purpose:"HTTP fetch with Markdown conversion, robots.txt compliance, and content-length limits.", features:["Converts HTML to Markdown for LLM consumption","Checks robots.txt before fetching","Configurable max content length","Handles redirects and HTTPS"], interaction:"Feeds web content into conversation. Pairs with WebSearchTool — search first, then fetch specific URLs." },
+  { path:"src/tools/WebSearchTool", emoji:"🔍", purpose:"Web search via Brave or Google Search API with result ranking.", features:["Returns title, URL, snippet for each result","Configurable max results","Falls back across providers","Filters explicit content"], interaction:"Results are summarised in tool_result. Typically followed by WebFetchTool to get full page content." },
+  { path:"src/tools/TodoWriteTool", emoji:"✅", purpose:"Structured task list management with status transitions (pending → in_progress → completed).", features:["Enforces exactly one in_progress task","Validates status transition rules","Renders task list in the UI via tasks/ components","Persists task state in AppState"], interaction:"Writes to AppState.todos. TaskListV2.tsx component reads state and renders the live task display." },
+  { path:"src/tools/TaskCreateTool", emoji:"▶️", purpose:"Create a background LocalAgentTask that runs a sub-agent asynchronously.", features:["Returns a task ID immediately","Sub-agent writes output to a per-task file","Supports prompt and model parameters","Task runs in parallel with main session"], interaction:"Pairs with TaskOutputTool (poll output), TaskGetTool (status), TaskStopTool (kill). Tasks tracked in AppState." },
+  { path:"src/tools/TaskOutputTool", emoji:"📤", purpose:"Poll a running task's output file for new bytes, enabling live streaming of background task output.", features:["Reads new bytes since last poll position","Returns EOF signal when task completes","Used in polling loops by Claude"], interaction:"Works alongside TaskCreateTool. Output files are written by LocalAgentTask in a tmp scratchpad directory." },
+  { path:"src/tools/TaskGetTool", emoji:"🔍", purpose:"Retrieve a specific background task by ID, returning its current status and metadata.", features:["Returns task type, status, start time","Includes output file path","Distinguishes running vs completed vs errored"], interaction:"Reads from QueryEngine's active task registry. Used by Claude to check on a specific task before polling its output." },
+  { path:"src/tools/TaskListTool", emoji:"📋", purpose:"List all active tasks in the current session with their IDs, types, and statuses.", features:["Returns a table of all task IDs","Shows task type prefix in ID (a=agent, b=bash, d=dream)","Includes elapsed time"], interaction:"Reads the full task registry. Claude uses this to discover task IDs before calling TaskGetTool or TaskStopTool." },
+  { path:"src/tools/TaskStopTool", emoji:"⛔", purpose:"Stop/kill a running background task by ID using SIGTERM then SIGKILL.", features:["Grace period before SIGKILL","Updates task status to 'stopped'","Works for shell, agent, and remote tasks"], interaction:"Calls stopTask.ts which manages the kill signal sequence. Task registry updated in AppState." },
+  { path:"src/tools/TaskUpdateTool", emoji:"🔄", purpose:"Update task metadata or status — used to annotate tasks with progress notes.", features:["Can set custom status strings","Attaches metadata key-value pairs","Used for progress annotations"], interaction:"Writes to the task object in QueryEngine's task registry." },
+  { path:"src/tools/SendMessageTool", emoji:"💬", purpose:"Send a message to a named team channel so other agents in a multi-agent session can receive it.", features:["Broadcasts to all channel subscribers","Messages are queued if subscriber is busy","Supports structured JSON payloads"], interaction:"Requires a team channel created by TeamCreateTool. Received by teammates via their inbox poller." },
+  { path:"src/tools/TeamCreateTool", emoji:"👥", purpose:"Create a shared communication channel for a multi-agent session, returning a channel ID.", features:["Channel is scoped to the current session","All subsequent agents can subscribe","Supports broadcast and unicast modes"], interaction:"Called once at session start by the coordinator. Sub-agents use the channel ID with SendMessageTool." },
+  { path:"src/tools/TeamDeleteTool", emoji:"🗑️", purpose:"Delete a team channel and clean up all subscribers when multi-agent work is complete.", features:["Notifies subscribers before deletion","Clears message queue","Prevents stale channel references"], interaction:"Called by coordinator at end of multi-agent session. Frees memory in the channel registry." },
+  { path:"src/tools/MCPTool", emoji:"🔌", purpose:"Execute tools on a connected MCP (Model Context Protocol) server — the bridge to any external MCP capability.", features:["Dynamically dispatches to any registered MCP server","Handles MCP-specific error types","Passes structured parameters via JSON Schema","Supports streaming MCP responses"], interaction:"Reads available MCP servers from services/mcp/client.ts. Tool names are prefixed with server name to avoid collisions." },
+  { path:"src/tools/ListMcpResourcesTool", emoji:"📚", purpose:"List available resources (files, data, endpoints) on a connected MCP server.", features:["Returns resource URIs and MIME types","Supports pagination for large resource lists","Works across all connected MCP servers"], interaction:"Pairs with ReadMcpResourceTool. Used by Claude to discover what data sources an MCP server exposes." },
+  { path:"src/tools/ReadMcpResourceTool", emoji:"📄", purpose:"Read the contents of a specific MCP resource by URI.", features:["Returns raw content or structured data","MIME-type aware output formatting","Supports binary resources via base64"], interaction:"Called after ListMcpResourcesTool identifies a resource URI. Content fed into conversation." },
+  { path:"src/tools/McpAuthTool", emoji:"🔐", purpose:"Initiate an OAuth authentication flow for an MCP server that requires login.", features:["Opens browser for OAuth consent","Stores token for future sessions","Supports PKCE flow"], interaction:"Triggers services/mcp/auth.ts OAuth flow. After completion, MCPTool calls work without re-authentication." },
+  { path:"src/tools/SkillTool", emoji:"⚡", purpose:"Load and execute user-defined skills from .claude/skills/ — reusable task templates.", features:["Reads skill .md files and extracts the prompt template","Substitutes $ARGUMENTS into template","Returns skill result as tool_result"], interaction:"Calls services/skills/loadSkillsDir.ts for discovery. Skills appear in typeahead suggestions." },
+  { path:"src/tools/ScheduleCronTool", emoji:"⏰", purpose:"Create, delete, and list cron-style recurring scheduled tasks.", features:["Cron expression parsing","Creates persistent task entries","Lists all scheduled tasks with next-fire time"], interaction:"Writes schedule records to AppState. Fires tasks via the task system (LocalAgentTask) at scheduled intervals." },
+  { path:"src/tools/RemoteTriggerTool", emoji:"🚀", purpose:"Programmatically trigger a remote Claude Code agent session via the bridge API.", features:["Sends task prompt to a remote session","Returns session ID for tracking","Supports async fire-and-forget mode"], interaction:"Calls bridge/bridgeApi.ts HTTP endpoints. Used for cloud-hosted agent orchestration." },
+  { path:"src/tools/EnterWorktreeTool", emoji:"🌿", purpose:"Switch the session's working directory into a git worktree for isolated branch work.", features:["Resolves worktree path from branch name","Updates AppState.cwd","Prevents nested worktree switches"], interaction:"Calls bridge/bridgePointer.ts to persist worktree state. ExitWorktreeTool reverses the operation." },
+  { path:"src/tools/ExitWorktreeTool", emoji:"↩️", purpose:"Exit the current git worktree and restore the previous working directory.", features:["Restores original CWD from bridgePointer","Optionally cleans up worktree if no changes","Validates clean state before exit"], interaction:"Reads bridge/bridgePointer.ts for the saved prior CWD. Counterpart to EnterWorktreeTool." },
+  { path:"src/tools/EnterPlanModeTool", emoji:"📝", purpose:"Enable read-only plan mode where writes, edits, and shell commands are blocked.", features:["Sets PermissionMode to plan_mode in AppState","All write tools return a soft refusal","LLM can still read and analyse freely"], interaction:"Updates utils/permissions/PermissionMode.ts state. ExitPlanModeTool restores normal permissions." },
+  { path:"src/tools/ExitPlanModeTool", emoji:"🔓", purpose:"Exit plan mode and restore full normal permissions for the session.", features:["Reverts PermissionMode from plan_mode","Emits a PermissionUpdate event for UI refresh","Logs the mode change in session history"], interaction:"Counterpart to EnterPlanModeTool. Permission UI components in components/permissions/ react to the update." },
+  { path:"src/tools/REPLTool", emoji:"🖥️", purpose:"Interactive REPL mode — starts a persistent JS or Python session that retains state between calls.", features:["Persistent interpreter process per language","State (variables, imports) survives between calls","Captures stdout/stderr streams","Timeout enforcement per call"], interaction:"Spawns a child process via a LocalShellTask. Output is streamed back to QueryEngine." },
+  { path:"src/tools/LSPTool", emoji:"🔬", purpose:"Query Language Server Protocol servers for hover info, go-to-definition, and live diagnostics.", features:["Hover: type info and docs at cursor position","Definition: file + line of symbol declaration","Diagnostics: current errors and warnings in a file","Auto-starts the appropriate LSP for the file type"], interaction:"Calls services/lsp/manager.ts which routes to the right LSPServerInstance. Results enrich Claude's understanding of code." },
+  { path:"src/tools/NotebookEditTool", emoji:"📓", purpose:"Edit Jupyter notebook cells — insert, delete, and modify cell content and metadata.", features:["Supports code and markdown cells","Cell index-based addressing","Preserves notebook JSON structure","Triggers kernel re-run suggestions"], interaction:"Reads .ipynb via FileReadTool first. Writes via notebook-specific JSON editing rather than raw string replacement." },
+  { path:"src/tools/AskUserQuestionTool", emoji:"❓", purpose:"Pause execution and prompt the user for a clarification before proceeding.", features:["Renders a question prompt in the terminal UI","Waits for user input synchronously","Returns answer as tool_result string","Respects auto-mode (skips question if yolo-safe)"], interaction:"Suspends QueryEngine loop until user responds. AskUserQuestionTool.tsx component handles the UI." },
+  { path:"src/tools/BriefTool", emoji:"📋", purpose:"Generate a concise brief or summary of work done in the current session.", features:["Summarises tool calls and file changes","Formats as Markdown with sections","Can be scoped to a task or the full session","Used by /brief slash command"], interaction:"Reads session history from AppState and calls the LLM via sideQuery.ts for the summary." },
+  { path:"src/tools/ConfigTool", emoji:"⚙️", purpose:"Read and write Claude Code configuration from ~/.claude.json and .claude/settings.json.", features:["Supports get, set, and list operations","Path-based key access (e.g. 'model', 'permissions.allow')","Validates values against the settings schema before writing"], interaction:"Calls utils/settings/settings.ts. Changes take effect immediately via the live-reload changeDetector." },
+  { path:"src/tools/SleepTool", emoji:"💤", purpose:"Wait N seconds — used for sequencing delays in multi-agent orchestration scripts.", features:["Simple promisified setTimeout","Max timeout configurable via schema","Used as a pacing primitive in complex workflows"], interaction:"Pure timing utility. No side effects. Typically used by coordinator agents to pace sub-agent launches." },
+  { path:"src/tools/SyntheticOutputTool", emoji:"🧪", purpose:"Inject synthetic tool output into the conversation for testing and session replay.", features:["Bypasses actual tool execution","Inserts pre-canned tool_result into history","Used in test fixtures and demo sessions"], interaction:"Directly manipulates AppState message history. Only active in test/dev mode." },
+  { path:"src/tools/ToolSearchTool", emoji:"🔎", purpose:"Search available tools by keyword for dynamic tool discovery — used when Claude needs to find a tool it hasn't loaded.", features:["Fuzzy keyword search across tool names and descriptions","Returns matching tool names with brief descriptions","Enables deferred tool loading (tools loaded on demand)"], interaction:"Reads the full tool registry from QueryEngine. Returned tool names can then be used in subsequent tool calls." },
+  { path:"src/tools/shared", emoji:"🤝", purpose:"Shared utilities used across multiple tools: permission checking, diff formatting, and error type definitions.", features:["Permission pre-flight helpers used by write tools","Unified diff formatter for FileEdit output","Typed error classes (ToolError, PermissionError)"], interaction:"Imported by BashTool, FileEditTool, FileWriteTool, and others for consistent permission gating and error reporting." },
+  // ── Services ──────────────────────────────────────────────────────────────
+  { path:"src/services", emoji:"🔗", purpose:"Integration layer — connects Claude Code to external systems (API, MCP, analytics, LSP, OAuth). Each subdirectory is an independent service client.", features:["8 service directories — independently testable","Each service exposes a typed API to the rest of the app","Services are bootstrapped at startup in main.tsx"], interaction:"Services are consumed by tools, QueryEngine, and commands. They never import from each other to keep coupling low." },
+  { path:"src/services/api", emoji:"☁️", purpose:"Anthropic Claude API client — streaming, retry, cost tracking, prompt cache, and session ingress.", features:["SSE streaming for word-by-word token delivery","Exponential backoff retry with jitter on 429/529","Per-session cost and token attribution","Prompt cache break detection to warn users"], interaction:"QueryEngine calls claude.ts to stream completions. withRetry.ts wraps every API call. errors.ts handles failure classification." },
+  { path:"src/services/mcp", emoji:"🔌", purpose:"Full MCP (Model Context Protocol) client — OAuth, dynamic tool registration, multi-server management, SSE transport.", features:["Discovers and registers tools from any MCP server","OAuth 2.0 + PKCE authentication flow","Multi-server connection management","XAA registry integration for discovering new MCP servers"], interaction:"MCPTool dispatches through services/mcp/client.ts. UI connection status shown via MCPConnectionManager.tsx." },
+  { path:"src/services/analytics", emoji:"📊", purpose:"Telemetry pipeline — GrowthBook feature flags, first-party event logging, Datadog metrics, opt-out support.", features:["GrowthBook A/B experiment framework","OpenTelemetry-based first-party event export","Datadog APM metrics (Anthropic-internal)","Runtime killswitch to disable all telemetry"], interaction:"Bootstrapped in main.tsx. GrowthBook gates feature flags checked throughout the app. Users can opt out via metricsOptOut.ts." },
+  { path:"src/services/compact", emoji:"📦", purpose:"Conversation compaction — auto-compact, micro-compact, and session memory consolidation to free context window space.", features:["Full compaction: LLM summarises history into a compact block","Micro-compact: lightweight turn collapsing without LLM call","Auto-compact: monitors context usage and fires at threshold","Session memory: distils facts into MEMORY.md after sessions"], interaction:"QueryEngine triggers compaction when context nears the limit. Compact result replaces old messages in AppState." },
+  { path:"src/services/lsp", emoji:"🔬", purpose:"Language Server Protocol client — hover, diagnostics, definition queries, auto-start for each language.", features:["Auto-starts the right LSP for each file type","Multi-language manager (TypeScript, Python, Rust, etc.)","Caches diagnostics across the session","Passively collects before/after-edit quality metrics"], interaction:"LSPTool calls services/lsp/manager.ts. Diagnostics feed into permission classifier to warn about risky edits." },
+  { path:"src/services/oauth", emoji:"🔑", purpose:"OAuth 2.0 with PKCE for Console login and API key authentication.", features:["PKCE code verifier/challenge via Web Crypto","Local HTTP server catches redirect callback","Stores and refreshes tokens","Exposes getAccessToken() for all HTTP clients"], interaction:"Used by bridge/bridgeApi.ts and services/api/client.ts for auth headers. Login/logout commands trigger the flow." },
+  { path:"src/services/plugins", emoji:"🧩", purpose:"Plugin lifecycle — download, signature verification, sandboxed installation, and activation of third-party plugins.", features:["GPG signature verification before install","Sandbox execution environment for plugins","CLI commands: install, list, remove, update","PluginInstallationManager UI component"], interaction:"Plugin commands (/plugin install) call services/plugins/pluginOperations.ts. Installed plugins register their tools in loadAllTools()." },
+  { path:"src/services/autoDream", emoji:"💭", purpose:"Background memory consolidation — DreamTask runs after each session to distil key facts into MEMORY.md.", features:["LLM-powered fact extraction from session history","File-level lock prevents concurrent write corruption","Configurable min-session-length before dreaming","Appends to MEMORY.md (never overwrites)"], interaction:"DreamTask in src/tasks/ calls this service. Facts written to MEMORY.md are loaded by memdir.ts next session." },
+  // ── Bridge ────────────────────────────────────────────────────────────────
+  { path:"src/bridge", emoji:"🌉", purpose:"Remote Control bridge — 31 files enabling browser, mobile, and CI to control Claude Code over SSE+HTTP+JWT.", features:["SSE+CCR v2 and HybridTransport v1 protocol support","Session tunnelling with JWT work secrets","QR code display for mobile pairing","Bridge debug fault injection for testing recovery paths"], interaction:"bridgeMain.ts is the orchestrator. bridgeApi.ts handles HTTP calls. replBridge.ts manages the full REPL lifecycle for remote sessions. The UI renders status via BridgeDialog.tsx." },
+  // ── Buddy ─────────────────────────────────────────────────────────────────
+  { path:"src/buddy", emoji:"🐾", purpose:"Tamagotchi companion — 18 species deterministically generated from the user's ID hash, with animated ASCII art.", features:["Mulberry32 PRNG seeded from userId for deterministic generation","18 species × 3-frame ASCII animations","5 personality stats: DEBUGGING/PATIENCE/CHAOS/WISDOM/SNARK","Claude-generated personality cached after first generation"], interaction:"companion.ts + species.ts generate the buddy. soulGen.ts calls the LLM once for personality. stats.ts tracks the 5 stats." },
+  // ── Coordinator ───────────────────────────────────────────────────────────
+  { path:"src/coordinator", emoji:"🎯", purpose:"Multi-agent swarm orchestration — spawns and coordinates parallel worker agents.", features:["Parallel agent spawning from a task decomposition","Team channel creation for inter-agent communication","Worker progress monitoring and aggregation","Swarm status display in the UI"], interaction:"Calls AgentTool to spawn workers, TeamCreateTool to wire channels. CoordinatorAgentStatus.tsx renders progress." },
+  // ── Components ────────────────────────────────────────────────────────────
+  { path:"src/components", emoji:"🎨", purpose:"141 React/Ink terminal UI components — every visible element in the Claude Code terminal interface.", features:["React/Ink renders JSX to terminal ANSI output","Yoga flexbox layout engine","32 subdirectories organised by feature domain","Reusable primitives in design-system/"], interaction:"Components read from AppState via useAppStateStore(). Events dispatch state updates via onChangeAppState.ts." },
+  { path:"src/components/agents", emoji:"🤖", purpose:"Agent spawning UI, sub-agent progress lines, swarm status view, and coordinator display.", features:["AgentProgressLine: shows tool call type + token count per agent","Swarm view: N parallel agents with live status","Coordinator status with task decomposition","Agent chat bubble theming"], interaction:"Reads agent task data from AppState.tasks. Connects to coordinator/coordinatorMode.ts via state watchers." },
+  { path:"src/components/messages", emoji:"💬", purpose:"41 message content block renderers — text, tool use, tool result, images, code, and diff blocks.", features:["Handles all Anthropic message content block types","Streaming text with cursor animation","Inline image rendering","Tool use/result pair collapsing"], interaction:"Messages.tsx orchestrates the list. Each renderer is selected by message content type. Connects to VirtualMessageList.tsx." },
+  { path:"src/components/permissions", emoji:"🛡️", purpose:"51 files covering permission request dialogs, allow/deny UI, and rule editors for the permission system.", features:["Tool call approval dialog with allow/deny/always-allow","Rule editor for alwaysAllow and alwaysDeny lists","Visual diff of what the tool will change","Bypass-permissions mode confirmation"], interaction:"Listens to PermissionUpdate events from utils/permissions/. Renders approval prompt before tool execution resumes." },
+  { path:"src/components/PromptInput", emoji:"⌨️", purpose:"Multi-line input, typeahead popup, ghost text, and mode indicators for the chat input bar.", features:["Multi-line expandable textarea","/ command and @file typeahead","Ghost text completion hints","Vim mode indicator badge","Voice input button"], interaction:"useTypeahead.tsx provides suggestions. Submitting fires QueryEngine.query(). KeybindingContext handles shortcuts." },
+  { path:"src/components/tasks", emoji:"📋", purpose:"TodoWrite task list display with completion tracking and visual progress.", features:["Real-time task status updates","Color-coded pending/in_progress/completed","Compact collapsed view for idle tasks","Keyboard-navigable task selection"], interaction:"Reads AppState.todos. Updated live as TodoWriteTool makes state changes." },
+  { path:"src/components/mcp", emoji:"🔌", purpose:"MCP server connection dialogs, tool approval, and capability display.", features:["Server connection status indicators","Tool capability list per server","OAuth flow initiation from UI","Multi-server multiselect dialog"], interaction:"Connects to services/mcp/useManageMCPConnections.ts hook for live connection state." },
+  { path:"src/components/design-system", emoji:"🎨", purpose:"Base design tokens, colour palette, typography scales, and box primitives.", features:["CSS-in-JS colour constants","Typography scale (xs → 2xl)","Box primitive for consistent padding","Dark theme base colours"], interaction:"Imported by every component for consistent visual language. No external dependencies." },
+  { path:"src/components/permissions", emoji:"🔐", purpose:"Full permission request dialog system — handles all tool approval, rule management, and bypass mode.", features:["Displays before risky tool calls","Allow/deny with optional 'always' flag","Shows tool name, inputs, and risk level","Rule editor for session-level permissions"], interaction:"Triggered by utils/permissions/permissions.ts when a tool call requires approval." },
+  { path:"src/components/hooks", emoji:"🪝", purpose:"Component-level React hooks: useFocus, useScrollPosition, useWindowSize, and other terminal UI utilities.", features:["useFocus: terminal focus management","useScrollPosition: scroll position tracking","useWindowSize: terminal dimensions","useContainerSize: Yoga layout measurements"], interaction:"Used by layout components like FullscreenLayout.tsx and VirtualMessageList.tsx." },
+  // ── Utils ─────────────────────────────────────────────────────────────────
+  { path:"src/utils", emoji:"🧰", purpose:"200+ shared utility modules across 20 domains — the standard library powering every subsystem.", features:["Organised into feature subdirectories","Zero circular dependencies — utils import only Node builtins","Comprehensive test coverage","Tree-shakeable — each file exports only what it needs"], interaction:"Imported bottom-up: tools and services import from utils, never the reverse. Prevents dependency cycles." },
+  { path:"src/utils/permissions", emoji:"🛡️", purpose:"24 files — the core permission evaluation engine, filesystem sandbox, path validation, and auto-mode classifier.", features:["Evaluates every tool call against alwaysAllow/alwaysDeny rules","Filesystem sandbox path resolution and traversal detection","Yolo/auto classifier decides if a command is safe without asking","Shell rule matching via bash AST analysis"], interaction:"Called by QueryEngine before every tool dispatch. Results: allow (auto-run), deny (block), ask (show dialog)." },
+  { path:"src/utils/git", emoji:"🌿", purpose:"Git filesystem operations, config parsing, and gitignore checking.", features:["diff, log, status, branch operations","~/.gitconfig and .git/config parsing","gitignore path checking for file indexing"], interaction:"Used by commands/diff, the bridge worktree system, and GlobTool's gitignore-aware filtering." },
+  { path:"src/utils/shell", emoji:"🐚", purpose:"10 files — shell detection, bash/PowerShell providers, read-only command validation.", features:["readOnlyCommandValidation.ts: 1,893-line validator for truly read-only commands","bash/PS path resolution across macOS/Linux/Windows","Shell prefix injection for safety wrappers","Output size limit enforcement"], interaction:"BashTool and PowerShellTool call their respective providers here. Permission system uses readOnlyCommandValidation." },
+  { path:"src/utils/model", emoji:"🧠", purpose:"16 files — model string parsing, context windows, cost, aliases, Bedrock/Vertex support.", features:["Canonical model ID parsing (claude-opus-4-7, etc.)","Context window sizes per model","AWS Bedrock model ID mapping","Model allowlist for enterprise restrictions"], interaction:"QueryEngine calls model.ts for context window limits. ModelPicker.tsx calls modelOptions.ts for the selection UI." },
+  { path:"src/utils/settings", emoji:"⚙️", purpose:"15 entries — settings loading with priority merge, MDM policy, live reload, and validation.", features:["Priority: env vars > MDM > project settings > global settings","Live reload via file watcher changeDetector.ts","Zod-based schema validation with human-readable errors","MDM subdirectory for enterprise managed policies"], interaction:"Loaded at startup in main.tsx. ConfigTool reads/writes via settings.ts. MDM policies cannot be overridden by users." },
+  { path:"src/utils/bash", emoji:"🔬", purpose:"11 entries — complete bash AST parser, command analysis, shell completion, heredoc handling.", features:["4,436-line complete bash parser producing an AST","AST visitor pattern for static analysis","Heredoc parsing (<<EOF, <<'EOF', <<-EOF)","Tree-sitter backed analysis for complex constructs"], interaction:"BashTool validates commands through this AST parser. Permission classifier uses AST to detect dangerous patterns." },
+  { path:"src/utils/suggestions", emoji:"💡", purpose:"5 files — typeahead suggestion backends for commands, directories, shell history, Slack channels, and skills.", features:["Slash-command fuzzy match with argument hints","@file directory completion","Slack channel suggestions from connected MCP server","Shell history prefix completion"], interaction:"All suggestion sources feed into hooks/unifiedSuggestions.ts which merges them for the PromptInput typeahead." },
+  { path:"src/utils/sandbox", emoji:"📦", purpose:"Sandbox adapter restricting tool execution to a Docker/sysbox container with limited filesystem and network.", features:["Intercepts Bash and FileEdit tool calls","Remaps filesystem paths to sandbox volume","Network restrictions via sandbox policy","Violation display via SandboxViolationExpandedView.tsx"], interaction:"Wraps tool execute() functions when sandbox mode is active (e.g. in CI environments)." },
+  // ── Commands ──────────────────────────────────────────────────────────────
+  { path:"src/commands", emoji:"⌨️", purpose:"100+ CLI subcommands and slash-commands — every /command and CLI verb is a directory or file here.", features:["Each command is an isolated module with description, handler, and optional UI component","Registered lazily in main.tsx via Commander.js","Slash commands available in the interactive REPL","CLI subcommands available from the terminal"], interaction:"main.tsx registers all commands. REPL.tsx routes slash-commands to the commands/ handlers. Commander routes CLI flags." },
+  { path:"src/commands/session", emoji:"🗂️", purpose:"Session list, switch, and info commands — browse and resume previous conversation sessions.", features:["Lists sessions by date with title search","Switch to a session by ID","Shows session metadata (tokens, cost, model)"], interaction:"Reads sessionStorage.ts from utils. Renders session list in a dialog via LogSelector.tsx." },
+  { path:"src/commands/review", emoji:"🔍", purpose:"4 files — /ultrareview command for AI-powered PR code review and remote review runner.", features:["Reads PR diff via GitHub API","Sends diff to Claude for review","Remote review: runs review on a bridge session","Checks ultrareview quota before running"], interaction:"Calls services/api to stream the review. Reads PR data via commands/pr_comments. Requires GitHub token." },
+  { path:"src/commands/mcp", emoji:"🔌", purpose:"4 files — /mcp list/add/remove/auth commands for managing MCP server connections.", features:["List: shows all connected servers with tool counts","Add: registers a new MCP server with auto-discovery","Remove: disconnects and removes server config","Auth: triggers OAuth flow for a server"], interaction:"Calls services/mcp/config.ts for persistence. Connection lifecycle managed by useManageMCPConnections hook." },
+  { path:"src/commands/memory", emoji:"🧠", purpose:"View, edit, and clear MEMORY.md and per-project memory files.", features:["List memory entries with source file","Edit opens MEMORY.md in the configured editor","Clear removes memory entries by tag","Project-scoped vs global memory distinction"], interaction:"Reads from services/memdir (via src/memdir). Changes to MEMORY.md are picked up next session." },
+  { path:"src/commands/hooks", emoji:"🪝", purpose:"Manage PreToolUse, PostToolUse, and Stop hooks in settings.", features:["List all configured hooks with trigger conditions","Add/remove hooks with command and pattern","Validate hook commands before saving","Show hook execution history from logs"], interaction:"Writes to utils/settings/settings.ts. Hooks execute via query/stopHooks.ts after each tool call." },
+  { path:"src/commands/permissions", emoji:"🔐", purpose:"Manage alwaysAllow and alwaysDeny permission rules from the command line.", features:["List current allow/deny rules","Add/remove rules with path glob or tool name","Test a path/command against current rules","Export rules to settings file"], interaction:"Reads/writes utils/permissions/permissionsLoader.ts. Changes take effect immediately for the running session." },
+  { path:"src/commands/skills", emoji:"⚡", purpose:"List available skills (reusable task templates) and show their argument hints.", features:["Discovers all .claude/skills/*.md files","Shows skill description and $ARGUMENTS placeholders","Filters by keyword search"], interaction:"Calls services/skills/loadSkillsDir.ts. Skill names appear in PromptInput typeahead via commandSuggestions.ts." },
+  // ── Other top-level dirs ──────────────────────────────────────────────────
+  { path:"src/vim", emoji:"🖊️", purpose:"Full modal Vim editing mode — motions, operators, text objects, and mode transitions for the PromptInput.", features:["Normal/Insert/Visual mode state machine","h/j/k/l/w/b/e/0/$ motions","d/c/y/p operators with count prefixes","Text objects: word, WORD, quoted string, parentheses"], interaction:"Integrated into VimTextInput.tsx component. Mode state stored alongside PromptInput state." },
+  { path:"src/ink", emoji:"🖥️", purpose:"Custom React/Ink terminal renderer with Yoga layout — extends the upstream Ink library for Claude Code's needs.", features:["Yoga CSS flexbox layout in the terminal","ANSI color and style output","Custom box model primitives","Event system for keyboard and mouse"], interaction:"All components in src/components/ render through this layer. Output goes to stdout as ANSI escape sequences." },
+  { path:"src/native-ts", emoji:"⚡", purpose:"TypeScript bindings for native Node.js addons: file-index, color-diff, and Yoga layout.", features:["file-index: native C++ file indexing for fast GlobTool","color-diff: native diff algorithm for syntax-highlighted diffs","yoga-layout: Yoga CSS layout via WASM bindings"], interaction:"Loaded lazily — falls back to JS implementations if native bindings fail to load (important for CI)." },
+  { path:"src/hooks", emoji:"🪝", purpose:"40+ React hooks for autocomplete, voice input, polling, REPL bridge, and history search.", features:["useTypeahead: smart autocomplete with keyboard nav and caching","useVoiceIntegration: voice recording and transcription","useInboxPoller: polls inbox for new tasks/messages","useReplBridge: bridges interactive REPL sessions"], interaction:"Used by components/ throughout. They read AppState and AppState services, encapsulating complex async logic." },
+  { path:"src/constants", emoji:"📌", purpose:"21 config files — system prompts, API limits, beta flags, output styles, and product constants.", features:["prompts.ts: all Claude API system prompt templates","betas.ts: INTERLEAVED_THINKING and FAST_MODE_BETA headers","apiLimits.ts: image max size, token caps, message limits","files.ts: gitignore patterns and config file names"], interaction:"Imported by QueryEngine, tools, and settings validation. Never import from business logic — one-way dependency." },
+  { path:"src/context", emoji:"🌐", purpose:"9 React Context providers — notifications, session stats, overlays, voice, modal, and message queue.", features:["NotificationsContext: priority queue with auto-dismiss","StatsContext: live token/cost metrics","OverlayContext: modal and overlay state","VoiceContext: voice recording state"], interaction:"Provided at the root in App.tsx. Components consume via useContext() hooks without prop drilling." },
+  { path:"src/state", emoji:"🗃️", purpose:"6 files — AppState store, memoized selectors, change listeners, and multi-agent helpers.", features:["AppStateStore.ts: all state field definitions (messages, tasks, session, permissions)","onChangeAppState.ts: side-effect subscriptions","selectors.ts: memoized derived state","store.ts: generic reactive store primitive"], interaction:"Central hub: tools write via updateAppState(), components read via useAppStateStore(). Drives the entire UI reactivity." },
+  { path:"src/types", emoji:"📐", purpose:"7 TypeScript definition files — permissions, plugins, hooks, branded IDs, and command types.", features:["permissions.ts: PermissionRule, PermissionResult, PermissionMode types","plugin.ts: PluginManifest and BuiltinPluginDefinition","hooks.ts: HookEvent, PreToolUse, PostToolUse, Stop schemas","ids.ts: branded SessionId and AgentId to prevent ID mix-ups"], interaction:"Imported by all other modules. No runtime code — pure type definitions. Enforced by TypeScript compiler." },
+  { path:"src/memdir", emoji:"🧠", purpose:"Memory system — CLAUDE.md loading, LLM relevance scoring, team memory paths, and memory taxonomy.", features:["Loads CLAUDE.md files from project and global directories","LLM-powered relevance scoring to select relevant memories","Team memory path sharing across multi-agent sessions","Memory taxonomy: user / feedback / project / reference"], interaction:"Loaded at session start by main.tsx. Relevant memories injected into system prompt by QueryEngine." },
+  { path:"src/bootstrap", emoji:"🚀", purpose:"Global session state — single source of truth for all non-reactive session globals (CWD, costs, tokens, permissions, plan mode).", features:["state.ts: 1,758-line singleton for session globals","CWD tracking independent of process.cwd()","Accumulated cost and token counters","Plan mode and bypass-permissions flags"], interaction:"Imported directly (not via React context) by modules that need low-latency reads. AppState wraps this for reactive UI." },
+  { path:"src/schemas", emoji:"📋", purpose:"Zod validation schemas for hooks config and permission rule syntax.", features:["Validates hooks.ts event types","Permission rule string syntax validation","Used at settings load time for early error detection"], interaction:"Called by utils/settings/settings.ts during settings parsing. Errors surfaced via validationTips.ts." },
+  { path:"src/migrations", emoji:"🔄", purpose:"11 migration files — model renames, settings moves, feature flag resets, and permission schema upgrades.", features:["Run automatically at startup if migration needed","Each migration is idempotent (safe to run twice)","Covers: model ID renames, settings key moves, auto-mode resets"], interaction:"Executed in main.tsx before the app starts. Ensures settings files from old versions work correctly." },
+  { path:"src/keybindings", emoji:"⌨️", purpose:"14 files — keyboard shortcut registry, user overrides, Vim maps, platform normalisation, and conflict validation.", features:["defaultBindings.ts: full map of all actions to keys","User overrides merged from .claude/settings.json","macOS Ctrl→Cmd normalisation","Conflict detection and reserved shortcuts list"], interaction:"KeybindingContext.tsx provides the active map. useKeybinding.ts hook subscribes components to named bindings." },
+  { path:"src/skills", emoji:"⚡", purpose:"4 entries — skill discovery, manifest loading, bundled skills, and MCP skill builders.", features:["Discovers all .claude/skills/*.md files","Validates skill manifest front-matter","Built-in bundled skills shipped with Claude Code (ultrareview)","MCP-compatible tool definitions from skill manifests"], interaction:"loadSkillsDir.ts called at startup. Skill definitions appear as virtual tools available to Claude." },
+  { path:"src/screens", emoji:"📺", purpose:"3 top-level screen components — the main REPL chat, Doctor diagnostics, and ResumeConversation.", features:["REPL.tsx: 5,000-line main interactive screen","Doctor.tsx: health check for API, git, node, config","ResumeConversation.tsx: browse and resume past sessions"], interaction:"Rendered by main.tsx based on CLI subcommand. REPL is the default; /doctor and /resume route to their screens." },
+  { path:"src/server", emoji:"🖧", purpose:"3 files — direct-connect session server for SDK mode without CLI polling.", features:["Accepts SDK connections and routes to session runners","Auth validation for incoming connections","Maps SDK message format to internal types"], interaction:"Used when Claude Code runs in SDK mode (no terminal UI). sdkMessageAdapter.ts in remote/ bridges the formats." },
+  { path:"src/remote", emoji:"📡", purpose:"4 files — remote session management, WebSocket sessions, permission bridge, SDK adapter.", features:["WebSocket server for web/API clients","Remote session lifecycle: create, route, teardown, reconnect","Permission requests bridged back to local terminal","SDK wire format adapter"], interaction:"SessionsWebSocket.ts accepts web connections. Permissions flow back via remotePermissionBridge.ts to local approval dialog." },
+  { path:"src/entrypoints", emoji:"🚪", purpose:"5 files + sdk/ — binary entry points for CLI, MCP server, SDK, init, and sandbox.", features:["cli.tsx: CLI REPL bootstrap and Commander routing","mcp.ts: exposes Claude Code as an MCP tool provider","sdk/: Claude Agent SDK npm package entry point","init.ts: one-time setup wizard"], interaction:"Each entrypoint is a separate binary target. cli.tsx is the default `claude` binary; mcp.ts enables MCP-as-server mode." },
+  { path:"src/query", emoji:"⚙️", purpose:"4 files — query preprocessing, token budget management, stop hooks, and dependency injection.", features:["tokenBudget.ts: computes per-turn max_tokens and thinking budget","stopHooks.ts: runs PostToolUse and Stop shell hooks","config.ts: QueryEngine default parameters","deps.ts: dependency injection container types"], interaction:"Used exclusively by QueryEngine. stopHooks.ts runs after every tool call if hooks are configured in settings." },
+  { path:"src/cli", emoji:"💻", purpose:"8 entries — CLI output engine, structured JSON output, remote I/O, update logic, and transports.", features:["print.ts: 5,500-line terminal ANSI renderer for all message types","structuredIO.ts: NDJSON output mode for CI/scripting","update.ts: semver check and upgrade prompt","transports/: stdio, SSE, WebSocket output delivery"], interaction:"print.ts called by REPL.tsx for each new message. structuredIO.ts active when --output-format json flag is set." },
+  { path:"src/tasks", emoji:"📦", purpose:"9 entries — all 6 task type implementations plus stop utility, pill labels, and type definitions.", features:["LocalMainSessionTask: wraps the full REPL session","LocalAgentTask: background sub-agent with output file","LocalShellTask: shell command with stream and timeout","DreamTask: memory consolidation after sessions"], interaction:"Tasks registered in QueryEngine's task registry. TaskListTool reads it; TaskStopTool calls kill() on the right instance." },
+  { path:"src/voice", emoji:"🎤", purpose:"1 file — voice mode entitlement check based on subscription tier and feature flags.", features:["Checks subscription plan via billing API","Reads GrowthBook voice feature flag","Returns enabled/disabled with reason"], interaction:"Called by useVoiceIntegration hook before starting recording. VoiceContext reflects the result." },
+  { path:"src/upstreamproxy", emoji:"🔀", purpose:"2 files — HTTP proxy for routing API calls through enterprise proxy endpoints.", features:["Intercepts all API HTTP calls","Configurable upstream proxy URL from settings","TCP relay for tunnel connections","Certificate pinning support"], interaction:"Wraps services/api/client.ts HTTP transport when upstreamProxy setting is configured." },
+];
+
+const TOOLS_GUIDE: RefTool[] = [
+  { name:"AgentTool",           emoji:"🤖", category:"Agents",       purpose:"Spawn a sub-agent to handle a subtask independently. The sub-agent gets its own ReAct loop, tool set, and context.", inputs:"prompt (required), model (optional), tools (optional subset)", outputs:"Final text response from the sub-agent", keyBehavior:"Forks an isolated QueryEngine. Sub-agents have the same tools unless restricted. Swarm mode spawns N agents in parallel.", usedBy:["coordinator/coordinatorMode.ts"] },
+  { name:"BashTool",            emoji:"💻", category:"Shell",         purpose:"Execute any shell command with timeout, sandbox enforcement, and cross-platform path resolution.", inputs:"command (string), timeout (ms, optional)", outputs:"stdout + stderr text, exit code", keyBehavior:"Validates command through bash AST parser before execution. Checks permission rules. Enforces output size limits.", usedBy:["QueryEngine when Claude needs to run code or system commands"] },
+  { name:"PowerShellTool",      emoji:"🪟", category:"Shell",         purpose:"Execute PowerShell scripts on Windows systems.", inputs:"command (string), timeout (ms, optional)", outputs:"stdout + stderr formatted output", keyBehavior:"Detects pwsh vs legacy powershell.exe. Escapes arguments safely. Formats PSObject output as readable text.", usedBy:["QueryEngine on Windows systems"] },
+  { name:"FileEditTool",        emoji:"✏️", category:"File System",   purpose:"Make precise string replacements in files — the preferred way to modify existing files.", inputs:"file_path, old_string (must be unique in file), new_string", outputs:"Success confirmation with a diff snippet", keyBehavior:"Fails if old_string appears 0 or 2+ times (uniqueness enforcement). Triggers LSP diagnostics after edit.", usedBy:["QueryEngine for all code modifications"] },
+  { name:"FileReadTool",        emoji:"📖", category:"File System",   purpose:"Read file contents with optional line number offset/limit, PDF page range, or Jupyter cell rendering.", inputs:"file_path, offset (line), limit (lines), pages (PDF range)", outputs:"File contents with cat -n line numbers", keyBehavior:"Reads files in chunks for large files. Renders .ipynb notebooks as combined cell text. Reads PDFs up to 20 pages.", usedBy:["QueryEngine to understand code before editing"] },
+  { name:"FileWriteTool",       emoji:"💾", category:"File System",   purpose:"Write or completely overwrite a file. For new files or full rewrites — use FileEditTool for partial changes.", inputs:"file_path, content (full file contents)", outputs:"Success confirmation", keyBehavior:"Creates parent directories if they don't exist. Enforces reading the file first before overwriting existing files.", usedBy:["QueryEngine when creating new files"] },
+  { name:"GlobTool",            emoji:"🔍", category:"File System",   purpose:"Match file paths using glob patterns (e.g. src/**/*.ts), returning results sorted by modification time.", inputs:"pattern (glob string), path (base directory, optional)", outputs:"Newline-delimited list of matching absolute file paths", keyBehavior:"Uses native file-index for speed. Results sorted newest-first. Respects .gitignore.", usedBy:["QueryEngine for file discovery"] },
+  { name:"GrepTool",            emoji:"🔎", category:"File System",   purpose:"Search file contents using ripgrep with full regex support, context lines, and file type filters.", inputs:"pattern (regex), path, glob, type, output_mode, -A/-B/-C, head_limit", outputs:"Matching lines with context, file paths, or counts depending on output_mode", keyBehavior:"Uses system ripgrep binary. Three output modes: content, files_with_matches, count. Supports head_limit+offset pagination.", usedBy:["QueryEngine for code symbol and text search"] },
+  { name:"WebFetchTool",        emoji:"🌐", category:"Web",           purpose:"Fetch a URL and return its content converted to Markdown for LLM-friendly reading.", inputs:"url (string), max_length (bytes, optional)", outputs:"Markdown-converted page content", keyBehavior:"Checks robots.txt. Converts HTML to Markdown. Truncates at max_length. Follows redirects.", usedBy:["QueryEngine when Claude needs to read web content"] },
+  { name:"WebSearchTool",       emoji:"🔎", category:"Web",           purpose:"Search the web via Brave or Google Search API and return ranked results.", inputs:"query (string), num_results (optional)", outputs:"Array of {title, url, snippet} results", keyBehavior:"Routes to Brave API or Google Search API based on configuration. Filters explicit content. Ranks by relevance.", usedBy:["QueryEngine for research tasks"] },
+  { name:"TodoWriteTool",       emoji:"✅", category:"Productivity",   purpose:"Create and manage a structured task list to track multi-step work progress.", inputs:"todos array with {content, activeForm, status} objects", outputs:"Updated task list confirmation", keyBehavior:"Enforces exactly one in_progress task. Validates status transitions. Displays live in the UI.", usedBy:["QueryEngine for task tracking across long sessions"] },
+  { name:"TaskCreateTool",      emoji:"▶️", category:"Tasks",         purpose:"Create a background agent task that runs a sub-agent asynchronously while the main session continues.", inputs:"prompt (string), model (optional)", outputs:"task_id string for tracking", keyBehavior:"Returns immediately with a task ID. Sub-agent writes output to a file. Use TaskOutputTool to poll results.", usedBy:["QueryEngine for parallelising long-running work"] },
+  { name:"TaskOutputTool",      emoji:"📤", category:"Tasks",         purpose:"Read new output bytes from a running background task's output file.", inputs:"task_id, offset (bytes already read)", outputs:"New output text + EOF flag when complete", keyBehavior:"Non-blocking poll. Returns empty string if no new output. Sets is_complete=true on task finish.", usedBy:["QueryEngine in polling loops for background tasks"] },
+  { name:"TaskGetTool",         emoji:"🔍", category:"Tasks",         purpose:"Get the current status and metadata of a specific background task by ID.", inputs:"task_id", outputs:"Task object: {id, type, status, started_at, output_path}", keyBehavior:"Reads from in-memory task registry. Fast non-blocking call.", usedBy:["QueryEngine to check task status before polling output"] },
+  { name:"TaskListTool",        emoji:"📋", category:"Tasks",         purpose:"List all active background tasks in the current session.", inputs:"(none)", outputs:"Table of all tasks: id, type, status, elapsed", keyBehavior:"Shows all tasks including completed and stopped ones. ID prefix encodes type: a=agent, b=bash, d=dream.", usedBy:["QueryEngine to discover task IDs in multi-task sessions"] },
+  { name:"TaskStopTool",        emoji:"⛔", category:"Tasks",         purpose:"Stop a running background task by sending SIGTERM then SIGKILL after a grace period.", inputs:"task_id", outputs:"Confirmation of termination", keyBehavior:"5-second grace period before SIGKILL. Works for shell, agent, and remote tasks. Updates task status to 'stopped'.", usedBy:["QueryEngine when a task must be cancelled"] },
+  { name:"TaskUpdateTool",      emoji:"🔄", category:"Tasks",         purpose:"Update metadata or add progress notes to a background task.", inputs:"task_id, metadata (key-value pairs)", outputs:"Updated task confirmation", keyBehavior:"Attaches arbitrary metadata to a task for tracking progress notes or annotations.", usedBy:["QueryEngine for annotating long-running tasks"] },
+  { name:"SendMessageTool",     emoji:"💬", category:"Multi-Agent",   purpose:"Send a message to a named team channel so other agents in the session can receive it.", inputs:"channel_id, message (string or JSON)", outputs:"Delivery confirmation", keyBehavior:"Broadcasts to all channel subscribers. Messages queued if recipient is busy. Supports structured JSON payloads.", usedBy:["Sub-agents in coordinator-spawned sessions"] },
+  { name:"TeamCreateTool",      emoji:"👥", category:"Multi-Agent",   purpose:"Create a shared communication channel for a multi-agent session.", inputs:"name (channel name)", outputs:"channel_id string", keyBehavior:"Channel scoped to current session. All agents in the session can subscribe. Supports broadcast and unicast modes.", usedBy:["Coordinator agents before spawning worker agents"] },
+  { name:"TeamDeleteTool",      emoji:"🗑️", category:"Multi-Agent",   purpose:"Delete a team channel and notify all subscribers when multi-agent work completes.", inputs:"channel_id", outputs:"Deletion confirmation", keyBehavior:"Notifies subscribers before deletion. Clears message queue. Prevents stale references.", usedBy:["Coordinator agents at end of multi-agent session"] },
+  { name:"MCPTool",             emoji:"🔌", category:"MCP",           purpose:"Execute any tool on a connected MCP server — the bridge to external MCP capabilities.", inputs:"server_name, tool_name, tool_parameters (JSON)", outputs:"Tool result from MCP server", keyBehavior:"Dynamically dispatches based on registered MCP servers. Tool names prefixed with server name to avoid collisions.", usedBy:["QueryEngine when Claude needs external MCP capabilities"] },
+  { name:"ListMcpResourcesTool",emoji:"📚", category:"MCP",           purpose:"List available resources (files, data, endpoints) on a connected MCP server.", inputs:"server_name (optional — all servers if omitted)", outputs:"Array of {uri, mime_type, name} resources", keyBehavior:"Paginates for large resource lists. Works across all connected servers if server not specified.", usedBy:["QueryEngine before calling ReadMcpResourceTool"] },
+  { name:"ReadMcpResourceTool", emoji:"📄", category:"MCP",           purpose:"Read the contents of a specific MCP resource by URI.", inputs:"uri (resource URI from ListMcpResourcesTool)", outputs:"Resource content (text or base64 for binary)", keyBehavior:"MIME-type aware formatting. Binary resources returned as base64. Text resources returned as UTF-8 string.", usedBy:["QueryEngine for reading MCP server data sources"] },
+  { name:"McpAuthTool",         emoji:"🔐", category:"MCP",           purpose:"Initiate an OAuth authentication flow for an MCP server that requires login.", inputs:"server_name", outputs:"Auth status and token stored confirmation", keyBehavior:"Opens browser for OAuth consent. Stores token in ~/.claude/. Future MCPTool calls work without re-auth.", usedBy:["QueryEngine when an MCP server returns 401"] },
+  { name:"SkillTool",           emoji:"⚡", category:"Skills",        purpose:"Execute a user-defined skill (reusable prompt template) from .claude/skills/.", inputs:"skill_name, arguments (substituted into $ARGUMENTS)", outputs:"Skill execution result", keyBehavior:"Reads .md skill file, substitutes $ARGUMENTS, executes as a sub-query. Skills appear in / typeahead.", usedBy:["QueryEngine when user invokes a named skill"] },
+  { name:"ScheduleCronTool",    emoji:"⏰", category:"Scheduling",    purpose:"Create, delete, and list cron-style recurring scheduled tasks.", inputs:"action (create/delete/list), schedule (cron expr), prompt (for create)", outputs:"Created schedule ID or list of schedules", keyBehavior:"Cron expression parsed and stored. Fires LocalAgentTask at scheduled time. Lists show next-fire timestamp.", usedBy:["QueryEngine for recurring automation workflows"] },
+  { name:"RemoteTriggerTool",   emoji:"🚀", category:"Remote",        purpose:"Programmatically trigger a remote Claude Code agent session via the bridge API.", inputs:"prompt, session_config (optional)", outputs:"session_id for the triggered remote session", keyBehavior:"Calls bridgeApi.ts HTTP POST. Returns immediately with session ID. Use bridge/session endpoints to monitor.", usedBy:["QueryEngine for cloud agent orchestration"] },
+  { name:"EnterWorktreeTool",   emoji:"🌿", category:"Git",           purpose:"Switch the session working directory into a git worktree for isolated branch work.", inputs:"branch_name or worktree_path", outputs:"New CWD path confirmation", keyBehavior:"Resolves worktree from branch name. Updates AppState.cwd. Persists to bridgePointer.ts for reconnects.", usedBy:["QueryEngine for parallel branch workflows"] },
+  { name:"ExitWorktreeTool",    emoji:"↩️", category:"Git",           purpose:"Exit the current git worktree and restore the previous working directory.", inputs:"(none)", outputs:"Restored CWD confirmation", keyBehavior:"Reads prior CWD from bridgePointer.ts. Optionally cleans up worktree if no changes were made.", usedBy:["QueryEngine after completing worktree-isolated work"] },
+  { name:"EnterPlanModeTool",   emoji:"📝", category:"Permissions",   purpose:"Enable read-only plan mode — no writes, edits, or shell commands allowed.", inputs:"(none)", outputs:"Mode confirmation", keyBehavior:"Sets PermissionMode to plan_mode. All write tools return a polite refusal. LLM can read and analyse freely.", usedBy:["QueryEngine when user wants planning without execution"] },
+  { name:"ExitPlanModeTool",    emoji:"🔓", category:"Permissions",   purpose:"Exit plan mode and restore full normal permissions.", inputs:"(none)", outputs:"Mode confirmation", keyBehavior:"Reverts PermissionMode. Emits PermissionUpdate event. Logged in session history.", usedBy:["QueryEngine after plan is approved and execution resumes"] },
+  { name:"REPLTool",            emoji:"🖥️", category:"REPL",          purpose:"Start a persistent JS or Python interpreter session that retains state between calls.", inputs:"language (js|python), code (string)", outputs:"stdout/stderr from code execution", keyBehavior:"Spawns a persistent child process. Variables and imports survive between calls. Timeout per execution.", usedBy:["QueryEngine for iterative code experiments"] },
+  { name:"LSPTool",             emoji:"🔬", category:"Language",      purpose:"Query Language Server Protocol for hover type info, go-to-definition, and live diagnostics.", inputs:"action (hover|definition|diagnostics), file_path, line, character", outputs:"Hover text / definition location / diagnostic list", keyBehavior:"Auto-starts the correct LSP for the file language. Caches results per file. Updates after edits.", usedBy:["QueryEngine to enrich code understanding"] },
+  { name:"NotebookEditTool",    emoji:"📓", category:"Notebooks",     purpose:"Edit Jupyter notebook cells — insert, delete, modify cell content and metadata.", inputs:"file_path, cell_index, new_source, cell_type", outputs:"Updated notebook confirmation", keyBehavior:"Reads .ipynb JSON, mutates the cells array immutably, writes back. Preserves output metadata.", usedBy:["QueryEngine for data science notebook editing"] },
+  { name:"AskUserQuestionTool", emoji:"❓", category:"UX",            purpose:"Pause execution and ask the user a clarifying question before proceeding.", inputs:"question (string)", outputs:"User's answer string", keyBehavior:"Suspends the ReAct loop until the user responds. Skipped in auto/yolo mode with a safe default.", usedBy:["QueryEngine when Claude needs disambiguation"] },
+  { name:"BriefTool",           emoji:"📋", category:"Productivity",  purpose:"Generate a concise Markdown summary of work done in the current session.", inputs:"scope (task|session, optional)", outputs:"Markdown brief with sections for changes, decisions, next steps", keyBehavior:"Reads session history and file changes from AppState. Calls LLM via sideQuery.ts for the summary.", usedBy:["QueryEngine when user asks for a session summary"] },
+  { name:"ConfigTool",          emoji:"⚙️", category:"Config",        purpose:"Read and write Claude Code settings from ~/.claude.json or .claude/settings.json.", inputs:"action (get|set|list), key (dot-path), value (for set)", outputs:"Current value or success confirmation", keyBehavior:"Validates against settings schema. Changes take effect immediately via live-reload changeDetector.", usedBy:["QueryEngine for reading/updating Claude Code config"] },
+  { name:"SleepTool",           emoji:"💤", category:"Utility",       purpose:"Wait N seconds — used for pacing in multi-agent orchestration.", inputs:"duration_seconds (number)", outputs:"Completion confirmation after the wait", keyBehavior:"Pure promisified setTimeout. Maximum configurable via schema. No side effects.", usedBy:["Coordinator agents to pace sub-agent launches"] },
+  { name:"SyntheticOutputTool", emoji:"🧪", category:"Testing",       purpose:"Inject synthetic tool output into the conversation for testing and replay scenarios.", inputs:"tool_name, output (pre-canned result string)", outputs:"The injected result (passed through as tool_result)", keyBehavior:"Bypasses actual tool execution. Inserts fake tool_result into AppState history. Dev/test mode only.", usedBy:["Test fixtures and demo session replay"] },
+  { name:"ToolSearchTool",      emoji:"🔎", category:"Discovery",     purpose:"Search all available tools by keyword to find the right tool for a task.", inputs:"query (search terms)", outputs:"Array of {name, description} matching tools", keyBehavior:"Fuzzy search across tool names and descriptions. Enables deferred loading — tools can be discovered at runtime.", usedBy:["QueryEngine when Claude needs to find a less-common tool"] },
+];
+
+const MODULES_GUIDE: RefModule[] = [
+  { name:"API Service",       emoji:"☁️",  path:"src/services/api",      role:"Anthropic Claude API client with streaming, retry logic, prompt cache, and cost tracking.", keyFiles:["claude.ts — streaming SSE client","withRetry.ts — exponential backoff","errors.ts — error hierarchy","filesApi.ts — Files API for vision"], connects:["QueryEngine","services/analytics"] },
+  { name:"MCP Client",        emoji:"🔌",  path:"src/services/mcp",      role:"Full MCP (Model Context Protocol) client — connects to any MCP server, handles OAuth, and registers dynamic tools.", keyFiles:["client.ts — protocol client","auth.ts — OAuth 2.0 + PKCE","config.ts — server configuration","xaa.ts — registry integration"], connects:["MCPTool","ListMcpResourcesTool","McpAuthTool","useManageMCPConnections.ts"] },
+  { name:"Analytics",         emoji:"📊",  path:"src/services/analytics", role:"Telemetry pipeline — GrowthBook feature flags, first-party events, Datadog APM, and opt-out enforcement.", keyFiles:["growthbook.ts — feature flags","firstPartyEventLogger.ts — structured event logging","datadog.ts — APM metrics","sinkKillswitch.ts — emergency disable"], connects:["main.tsx bootstrap","metricsOptOut.ts","all tool call sites"] },
+  { name:"Compact Service",   emoji:"📦",  path:"src/services/compact",   role:"Conversation compaction — summarises history via LLM to free context window space when usage approaches limits.", keyFiles:["compact.ts — full LLM compaction","microCompact.ts — lightweight collapsing","autoCompact.ts — threshold trigger","sessionMemoryCompact.ts — MEMORY.md distillation"], connects:["QueryEngine","AppState","autoDream"] },
+  { name:"LSP Service",       emoji:"🔬",  path:"src/services/lsp",       role:"Language Server Protocol client — manages one LSP process per language, caches diagnostics, queries hover/definition.", keyFiles:["LSPServerManager.ts — multi-language manager","LSPClient.ts — JSON-RPC client","LSPDiagnosticRegistry.ts — diagnostics cache","LSPServerInstance.ts — single server lifecycle"], connects:["LSPTool","FileEditTool (post-edit diagnostics)","PassiveFeedback"] },
+  { name:"OAuth Service",     emoji:"🔑",  path:"src/services/oauth",     role:"OAuth 2.0 with PKCE for Console login and API key auth — handles code exchange, token refresh, and revocation.", keyFiles:["client.ts — PKCE flow","auth-code-listener.ts — local redirect server","index.ts — getAccessToken() export","crypto.ts — PKCE challenge generation"], connects:["services/api/client.ts","bridge/bridgeApi.ts","login/logout commands"] },
+  { name:"Plugins Service",   emoji:"🧩",  path:"src/services/plugins",   role:"Plugin lifecycle management — download, GPG signature verify, sandbox install, activate, and uninstall plugins.", keyFiles:["pluginOperations.ts — full lifecycle","pluginCliCommands.ts — /plugin commands","PluginInstallationManager.ts — progress UI"], connects:["commands/plugin","loadAllTools() in main.tsx","sandbox adapter"] },
+  { name:"AutoDream",         emoji:"💭",  path:"src/services/autoDream", role:"Background memory consolidation — LLM extracts key facts from session history and appends to MEMORY.md.", keyFiles:["autoDream.ts — DreamTask core","consolidationLock.ts — file-level lock","consolidationPrompt.ts — fact extraction prompt"], connects:["src/tasks/DreamTask","src/memdir","MEMORY.md file"] },
+  { name:"Bridge",            emoji:"🌉",  path:"src/bridge",             role:"Remote Control bridge — enables browser, mobile, and CI to control Claude Code sessions over SSE+HTTP+JWT tunnels.", keyFiles:["bridgeMain.ts — poll loop orchestrator","replBridge.ts — REPL session lifecycle","bridgeApi.ts — HTTP client","replBridgeTransport.ts — v1/v2 transports"], connects:["services/api","services/oauth","RemoteTriggerTool","SessionsWebSocket.ts"] },
+  { name:"Query Engine",      emoji:"⚙️",  path:"src/QueryEngine.ts",     role:"The ReAct reasoning loop — receives every user message, streams from Claude API, dispatches tool calls, and loops until end_turn.", keyFiles:["QueryEngine.ts — core loop","src/query/stopHooks.ts — post-tool hooks","src/query/tokenBudget.ts — per-turn token limits"], connects:["services/api","all tools (Map<string,Tool>)","AppState","services/compact"] },
+  { name:"Permission System", emoji:"🛡️",  path:"src/utils/permissions",  role:"24-file permission engine — evaluates every tool call against rules, manages sandbox paths, and classifies auto-mode safety.", keyFiles:["permissions.ts — evaluation engine","yoloClassifier.ts — auto-mode classifier","filesystem.ts — path sandbox","permissionsLoader.ts — rule loading"], connects:["QueryEngine (pre-dispatch)","components/permissions (UI)","bootstrap/state.ts"] },
+  { name:"Settings Loader",   emoji:"⚙️",  path:"src/utils/settings",     role:"Priority-merge settings system — loads from env vars, MDM, project settings, and global settings with live-reload.", keyFiles:["settings.ts — loader and merger","types.ts — all settings types","changeDetector.ts — file watcher","validation.ts — full schema validation"], connects:["main.tsx","ConfigTool","all tools that read config"] },
+  { name:"Bash Parser",       emoji:"🔬",  path:"src/utils/bash",         role:"Complete bash AST parser + command analysis — used for safe command inspection, injection detection, and shell completion.", keyFiles:["bashParser.ts — 4,436-line parser","ast.ts — AST node types","commands.ts — command-level analysis","shellCompletion.ts — tab-complete"], connects:["BashTool","utils/permissions/bashClassifier.ts","PromptInput typeahead"] },
+  { name:"Model Utilities",   emoji:"🧠",  path:"src/utils/model",        role:"Model string parsing, context windows, cost tables, aliases, and Bedrock/Vertex provider support.", keyFiles:["model.ts — canonical ID parsing","modelOptions.ts — all model parameters","bedrock.ts — AWS Bedrock mapping","modelStrings.ts — all model ID constants"], connects:["QueryEngine","ModelPicker.tsx","utils/settings (allowlist)"] },
+  { name:"Memory System",     emoji:"🧠",  path:"src/memdir",             role:"CLAUDE.md loading, LLM-powered relevance scoring, team memory paths, and memory taxonomy.", keyFiles:["memdir.ts — core memory ops","findRelevantMemories.ts — LLM relevance scoring","memoryTypes.ts — taxonomy","teamMemPaths.ts — multi-agent paths"], connects:["QueryEngine (system prompt injection)","autoDream","commands/memory"] },
+  { name:"State Store",       emoji:"🗃️",  path:"src/state",              role:"Central reactive AppState — all session state (messages, tasks, CWD, tokens, permissions) with change subscriptions.", keyFiles:["AppStateStore.ts — all state fields","AppState.tsx — React provider","onChangeAppState.ts — side-effect subscriptions","selectors.ts — memoized queries"], connects:["All components (via useAppStateStore)","QueryEngine","all tools (read/write state)"] },
+  { name:"Keybindings",       emoji:"⌨️",  path:"src/keybindings",        role:"Keyboard shortcut registry — default map, user overrides, platform normalisation, conflict detection, and Vim maps.", keyFiles:["defaultBindings.ts — full action map","loadUserBindings.ts — user overrides","validate.ts — conflict detection","KeybindingContext.tsx — React provider"], connects:["PromptInput (submit, cancel)","VirtualMessageList (scroll)","all keyboard-driven components"] },
+  { name:"Bootstrap State",   emoji:"🚀",  path:"src/bootstrap",          role:"Non-reactive session globals — CWD, accumulated costs, tokens, permission mode, plan mode, and slow-op flags.", keyFiles:["state.ts — 1,758-line singleton"], connects:["main.tsx","QueryEngine","utils/permissions","components via AppState wrapper"] },
+  { name:"Task System",       emoji:"📦",  path:"src/tasks",              role:"6 task type implementations wrapping every kind of background work with a unified kill() interface.", keyFiles:["LocalMainSessionTask.ts","LocalAgentTask/ dir","LocalShellTask/ dir","DreamTask/ dir","InProcessTeammateTask/ dir","RemoteAgentTask/ dir"], connects:["TaskCreateTool","TaskStopTool","QueryEngine task registry","autoDream service"] },
+  { name:"CLI Output Engine", emoji:"💻",  path:"src/cli",                role:"Terminal ANSI renderer, structured JSON output, update checker, and transport layer for all CLI output.", keyFiles:["print.ts — 5,500-line ANSI renderer","structuredIO.ts — NDJSON mode","update.ts — semver upgrade check","transports/ — stdio/SSE/WebSocket"], connects:["REPL.tsx (renders messages)","main.tsx (output mode selection)","bridge (remote output delivery)"] },
+  { name:"Context Providers", emoji:"🌐",  path:"src/context",            role:"9 React Context providers for notifications, stats, overlays, voice, modals, and message queuing.", keyFiles:["notifications.tsx","stats.tsx","overlayContext.tsx","voice.tsx","modalContext.tsx"], connects:["All UI components consume these","main.tsx provides them at root","AppState updates trigger context re-renders"] },
+];
+
+const COMMANDS_GUIDE: RefCommand[] = [
+  // Session
+  { cmd:"/session",         category:"Session",       emoji:"🗂️", description:"List, switch between, and inspect previous conversation sessions.", usage:"/session list | /session switch <id> | /session info" },
+  { cmd:"/resume",          category:"Session",       emoji:"▶️", description:"Resume a previous session by ID or fuzzy title search.", usage:"/resume <session-id or title fragment>" },
+  { cmd:"/rewind",          category:"Session",       emoji:"⏪", description:"Rewind the current session to a previous turn, discarding later messages.", usage:"/rewind <turn-number>" },
+  { cmd:"/teleport",        category:"Session",       emoji:"🌀", description:"Clone the current session state into a new git worktree for parallel experimentation.", usage:"/teleport <branch-name>" },
+  // Code review & PR
+  { cmd:"/review",          category:"Code Review",   emoji:"🔍", description:"Run an AI-powered code review on the current PR diff or staged changes.", usage:"/review [--remote] [--pr <url>]" },
+  { cmd:"/diff",            category:"Code Review",   emoji:"📊", description:"Show the current git diff as context for the conversation.", usage:"/diff [--staged] [-- <file>]" },
+  { cmd:"/export",          category:"Output",        emoji:"📤", description:"Export the current conversation transcript to Markdown or JSON.", usage:"/export [--format json|md] [--output <file>]" },
+  { cmd:"/pr_comments",     category:"Code Review",   emoji:"💬", description:"Fetch GitHub PR comments and inject them as context.", usage:"/pr_comments <pr-url>" },
+  { cmd:"/autofix-pr",      category:"Code Review",   emoji:"🔧", description:"Automatically fix failing CI checks on a pull request.", usage:"/autofix-pr <pr-url>" },
+  // Model & effort
+  { cmd:"/model",           category:"Model",         emoji:"🧠", description:"Open the model picker to switch the active LLM and configure effort level.", usage:"/model [claude-opus-4-7 | claude-sonnet-4-6 | ...]" },
+  { cmd:"/effort",          category:"Model",         emoji:"⚡", description:"Set the thinking effort level for the current session.", usage:"/effort <low | medium | high | max>" },
+  { cmd:"/fast",            category:"Model",         emoji:"🚀", description:"Toggle fast mode — reduced thinking budget for quicker, less expensive responses.", usage:"/fast [on|off]" },
+  // MCP
+  { cmd:"/mcp",             category:"MCP",           emoji:"🔌", description:"Manage MCP server connections — list, add, remove, and authenticate.", usage:"/mcp list | /mcp add <name> <url> | /mcp remove <name> | /mcp auth <name>" },
+  // Agents & tasks
+  { cmd:"/agents",          category:"Agents",        emoji:"🤖", description:"List all active sub-agents and their current status.", usage:"/agents [list]" },
+  { cmd:"/tasks",           category:"Tasks",         emoji:"📋", description:"List and manage background tasks in the current session.", usage:"/tasks | /tasks stop <id>" },
+  // Environment & health
+  { cmd:"/doctor",          category:"Health",        emoji:"🩺", description:"Run a health check — verifies API key, network, git, Node version, and config validity.", usage:"/doctor" },
+  { cmd:"/env",             category:"Config",        emoji:"🌿", description:"Show or set environment variables for the current session.", usage:"/env | /env set KEY=value" },
+  { cmd:"/debug-tool-call", category:"Debug",         emoji:"🐛", description:"Replay a specific tool call with full debug logging to diagnose issues.", usage:"/debug-tool-call <tool-name> <json-args>" },
+  // Configuration
+  { cmd:"/config",          category:"Config",        emoji:"⚙️", description:"Read or write Claude Code settings in .claude/settings.json or ~/.claude.json.", usage:"/config get <key> | /config set <key> <value> | /config list" },
+  { cmd:"/keybindings",     category:"Config",        emoji:"⌨️", description:"List all keyboard shortcut bindings and test key combinations.", usage:"/keybindings [list | test]" },
+  { cmd:"/output-style",    category:"Config",        emoji:"🎨", description:"Switch the output display style between detailed, concise, and auto modes.", usage:"/output-style <detailed | concise | auto>" },
+  { cmd:"/theme",           category:"Config",        emoji:"🎨", description:"Switch the colour theme with a live terminal preview.", usage:"/theme [list | <theme-name>]" },
+  { cmd:"/hooks",           category:"Config",        emoji:"🪝", description:"Manage PreToolUse, PostToolUse, and Stop hooks in your settings.", usage:"/hooks list | /hooks add | /hooks remove <id>" },
+  { cmd:"/permissions",     category:"Config",        emoji:"🔐", description:"View and edit alwaysAllow and alwaysDeny permission rules.", usage:"/permissions list | /permissions add <rule> | /permissions remove <rule>" },
+  // Plugins & skills
+  { cmd:"/plugin",          category:"Plugins",       emoji:"🧩", description:"Install, list, and remove third-party plugins from .claude/plugins/.", usage:"/plugin install <name-or-url> | /plugin list | /plugin remove <name>" },
+  { cmd:"/skills",          category:"Skills",        emoji:"⚡", description:"List all available skills and their argument hints.", usage:"/skills [list | <name>]" },
+  // Memory
+  { cmd:"/memory",          category:"Memory",        emoji:"🧠", description:"View, edit, and clear MEMORY.md and per-project memory files.", usage:"/memory list | /memory edit | /memory clear [--project | --global]" },
+  // UI & display
+  { cmd:"/compact",         category:"Context",       emoji:"📦", description:"Compact the conversation history to free context window space.", usage:"/compact [--micro]" },
+  { cmd:"/clear",           category:"Session",       emoji:"🗑️", description:"Clear the terminal and start a fresh conversation.", usage:"/clear" },
+  { cmd:"/copy",            category:"Output",        emoji:"📋", description:"Copy the last assistant response to the system clipboard.", usage:"/copy" },
+  { cmd:"/stats",           category:"Analytics",     emoji:"📊", description:"Show session statistics: tokens used, cost, tool calls, and response times.", usage:"/stats" },
+  { cmd:"/cost",            category:"Analytics",     emoji:"💰", description:"Show the running cost breakdown for the current session by model and tool.", usage:"/cost" },
+  { cmd:"/release-notes",   category:"Info",          emoji:"📰", description:"Display the changelog and release notes for the current Claude Code version.", usage:"/release-notes" },
+  // IDE & integrations
+  { cmd:"/ide",             category:"IDE",           emoji:"💻", description:"Connect or disconnect IDE extensions (VS Code, JetBrains, etc.).", usage:"/ide [connect | disconnect | status]" },
+  { cmd:"/chrome",          category:"IDE",           emoji:"🌐", description:"Claude in Chrome extension — show status, connection info, and setup instructions.", usage:"/chrome [status | setup]" },
+  { cmd:"/desktop",         category:"IDE",           emoji:"🖥️", description:"Claude Desktop integration commands — link, status, and handoff.", usage:"/desktop [link | status]" },
+  { cmd:"/bridge",          category:"Remote",        emoji:"🌉", description:"Show Remote Control bridge status, QR code for mobile pairing, and connection URLs.", usage:"/bridge [status | qr]" },
+  { cmd:"/remote-setup",    category:"Remote",        emoji:"📡", description:"Set up a new Remote Control session with a pairing QR code.", usage:"/remote-setup [--port <n>]" },
+  // Auth & account
+  { cmd:"/login",           category:"Auth",          emoji:"🔑", description:"Authenticate via OAuth (Anthropic Console) or enter an API key.", usage:"/login [--api-key <key>]" },
+  { cmd:"/logout",          category:"Auth",          emoji:"🚪", description:"Clear stored credentials and sign out of the current account.", usage:"/logout" },
+  { cmd:"/passes",          category:"Account",       emoji:"🎟️", description:"Show your subscription plan, tier, and usage limits.", usage:"/passes" },
+  { cmd:"/usage",           category:"Account",       emoji:"📈", description:"Show token and API usage statistics for the current billing period.", usage:"/usage [--period <month>]" },
+  // Git & GitHub
+  { cmd:"/install-github-app",   category:"GitHub", emoji:"🐙", description:"Install the Claude Code GitHub App to enable PR review access and CI integration.", usage:"/install-github-app" },
+  { cmd:"/install-slack-app",    category:"GitHub", emoji:"💬", description:"Install the Claude Code Slack integration to use Claude from Slack.", usage:"/install-slack-app" },
+  // Composite commands
+  { cmd:"insights",         category:"Analytics",     emoji:"📊", description:"3,200-line analytics command — usage trends, cost analysis, and session breakdowns.", usage:"claude insights [--period <days>] [--export]" },
+  { cmd:"ultraplan",        category:"Planning",      emoji:"🗺️", description:"Deep task decomposition: analyse the problem, create a multi-phase implementation plan before writing any code.", usage:"claude ultraplan \"<goal>\"" },
+  { cmd:"init",             category:"Setup",         emoji:"🚀", description:"Initialise a project — creates .claude/ directory, CLAUDE.md, and initial settings.json.", usage:"claude init [--template <name>]" },
+  { cmd:"commit-push-pr",   category:"Git",           emoji:"📬", description:"Composite command: git commit + push + create a GitHub PR in a single step with AI-generated commit message.", usage:"claude commit-push-pr [--title <title>]" },
+  { cmd:"security-review",  category:"Security",      emoji:"🔒", description:"Run a security review on changed files — checks against CVE database and OWASP Top 10.", usage:"claude security-review [--files <glob>]" },
+  { cmd:"install",          category:"Setup",         emoji:"📦", description:"Claude Code installation and upgrade wizard — handles npm install, PATH setup, and config migration.", usage:"claude install [--upgrade]" },
+  { cmd:"advisor",          category:"Planning",      emoji:"💡", description:"AI-powered architectural guidance — ask questions about system design and get Claude's expert opinion.", usage:"claude advisor \"<architecture question>\"" },
+  { cmd:"brief",            category:"Output",        emoji:"📋", description:"Generate a concise Markdown brief summarising the current task or codebase state.", usage:"claude brief [--scope task|session]" },
+  { cmd:"commit",           category:"Git",           emoji:"💾", description:"Commit staged changes with an AI-generated commit message following conventional commits.", usage:"claude commit [--no-verify]" },
+  { cmd:"bridge-kick",      category:"Remote",        emoji:"🦵", description:"Kick a stuck bridge session and force a reconnection — useful when the bridge hangs.", usage:"claude bridge-kick [--session <id>]" },
+  { cmd:"version",          category:"Info",          emoji:"ℹ️", description:"Print the current Claude Code version number and build metadata.", usage:"claude version [--json]" },
+  { cmd:"statusline",       category:"Config",        emoji:"📺", description:"Configure the IDE status line display format and content.", usage:"claude statusline [--format <template>]" },
+];
+
+const TASK_TYPES_GUIDE: RefTask[] = [
+  {
+    name:"LocalMainSessionTask", emoji:"🏠", shortId:"m",
+    purpose:"The primary session task — wraps the entire interactive REPL session lifecycle as a background task object. There is exactly one per session.",
+    killMechanism:"AbortController signal propagated to QueryEngine, gracefully stops the streaming API call and all active sub-tasks.",
+    outputMethod:"Renders directly to the terminal via React/Ink; no output file.",
+    usedBy:["main.tsx — created at startup","bridge/replBridge.ts — bridge sessions wrap it"],
+  },
+  {
+    name:"LocalAgentTask", emoji:"🤖", shortId:"a",
+    purpose:"A background sub-agent task — spawns an independent ReAct loop for a given prompt. Used for parallel and delegated work. ID prefix: 'a'.",
+    killMechanism:"AbortController.abort() terminates the sub-agent's streaming API call and all its tool calls.",
+    outputMethod:"Writes stdout to a per-task file in the scratchpad directory. TaskOutputTool polls this file for new bytes.",
+    usedBy:["AgentTool","TaskCreateTool","ScheduleCronTool"],
+  },
+  {
+    name:"LocalShellTask", emoji:"💻", shortId:"b",
+    purpose:"A shell command task — spawns a child_process, streams stdout/stderr to a file, and enforces a timeout. ID prefix: 'b' (bash).",
+    killMechanism:"SIGTERM to the child process, escalating to SIGKILL after a configurable grace period.",
+    outputMethod:"Writes stdout/stderr stream to a per-task file. TaskOutputTool polls for new bytes.",
+    usedBy:["BashTool (long-running commands)","REPLTool (persistent interpreter process)"],
+  },
+  {
+    name:"DreamTask", emoji:"💭", shortId:"d",
+    purpose:"Background memory consolidation — runs after sessions end, calls the LLM to extract key facts from session history, and appends them to MEMORY.md. ID prefix: 'd'.",
+    killMechanism:"AbortController signal; if killed mid-consolidation, consolidationLock.ts ensures MEMORY.md is not corrupted.",
+    outputMethod:"Writes directly to MEMORY.md (not a task output file). Consolidation lock prevents concurrent writes.",
+    usedBy:["services/autoDream — triggered after session ends","main.tsx — schedules dream on exit"],
+  },
+  {
+    name:"InProcessTeammateTask", emoji:"👥", shortId:"t",
+    purpose:"In-process multi-agent teammate — a sub-agent that shares memory with the coordinator via shared AppState, avoiding IPC overhead. ID prefix: 't'.",
+    killMechanism:"AbortController; shares the same process space so termination is immediate.",
+    outputMethod:"Writes to a shared AppState channel. The coordinator can read teammate output directly from state.",
+    usedBy:["coordinator/coordinatorMode.ts — for high-speed parallel coordination","TeamCreateTool"],
+  },
+  {
+    name:"RemoteAgentTask", emoji:"📡", shortId:"r",
+    purpose:"A sub-agent running on a remote machine — communicates over WebSocket via the bridge protocol. ID prefix: 'r'.",
+    killMechanism:"Sends a STOP control message over the WebSocket; the remote runner terminates and sends a final status message.",
+    outputMethod:"Streams output via WebSocket messages, written to a local file for TaskOutputTool polling.",
+    usedBy:["RemoteTriggerTool","bridge/remoteBridgeCore.ts","AgentTool with remote: true option"],
+  },
+];
+
 // ════════════════════════════════════════════════════════════════════════════════
 //  MAIN PAGE
 // ════════════════════════════════════════════════════════════════════════════════
 export default function CodeAnalysisPage() {
   const [pageTab, setPageTab]             = useState<PageTab>("codeintel");
+  const [refSubTab, setRefSubTab]         = useState<"folders"|"tools"|"modules"|"commands"|"tasks">("folders");
+  const [refSearch, setRefSearch]         = useState("");
+  const [refExpanded, setRefExpanded]     = useState<Set<string>>(new Set());
   const [learnLesson, setLearnLesson]     = useState(0);
   const [learnQuiz, setLearnQuiz]         = useState<Record<number,boolean>>({});
   const [learnPath, setLearnPath]         = useState<string | null>(null);
@@ -6370,6 +6684,382 @@ ${[["182K","Lines of Code"],["1,884","TypeScript Files"],["40+","Built-in Tools"
 
         </div>
       )}
+
+      {/* ── REFERENCE GUIDE TAB ────────────────────────────────────────────── */}
+      {pageTab === "reference" && (() => {
+        const REF_SUBTABS: { id: typeof refSubTab; label: string; color: string; count: number }[] = [
+          { id:"folders",  label:"📁 Folders & Subfolders", color:"#22d3ee", count: FOLDER_GUIDE.length },
+          { id:"tools",    label:"🔧 Tools (40+)",          color:"#34d399", count: TOOLS_GUIDE.length },
+          { id:"modules",  label:"🔌 Service Modules (21)", color:"#a78bfa", count: MODULES_GUIDE.length },
+          { id:"commands", label:"⌨️ CLI Commands (70+)",   color:"#fb923c", count: COMMANDS_GUIDE.length },
+          { id:"tasks",    label:"📦 Task Types (6)",       color:"#f472b6", count: TASK_TYPES_GUIDE.length },
+        ];
+        const q = refSearch.toLowerCase().trim();
+
+        // ── Filtered data ────────────────────────────────────────────────────
+        const filteredFolders  = FOLDER_GUIDE.filter(f  => !q || f.path.toLowerCase().includes(q) || f.purpose.toLowerCase().includes(q) || f.features.some(x=>x.toLowerCase().includes(q)));
+        const filteredTools    = TOOLS_GUIDE.filter(t   => !q || t.name.toLowerCase().includes(q) || t.purpose.toLowerCase().includes(q) || t.category.toLowerCase().includes(q));
+        const filteredModules  = MODULES_GUIDE.filter(m => !q || m.name.toLowerCase().includes(q) || m.role.toLowerCase().includes(q) || m.path.toLowerCase().includes(q));
+        const filteredCmds     = COMMANDS_GUIDE.filter(c=> !q || c.cmd.toLowerCase().includes(q) || c.description.toLowerCase().includes(q) || c.category.toLowerCase().includes(q));
+        const filteredTasks    = TASK_TYPES_GUIDE.filter(t=>!q || t.name.toLowerCase().includes(q) || t.purpose.toLowerCase().includes(q));
+
+        const toggleCard = (key: string) => setRefExpanded(prev => {
+          const next = new Set(prev);
+          next.has(key) ? next.delete(key) : next.add(key);
+          return next;
+        });
+
+        // ── Category group colours for tools ────────────────────────────────
+        const TOOL_CAT_COLOR: Record<string,string> = {
+          "Agents":"#34d399","Shell":"#fbbf24","File System":"#4f8ef7","Web":"#38bdf8",
+          "Productivity":"#a78bfa","Tasks":"#fb923c","Multi-Agent":"#f472b6","MCP":"#22d3ee",
+          "Skills":"#facc15","Scheduling":"#f97316","Remote":"#818cf8","Git":"#6ee7b7",
+          "Permissions":"#f87171","REPL":"#86efac","Language":"#67e8f9","Notebooks":"#c4b5fd",
+          "UX":"#fca5a5","Config":"#fcd34d","Utility":"#9ca3af","Testing":"#d1d5db","Discovery":"#e0f2fe",
+        };
+
+        const CMD_CAT_COLOR: Record<string,string> = {
+          "Session":"#4f8ef7","Code Review":"#34d399","Output":"#a78bfa","Model":"#38bdf8",
+          "MCP":"#22d3ee","Agents":"#f472b6","Tasks":"#fb923c","Health":"#34d399","Config":"#fbbf24",
+          "Debug":"#f87171","Plugins":"#a78bfa","Skills":"#facc15","Memory":"#818cf8","Context":"#86efac",
+          "Analytics":"#67e8f9","Info":"#9ca3af","IDE":"#4f8ef7","Remote":"#c4b5fd","Auth":"#fca5a5",
+          "Account":"#fcd34d","GitHub":"#e0f2fe","Planning":"#f97316","Setup":"#6ee7b7","Git":"#22d3ee",
+          "Security":"#f87171",
+        };
+
+        const hlQ = (text: string) => {
+          if (!q) return <>{text}</>;
+          const idx = text.toLowerCase().indexOf(q);
+          if (idx === -1) return <>{text}</>;
+          return <>{text.slice(0,idx)}<mark style={{background:"rgba(250,204,21,0.35)",color:"inherit",borderRadius:2,padding:"0 1px"}}>{text.slice(idx,idx+q.length)}</mark>{text.slice(idx+q.length)}</>;
+        };
+
+        return (
+          <div style={{display:"flex",flexDirection:"column",height:"calc(100dvh - 96px)",background:"#0d0f1a",overflow:"hidden"}}>
+
+            {/* ── Header bar ─────────────────────────────────────────────── */}
+            <div style={{padding:"12px 18px 0",background:"#0a0c15",borderBottom:"1px solid #1a1e30",flexShrink:0}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+                <FolderOpen size={16} style={{color:"#22d3ee"}}/>
+                <span style={{fontSize:14,fontWeight:800,color:"#eaedf8"}}>Codebase Reference Guide</span>
+                <span style={{fontSize:11,color:"#3d4460",marginLeft:4}}>—</span>
+                <span style={{fontSize:11,color:"#5c6480"}}>Every folder, tool, module, command & task type explained</span>
+                <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8}}>
+                  <Search size={13} style={{color:"#4a5270",flexShrink:0}}/>
+                  <input
+                    value={refSearch} onChange={e=>setRefSearch(e.target.value)} placeholder="Search anything…"
+                    style={{background:"#12141f",border:"1px solid #1e2237",borderRadius:6,padding:"5px 10px",fontSize:12,color:"#eaedf8",width:220,outline:"none"}}
+                  />
+                </div>
+              </div>
+              {/* Sub-tab bar */}
+              <div style={{display:"flex",gap:4,overflowX:"auto"}}>
+                {REF_SUBTABS.map(st=>(
+                  <button key={st.id} onClick={()=>setRefSubTab(st.id)} style={{
+                    display:"flex",alignItems:"center",gap:5,padding:"5px 12px",borderRadius:"6px 6px 0 0",
+                    fontSize:12,fontWeight:700,cursor:"pointer",flexShrink:0,
+                    background: refSubTab===st.id ? `${st.color}18` : "transparent",
+                    borderTop: refSubTab===st.id ? `2px solid ${st.color}` : "2px solid transparent",
+                    borderLeft:"1px solid transparent",borderRight:"1px solid transparent",borderBottom:"none",
+                    color: refSubTab===st.id ? st.color : "#5c6480",
+                    transition:"all 0.15s",
+                  }}>
+                    {st.label}
+                    <span style={{fontSize:10,background:refSubTab===st.id?`${st.color}30`:"#1a1e30",color:refSubTab===st.id?st.color:"#3d4460",borderRadius:10,padding:"1px 6px"}}>{st.count}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* ── Content area ───────────────────────────────────────────── */}
+            <div style={{flex:1,overflowY:"auto",padding:"18px 18px 32px"}}>
+
+              {/* ════════ FOLDERS ═══════════════════════════════════════════ */}
+              {refSubTab==="folders" && (
+                <div>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(480px,1fr))",gap:12}}>
+                    {filteredFolders.length===0 && <div style={{color:"#4a5270",fontSize:13,gridColumn:"1/-1",padding:24}}>No folders match "{refSearch}".</div>}
+                    {filteredFolders.map(f=>{
+                      const key = "folder:"+f.path;
+                      const open = refExpanded.has(key);
+                      const isRoot = !f.path.includes("/");
+                      const depth  = (f.path.match(/\//g)||[]).length;
+                      const indent = depth * 8;
+                      return (
+                        <div key={f.path} style={{
+                          borderRadius:10,background:"#12141f",
+                          border:`1px solid ${open?"#22d3ee30":"#1a1e30"}`,
+                          overflow:"hidden",transition:"border-color 0.15s",
+                        }}>
+                          <button onClick={()=>toggleCard(key)} style={{
+                            width:"100%",display:"flex",alignItems:"flex-start",gap:10,
+                            padding:"12px 14px",background:"transparent",border:"none",cursor:"pointer",
+                            textAlign:"left",
+                          }}>
+                            <span style={{fontSize:18,flexShrink:0,marginTop:1}}>{f.emoji}</span>
+                            <div style={{flex:1,minWidth:0}}>
+                              <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+                                <code style={{fontSize:12,fontWeight:800,color:"#22d3ee",background:"rgba(34,211,238,0.08)",padding:"2px 7px",borderRadius:4,fontFamily:"monospace"}}>
+                                  {hlQ(f.path)}
+                                </code>
+                                {isRoot && <span style={{fontSize:10,color:"#4a5270",background:"#1a1e30",borderRadius:10,padding:"1px 6px"}}>root</span>}
+                                {depth===1 && !isRoot && <span style={{fontSize:10,color:"#4a5270",background:"#1a1e30",borderRadius:10,padding:"1px 6px"}}>top-level</span>}
+                              </div>
+                              <div style={{fontSize:12,color:"#9aa3c0",lineHeight:1.5}}>{hlQ(f.purpose)}</div>
+                            </div>
+                            <ChevronDown size={13} style={{color:"#3d4460",flexShrink:0,marginTop:4,transform:open?"rotate(0deg)":"rotate(-90deg)",transition:"transform 0.2s"}}/>
+                          </button>
+                          {open && (
+                            <div style={{padding:"0 14px 14px",borderTop:"1px solid #1a1e30"}}>
+                              <div style={{marginTop:12}}>
+                                <div style={{fontSize:11,fontWeight:700,color:"#22d3ee",marginBottom:6,letterSpacing:"0.05em",textTransform:"uppercase"}}>Key Features</div>
+                                <ul style={{margin:0,padding:"0 0 0 16px",listStyle:"disc"}}>
+                                  {f.features.map((feat,i)=>(
+                                    <li key={i} style={{fontSize:12,color:"#7d88a8",lineHeight:1.65,marginBottom:2}}>{feat}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                              <div style={{marginTop:10,padding:"10px 12px",borderRadius:6,background:"rgba(34,211,238,0.05)",border:"1px solid rgba(34,211,238,0.12)"}}>
+                                <div style={{fontSize:11,fontWeight:700,color:"#22d3ee",marginBottom:4}}>🔗 How Files Interact</div>
+                                <div style={{fontSize:12,color:"#7d88a8",lineHeight:1.65}}>{f.interaction}</div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* ════════ TOOLS ═════════════════════════════════════════════ */}
+              {refSubTab==="tools" && (
+                <div>
+                  {/* Group by category */}
+                  {Array.from(new Set(filteredTools.map(t=>t.category))).map(cat=>{
+                    const catColor = TOOL_CAT_COLOR[cat]||"#9aa3c0";
+                    const catTools = filteredTools.filter(t=>t.category===cat);
+                    return (
+                      <div key={cat} style={{marginBottom:24}}>
+                        <div style={{fontSize:11,fontWeight:800,color:catColor,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:10,display:"flex",alignItems:"center",gap:8}}>
+                          <span style={{display:"inline-block",width:3,height:14,borderRadius:2,background:catColor}}/>
+                          {cat}
+                          <span style={{fontSize:10,color:"#3d4460",background:"#1a1e30",borderRadius:10,padding:"1px 6px",fontWeight:700}}>{catTools.length}</span>
+                        </div>
+                        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(420px,1fr))",gap:10}}>
+                          {catTools.map(tool=>{
+                            const key = "tool:"+tool.name;
+                            const open = refExpanded.has(key);
+                            return (
+                              <div key={tool.name} style={{
+                                borderRadius:10,background:"#12141f",
+                                border:`1px solid ${open?catColor+"30":"#1a1e30"}`,
+                                overflow:"hidden",transition:"border-color 0.15s",
+                              }}>
+                                <button onClick={()=>toggleCard(key)} style={{width:"100%",display:"flex",alignItems:"flex-start",gap:10,padding:"11px 13px",background:"transparent",border:"none",cursor:"pointer",textAlign:"left"}}>
+                                  <span style={{fontSize:18,flexShrink:0}}>{tool.emoji}</span>
+                                  <div style={{flex:1,minWidth:0}}>
+                                    <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
+                                      <span style={{fontSize:13,fontWeight:800,color:catColor}}>{hlQ(tool.name)}</span>
+                                      <span style={{fontSize:10,color:catColor,background:`${catColor}20`,borderRadius:10,padding:"1px 6px"}}>{tool.category}</span>
+                                    </div>
+                                    <div style={{fontSize:12,color:"#9aa3c0",lineHeight:1.4}}>{hlQ(tool.purpose)}</div>
+                                  </div>
+                                  <ChevronDown size={13} style={{color:"#3d4460",flexShrink:0,marginTop:2,transform:open?"rotate(0deg)":"rotate(-90deg)",transition:"transform 0.2s"}}/>
+                                </button>
+                                {open && (
+                                  <div style={{padding:"0 13px 13px",borderTop:"1px solid #1a1e30"}}>
+                                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:10}}>
+                                      <div style={{padding:"8px 10px",borderRadius:6,background:"rgba(79,142,247,0.06)",border:"1px solid rgba(79,142,247,0.12)"}}>
+                                        <div style={{fontSize:10,fontWeight:700,color:"#4f8ef7",marginBottom:4}}>📥 INPUTS</div>
+                                        <div style={{fontSize:11,color:"#7d88a8",lineHeight:1.55}}>{tool.inputs}</div>
+                                      </div>
+                                      <div style={{padding:"8px 10px",borderRadius:6,background:"rgba(52,211,153,0.06)",border:"1px solid rgba(52,211,153,0.12)"}}>
+                                        <div style={{fontSize:10,fontWeight:700,color:"#34d399",marginBottom:4}}>📤 OUTPUTS</div>
+                                        <div style={{fontSize:11,color:"#7d88a8",lineHeight:1.55}}>{tool.outputs}</div>
+                                      </div>
+                                    </div>
+                                    <div style={{marginTop:8,padding:"8px 10px",borderRadius:6,background:`${catColor}08`,border:`1px solid ${catColor}15`}}>
+                                      <div style={{fontSize:10,fontWeight:700,color:catColor,marginBottom:4}}>⚙️ KEY BEHAVIOUR</div>
+                                      <div style={{fontSize:11,color:"#7d88a8",lineHeight:1.55}}>{tool.keyBehavior}</div>
+                                    </div>
+                                    <div style={{marginTop:8}}>
+                                      <div style={{fontSize:10,fontWeight:700,color:"#4a5270",marginBottom:4}}>USED BY</div>
+                                      <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+                                        {tool.usedBy.map((u,i)=>(
+                                          <span key={i} style={{fontSize:10,color:"#5c6480",background:"#1a1e30",borderRadius:10,padding:"2px 8px"}}>{u}</span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {filteredTools.length===0 && <div style={{color:"#4a5270",fontSize:13,padding:24}}>No tools match "{refSearch}".</div>}
+                </div>
+              )}
+
+              {/* ════════ MODULES ═══════════════════════════════════════════ */}
+              {refSubTab==="modules" && (
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(460px,1fr))",gap:12}}>
+                  {filteredModules.length===0 && <div style={{color:"#4a5270",fontSize:13,gridColumn:"1/-1",padding:24}}>No modules match "{refSearch}".</div>}
+                  {filteredModules.map(mod=>{
+                    const key = "mod:"+mod.name;
+                    const open = refExpanded.has(key);
+                    return (
+                      <div key={mod.name} style={{borderRadius:10,background:"#12141f",border:`1px solid ${open?"#a78bfa30":"#1a1e30"}`,overflow:"hidden"}}>
+                        <button onClick={()=>toggleCard(key)} style={{width:"100%",display:"flex",alignItems:"flex-start",gap:10,padding:"12px 14px",background:"transparent",border:"none",cursor:"pointer",textAlign:"left"}}>
+                          <span style={{fontSize:20,flexShrink:0}}>{mod.emoji}</span>
+                          <div style={{flex:1,minWidth:0}}>
+                            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
+                              <span style={{fontSize:13,fontWeight:800,color:"#a78bfa"}}>{hlQ(mod.name)}</span>
+                            </div>
+                            <code style={{fontSize:11,color:"#4a5270",fontFamily:"monospace"}}>{mod.path}</code>
+                            <div style={{fontSize:12,color:"#9aa3c0",marginTop:3,lineHeight:1.4}}>{hlQ(mod.role)}</div>
+                          </div>
+                          <ChevronDown size={13} style={{color:"#3d4460",flexShrink:0,marginTop:2,transform:open?"rotate(0deg)":"rotate(-90deg)",transition:"transform 0.2s"}}/>
+                        </button>
+                        {open && (
+                          <div style={{padding:"0 14px 14px",borderTop:"1px solid #1a1e30"}}>
+                            <div style={{marginTop:10}}>
+                              <div style={{fontSize:10,fontWeight:700,color:"#a78bfa",marginBottom:6,textTransform:"uppercase",letterSpacing:"0.08em"}}>Key Files</div>
+                              <div style={{display:"flex",flexDirection:"column",gap:3}}>
+                                {mod.keyFiles.map((kf,i)=>(
+                                  <div key={i} style={{display:"flex",alignItems:"flex-start",gap:6}}>
+                                    <span style={{color:"#a78bfa",fontSize:10,marginTop:1,flexShrink:0}}>▸</span>
+                                    <span style={{fontSize:11,color:"#7d88a8",lineHeight:1.55}}>{kf}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                            <div style={{marginTop:10,padding:"8px 10px",borderRadius:6,background:"rgba(167,139,250,0.06)",border:"1px solid rgba(167,139,250,0.12)"}}>
+                              <div style={{fontSize:10,fontWeight:700,color:"#a78bfa",marginBottom:4}}>🔗 CONNECTS TO</div>
+                              <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+                                {mod.connects.map((c,i)=>(
+                                  <span key={i} style={{fontSize:10,color:"#6b7499",background:"#1a1e30",borderRadius:10,padding:"2px 8px"}}>{c}</span>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* ════════ COMMANDS ══════════════════════════════════════════ */}
+              {refSubTab==="commands" && (
+                <div>
+                  {Array.from(new Set(filteredCmds.map(c=>c.category))).map(cat=>{
+                    const catColor = CMD_CAT_COLOR[cat]||"#9aa3c0";
+                    const catCmds = filteredCmds.filter(c=>c.category===cat);
+                    return (
+                      <div key={cat} style={{marginBottom:22}}>
+                        <div style={{fontSize:11,fontWeight:800,color:catColor,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:8,display:"flex",alignItems:"center",gap:8}}>
+                          <span style={{display:"inline-block",width:3,height:14,borderRadius:2,background:catColor}}/>
+                          {cat}
+                          <span style={{fontSize:10,color:"#3d4460",background:"#1a1e30",borderRadius:10,padding:"1px 6px"}}>{catCmds.length}</span>
+                        </div>
+                        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(380px,1fr))",gap:8}}>
+                          {catCmds.map(cmd=>{
+                            const key="cmd:"+cmd.cmd;
+                            const open=refExpanded.has(key);
+                            return (
+                              <div key={cmd.cmd} style={{borderRadius:8,background:"#12141f",border:`1px solid ${open?catColor+"25":"#1a1e30"}`,overflow:"hidden"}}>
+                                <button onClick={()=>toggleCard(key)} style={{width:"100%",display:"flex",alignItems:"flex-start",gap:8,padding:"10px 12px",background:"transparent",border:"none",cursor:"pointer",textAlign:"left"}}>
+                                  <span style={{fontSize:16,flexShrink:0}}>{cmd.emoji}</span>
+                                  <div style={{flex:1,minWidth:0}}>
+                                    <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
+                                      <code style={{fontSize:12,fontWeight:800,color:catColor,fontFamily:"monospace"}}>{hlQ(cmd.cmd)}</code>
+                                    </div>
+                                    <div style={{fontSize:11,color:"#7d88a8",lineHeight:1.4}}>{hlQ(cmd.description)}</div>
+                                  </div>
+                                  <ChevronDown size={12} style={{color:"#3d4460",flexShrink:0,transform:open?"rotate(0deg)":"rotate(-90deg)",transition:"transform 0.2s"}}/>
+                                </button>
+                                {open && (
+                                  <div style={{padding:"8px 12px 10px",borderTop:"1px solid #1a1e30"}}>
+                                    <div style={{padding:"6px 8px",borderRadius:5,background:"#0d0f1a",border:"1px solid #1a1e30"}}>
+                                      <div style={{fontSize:9,fontWeight:700,color:"#3d4460",letterSpacing:"0.08em",marginBottom:2}}>USAGE</div>
+                                      <code style={{fontSize:11,color:"#22d3ee",fontFamily:"monospace"}}>{cmd.usage}</code>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {filteredCmds.length===0 && <div style={{color:"#4a5270",fontSize:13,padding:24}}>No commands match "{refSearch}".</div>}
+                </div>
+              )}
+
+              {/* ════════ TASK TYPES ════════════════════════════════════════ */}
+              {refSubTab==="tasks" && (
+                <div>
+                  <div style={{marginBottom:16,padding:"12px 14px",borderRadius:8,background:"rgba(244,114,182,0.06)",border:"1px solid rgba(244,114,182,0.15)"}}>
+                    <div style={{fontSize:12,color:"#9aa3c0",lineHeight:1.7}}>
+                      Claude Code has <strong style={{color:"#f472b6"}}>6 task types</strong> — all implement a common <code style={{background:"#1a1e30",padding:"1px 5px",borderRadius:3,fontSize:11}}>Task</code> interface with <code style={{background:"#1a1e30",padding:"1px 5px",borderRadius:3,fontSize:11}}>id</code>, <code style={{background:"#1a1e30",padding:"1px 5px",borderRadius:3,fontSize:11}}>type</code>, <code style={{background:"#1a1e30",padding:"1px 5px",borderRadius:3,fontSize:11}}>status</code>, and a universal <code style={{background:"#1a1e30",padding:"1px 5px",borderRadius:3,fontSize:11}}>kill()</code> method. Long-running tasks write output to per-task files; TaskOutputTool polls for new bytes.
+                    </div>
+                  </div>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(500px,1fr))",gap:14}}>
+                    {filteredTasks.length===0 && <div style={{color:"#4a5270",fontSize:13,padding:24,gridColumn:"1/-1"}}>No task types match "{refSearch}".</div>}
+                    {filteredTasks.map(task=>{
+                      const key="task:"+task.name;
+                      const open=refExpanded.has(key)||!q;
+                      return (
+                        <div key={task.name} style={{borderRadius:12,background:"#12141f",border:"1px solid #1e2237",overflow:"hidden"}}>
+                          <button onClick={()=>toggleCard(key)} style={{width:"100%",display:"flex",alignItems:"flex-start",gap:12,padding:"14px 16px",background:"transparent",border:"none",cursor:"pointer",textAlign:"left"}}>
+                            <span style={{fontSize:28,flexShrink:0}}>{task.emoji}</span>
+                            <div style={{flex:1,minWidth:0}}>
+                              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+                                <span style={{fontSize:14,fontWeight:900,color:"#f472b6"}}>{hlQ(task.name)}</span>
+                                <span style={{fontSize:10,color:"#f472b6",background:"rgba(244,114,182,0.15)",borderRadius:10,padding:"1px 8px",fontFamily:"monospace",fontWeight:700}}>ID prefix: {task.shortId}…</span>
+                              </div>
+                              <div style={{fontSize:12,color:"#9aa3c0",lineHeight:1.5}}>{hlQ(task.purpose)}</div>
+                            </div>
+                            <ChevronDown size={14} style={{color:"#3d4460",flexShrink:0,marginTop:4,transform:open?"rotate(0deg)":"rotate(-90deg)",transition:"transform 0.2s"}}/>
+                          </button>
+                          {open && (
+                            <div style={{padding:"0 16px 16px",borderTop:"1px solid #1a1e30"}}>
+                              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginTop:12}}>
+                                <div style={{padding:"10px 12px",borderRadius:8,background:"rgba(248,113,113,0.06)",border:"1px solid rgba(248,113,113,0.12)"}}>
+                                  <div style={{fontSize:10,fontWeight:700,color:"#f87171",marginBottom:5,textTransform:"uppercase",letterSpacing:"0.07em"}}>🛑 Kill Mechanism</div>
+                                  <div style={{fontSize:11,color:"#7d88a8",lineHeight:1.6}}>{task.killMechanism}</div>
+                                </div>
+                                <div style={{padding:"10px 12px",borderRadius:8,background:"rgba(52,211,153,0.06)",border:"1px solid rgba(52,211,153,0.12)"}}>
+                                  <div style={{fontSize:10,fontWeight:700,color:"#34d399",marginBottom:5,textTransform:"uppercase",letterSpacing:"0.07em"}}>📤 Output Method</div>
+                                  <div style={{fontSize:11,color:"#7d88a8",lineHeight:1.6}}>{task.outputMethod}</div>
+                                </div>
+                              </div>
+                              <div style={{marginTop:10}}>
+                                <div style={{fontSize:10,fontWeight:700,color:"#4a5270",marginBottom:5,textTransform:"uppercase",letterSpacing:"0.07em"}}>Used By</div>
+                                <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+                                  {task.usedBy.map((u,i)=>(
+                                    <span key={i} style={{fontSize:10,color:"#6b7499",background:"#1a1e30",borderRadius:10,padding:"2px 9px"}}>{u}</span>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── BEGINNER GUIDE TAB ─────────────────────────────────────────────── */}
       {pageTab === "learn" && (
