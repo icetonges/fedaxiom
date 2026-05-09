@@ -69,15 +69,95 @@ const FILE_TREE: TreeNode[] = [
       { name: "shared",             type: "dir", desc: "Shared tool utilities: permission checking, diff formatting, error types" },
       { name: "utils.ts",           type: "file", lines: 120, desc: "Cross-tool helper functions: input sanitization, timeout wrappers" },
     ]},
-    { name: "services", type: "dir", children: [
-      { name: "api",       type: "dir", desc: "Anthropic Claude SDK — streaming, cost, retry" },
-      { name: "mcp",       type: "dir", desc: "MCP server lifecycle — auth, dynamic tools" },
-      { name: "autoDream", type: "dir", desc: "Background memory consolidation (DreamTask)" },
-      { name: "oauth",     type: "dir", desc: "GitHub / Google OAuth providers" },
-      { name: "compact",   type: "dir", desc: "Message history compaction & context snipping" },
-      { name: "lsp",       type: "dir", desc: "Language Server Protocol for code navigation" },
-      { name: "analytics", type: "dir", desc: "GrowthBook feature gates & telemetry" },
-      { name: "plugins",   type: "dir", desc: "Plugin lifecycle: discovery, versioning, cache" },
+    { name: "services", type: "dir", desc: "8 service directories — the integration layer between Claude Code and external systems", children: [
+      { name: "api", type: "dir", desc: "20 files — Anthropic Claude SDK wrapper: streaming, retry, cost tracking, prompt cache, session ingress", children: [
+        { name: "claude.ts",                  type: "file", lines: 3419, desc: "Core streaming API client — handles SSE, token counting, cost attribution, retry logic" },
+        { name: "withRetry.ts",               type: "file", lines: 822,  desc: "Retry wrapper with exponential backoff, jitter, and 429/529 rate-limit handling" },
+        { name: "logging.ts",                 type: "file", lines: 788,  desc: "API call logging to .claude/logs/ — records full request/response for debugging" },
+        { name: "filesApi.ts",                type: "file", lines: 748,  desc: "Files API client — upload/download files for vision and document tool calls" },
+        { name: "promptCacheBreakDetection.ts", type: "file", lines: 727, desc: "Detects when prompt cache is broken mid-session and warns the user" },
+        { name: "errors.ts",                  type: "file", lines: 1207, desc: "API error hierarchy: RateLimitError, AuthError, NetworkError with recovery guidance" },
+        { name: "sessionIngress.ts",          type: "file", lines: 514,  desc: "Session ingress API — bridge session assignment and credential exchange" },
+        { name: "client.ts",                  type: "file", lines: 389,  desc: "Thin Anthropic SDK client wrapper: auth header injection, base URL config, TLS" },
+        { name: "grove.ts",                   type: "file", lines: 357,  desc: "Grove (Anthropic internal cloud) API client for team billing and session management" },
+        { name: "errorUtils.ts",              type: "file", lines: 260,  desc: "Error classification helpers: isRateLimit(), isAuthError(), isNetworkError()" },
+        { name: "dumpPrompts.ts",             type: "file", lines: 226,  desc: "Debug utility to dump full prompts to disk when CLAUDE_DEBUG_DUMP_PROMPTS=1" },
+        { name: "bootstrap.ts",               type: "file", lines: 141,  desc: "API service bootstrap: validate credentials, test connection, set base URL" },
+        { name: "adminRequests.ts",           type: "file", lines: 119,  desc: "Internal admin API requests for Anthropic team features" },
+        { name: "overageCreditGrant.ts",      type: "file", lines: 137,  desc: "Handles auto-grant of overage credits when usage limit is reached" },
+        { name: "referral.ts",                type: "file", lines: 281,  desc: "Referral code redemption and affiliate tracking API client" },
+        { name: "metricsOptOut.ts",           type: "file", lines: 159,  desc: "Checks user's telemetry opt-out preference before sending any metrics" },
+        { name: "usage.ts",                   type: "file", lines: 63,   desc: "Fetches usage stats (tokens, cost) from the billing API" },
+        { name: "ultrareviewQuota.ts",        type: "file", lines: 38,   desc: "Checks remaining ultrareview quota before running a code review" },
+        { name: "firstTokenDate.ts",          type: "file", lines: 60,   desc: "Records the date of the user's first API token consumption" },
+        { name: "emptyUsage.ts",              type: "file", lines: 22,   desc: "Empty ModelUsage constant for tool calls that don't consume tokens" },
+      ]},
+      { name: "mcp", type: "dir", desc: "22 files — full MCP client: OAuth, dynamic tool registration, multi-server management, SSE transport", children: [
+        { name: "client.ts",               type: "file", lines: 3348, desc: "MCP protocol client — connects, authenticates, discovers tools, executes them" },
+        { name: "auth.ts",                 type: "file", lines: 2465, desc: "MCP OAuth 2.0 flow — browser-based auth with PKCE, token storage, refresh" },
+        { name: "config.ts",               type: "file", lines: 1578, desc: "MCP server configuration management — discovery, persistence, validation" },
+        { name: "useManageMCPConnections.ts", type: "file", lines: 1141, desc: "React hook managing the full MCP connection lifecycle in the UI" },
+        { name: "xaa.ts",                  type: "file", lines: 511,  desc: "XAA (Anthropic's official MCP registry) integration — search, install, uninstall" },
+        { name: "xaaIdpLogin.ts",          type: "file", lines: 487,  desc: "XAA identity provider login — authenticates with the MCP registry" },
+        { name: "utils.ts",                type: "file", lines: 575,  desc: "MCP utility functions: tool name normalisation, result formatting, error mapping" },
+        { name: "elicitationHandler.ts",   type: "file", lines: 313,  desc: "Handles MCP elicitation (follow-up question) requests from MCP servers" },
+        { name: "channelNotification.ts",  type: "file", lines: 316,  desc: "MCP server notification routing — broadcasts server events to subscribers" },
+        { name: "channelPermissions.ts",   type: "file", lines: 240,  desc: "Per-channel permission rules for MCP tool calls" },
+        { name: "types.ts",                type: "file", lines: 258,  desc: "MCP type definitions: MCPServerConnection, ConnectedMCPServer, MCPTool" },
+        { name: "SdkControlTransport.ts",  type: "file", lines: 136,  desc: "In-process transport for SDK-mode MCP servers (no network)" },
+        { name: "claudeai.ts",             type: "file", lines: 164,  desc: "Claude.ai workspace MCP server integration" },
+        { name: "headersHelper.ts",        type: "file", lines: 138,  desc: "MCP request header construction: auth, content-type, trace IDs" },
+        { name: "MCPConnectionManager.tsx", type: "file", lines: 72,   desc: "React component managing MCP connection status display" },
+      ]},
+      { name: "analytics", type: "dir", desc: "9 files — GrowthBook feature flags, first-party event logging, Datadog telemetry, opt-out", children: [
+        { name: "growthbook.ts",                    type: "file", lines: 1155, desc: "GrowthBook SDK wrapper — feature flags, A/B experiments, live config updates" },
+        { name: "metadata.ts",                      type: "file", lines: 973,  desc: "Session and user metadata attached to all telemetry events" },
+        { name: "firstPartyEventLoggingExporter.ts", type: "file", lines: 806, desc: "OpenTelemetry exporter that sends first-party events to Anthropic's analytics pipeline" },
+        { name: "firstPartyEventLogger.ts",         type: "file", lines: 449,  desc: "Typed event logger: logs tool calls, session starts, errors with structured fields" },
+        { name: "datadog.ts",                       type: "file", lines: 307,  desc: "Datadog metrics integration for performance monitoring (Ant-internal)" },
+        { name: "index.ts",                         type: "file", lines: 173,  desc: "Analytics service init — bootstraps GrowthBook, sets up exporters, checks opt-out" },
+        { name: "sink.ts",                          type: "file", lines: 114,  desc: "Analytics event sink — buffers events and flushes them periodically" },
+        { name: "config.ts",                        type: "file", lines: 38,   desc: "Analytics configuration: endpoint URLs, flush intervals, sampling rates" },
+        { name: "sinkKillswitch.ts",                type: "file", lines: 25,   desc: "Emergency killswitch to disable all analytics sinks at runtime" },
+      ]},
+      { name: "compact", type: "dir", desc: "11 files — conversation compaction: auto-compact, micro-compact, session memory consolidation", children: [
+        { name: "compact.ts",            type: "file", lines: 1705, desc: "Full compaction: summarises conversation history to free context window space" },
+        { name: "sessionMemoryCompact.ts", type: "file", lines: 630, desc: "Session memory compaction — distils long sessions into persistent memory entries" },
+        { name: "microCompact.ts",       type: "file", lines: 530,  desc: "Micro-compaction: lightweight per-turn message collapsing without LLM call" },
+        { name: "autoCompact.ts",        type: "file", lines: 351,  desc: "Auto-compact trigger: monitors context usage and fires compaction at threshold" },
+        { name: "prompt.ts",             type: "file", lines: 374,  desc: "Compaction prompt templates — instructs the LLM how to summarise history" },
+        { name: "apiMicrocompact.ts",    type: "file", lines: 153,  desc: "API-side micro-compaction for remote sessions" },
+        { name: "grouping.ts",           type: "file", lines: 63,   desc: "Groups related messages (tool call + result pairs) before compaction" },
+        { name: "postCompactCleanup.ts", type: "file", lines: 77,   desc: "Cleans up AppState after compaction: resets scroll, updates cost display" },
+        { name: "timeBasedMCConfig.ts",  type: "file", lines: 43,   desc: "Time-based micro-compact configuration (compact after N minutes idle)" },
+      ]},
+      { name: "lsp", type: "dir", desc: "7 files — Language Server Protocol client: hover, diagnostics, definition, auto-start", children: [
+        { name: "LSPServerInstance.ts",     type: "file", lines: 511, desc: "Manages a single LSP server process: start, restart, send requests, handle responses" },
+        { name: "LSPServerManager.ts",      type: "file", lines: 420, desc: "Multi-language LSP manager — discovers and starts the right LSP for each file type" },
+        { name: "LSPClient.ts",             type: "file", lines: 447, desc: "LSP JSON-RPC client — sends hover/definition/diagnostic requests to language servers" },
+        { name: "LSPDiagnosticRegistry.ts", type: "file", lines: 386, desc: "Caches and queries LSP diagnostics (errors, warnings) for files in the session" },
+        { name: "passiveFeedback.ts",       type: "file", lines: 328, desc: "Passively collects LSP feedback (errors before/after edits) for quality metrics" },
+        { name: "manager.ts",               type: "file", lines: 289, desc: "Top-level LSP service: initialise, route requests, aggregate results" },
+        { name: "config.ts",                type: "file", lines: 79,  desc: "LSP server configuration per language: command, args, file extensions" },
+      ]},
+      { name: "oauth", type: "dir", desc: "5 files — OAuth 2.0 with PKCE for Console login and API key auth", children: [
+        { name: "client.ts",             type: "file", lines: 566, desc: "OAuth 2.0 client with PKCE: auth code exchange, token refresh, revocation" },
+        { name: "auth-code-listener.ts", type: "file", lines: 211, desc: "Local HTTP server that listens for the OAuth redirect callback on localhost" },
+        { name: "index.ts",              type: "file", lines: 198, desc: "OAuth service entry point: initiates flow, stores tokens, exports getAccessToken()" },
+        { name: "getOauthProfile.ts",    type: "file", lines: 53,  desc: "Fetches user profile (email, name) from the OAuth userinfo endpoint" },
+        { name: "crypto.ts",             type: "file", lines: 23,  desc: "PKCE code verifier/challenge generation using Web Crypto API" },
+      ]},
+      { name: "plugins", type: "dir", desc: "3 files — plugin lifecycle: install, validate, sandbox, execute built-in and third-party plugins", children: [
+        { name: "pluginOperations.ts",    type: "file", lines: 1088, desc: "Full plugin lifecycle: discover, download, verify signature, install, activate, uninstall" },
+        { name: "pluginCliCommands.ts",   type: "file", lines: 344,  desc: "CLI commands for plugin management: /plugin install, list, remove, update" },
+        { name: "PluginInstallationManager.ts", type: "file", lines: 184, desc: "UI component managing plugin installation progress with status updates" },
+      ]},
+      { name: "autoDream", type: "dir", desc: "4 files — background memory consolidation: DreamTask that distils session facts into MEMORY.md", children: [
+        { name: "autoDream.ts",          type: "file", lines: 324, desc: "DreamTask: runs after each session, extracts key facts via LLM, appends to MEMORY.md" },
+        { name: "consolidationLock.ts",  type: "file", lines: 140, desc: "File-level lock preventing concurrent dream consolidations from corrupting MEMORY.md" },
+        { name: "consolidationPrompt.ts",type: "file", lines: 65,  desc: "Prompt template instructing Claude to extract memorable facts from session history" },
+        { name: "config.ts",             type: "file", lines: 21,  desc: "autoDream configuration: min session length, max facts per run, schedule" },
+      ]},
     ]},
     { name: "bridge", type: "dir", desc: "Remote Control bridge — 31 files, SSE+HTTP+JWT, session tunneling & transport", children: [
       { name: "bridgeMain.ts",              type: "file", lines: 2809, desc: "Main bridge core orchestrator — poll loops, session lifecycle, transport management" },
@@ -268,22 +348,205 @@ const FILE_TREE: TreeNode[] = [
       { name: "PressEnterToContinue.tsx",   type: "file", lines: 15,   desc: "Simple prompt to press Enter to continue" },
       { name: "SentryErrorBoundary.ts",     type: "file", lines: 22,   desc: "Error boundary wrapper for Sentry error reporting" },
     ]},
-    { name: "utils", type: "dir", desc: "100+ utility modules across 15 domains", children: [
-      { name: "permissions", type: "dir", desc: "Tool permission rules & enforcement engine" },
-      { name: "messages",    type: "dir", desc: "SDK↔internal type normalization & mappers" },
-      { name: "git",         type: "dir", desc: "Git & GitHub integration utilities" },
-      { name: "shell",       type: "dir", desc: "Shell execution with sandbox & timeout" },
-      { name: "model",       type: "dir", desc: "Model string parsing & context window math" },
-      { name: "settings",    type: "dir", desc: "Config loading: MDM, keychain, env vars" },
-      { name: "undercover.ts", type: "file", lines: 85, desc: "Blocks internal Anthropic codenames" },
+    { name: "utils", type: "dir", desc: "200+ utility modules across 20 domains — the shared library powering every subsystem", children: [
+      { name: "permissions", type: "dir", desc: "24 files — permission rules, filesystem sandbox, path validation, yolo/auto classifiers, permission setup", children: [
+        { name: "permissions.ts",              type: "file", lines: 1486, desc: "Core permission evaluation engine — checks tool calls against all rules and modes" },
+        { name: "permissionSetup.ts",          type: "file", lines: 1532, desc: "Permission configuration UI and initial setup wizard logic" },
+        { name: "filesystem.ts",               type: "file", lines: 1777, desc: "Filesystem sandbox — allowed path resolution, scratchpad, worktree path management" },
+        { name: "yoloClassifier.ts",           type: "file", lines: 1495, desc: "Auto-mode classifier — decides if a command is safe enough to run without asking" },
+        { name: "pathValidation.ts",           type: "file", lines: 485,  desc: "Validates file paths against sandbox rules, detects traversal attacks" },
+        { name: "PermissionUpdate.ts",         type: "file", lines: 389,  desc: "Permission update events — tracks how rules change during a session" },
+        { name: "permissionsLoader.ts",        type: "file", lines: 296,  desc: "Loads permission rules from settings, MDM, and env vars into a unified rule set" },
+        { name: "permissionExplainer.ts",      type: "file", lines: 250,  desc: "Generates human-readable explanations of why a permission was granted or denied" },
+        { name: "shadowedRuleDetection.ts",    type: "file", lines: 228,  desc: "Detects when a broad allow rule shadows a narrower deny rule (potential security issue)" },
+        { name: "shellRuleMatching.ts",        type: "file", lines: 228,  desc: "Matches bash commands against shell permission rules using AST analysis" },
+        { name: "permissionRuleParser.ts",     type: "file", lines: 198,  desc: "Parses permission rule strings (e.g. 'Bash(git *)', 'FileEdit(src/**)')" },
+        { name: "bypassPermissionsKillswitch.ts", type: "file", lines: 155, desc: "Emergency killswitch for bypass-permissions mode — reverts to safe defaults" },
+        { name: "PermissionMode.ts",           type: "file", lines: 141,  desc: "PermissionMode type + transitions: default → auto → bypass_permissions → plan_mode" },
+        { name: "PermissionPromptToolResultSchema.ts", type: "file", lines: 127, desc: "Zod schema for the permission-prompt tool result that the agent returns after approval" },
+        { name: "classifierDecision.ts",       type: "file", lines: 98,   desc: "Classifier decision record: tool name, decision, reasoning, confidence" },
+        { name: "bashClassifier.ts",           type: "file", lines: 61,   desc: "Classifies bash commands as safe/unsafe using pattern matching + AST" },
+        { name: "dangerousPatterns.ts",        type: "file", lines: 80,   desc: "Regex patterns for inherently dangerous shell commands (rm -rf, curl|sh, etc.)" },
+        { name: "PermissionUpdateSchema.ts",   type: "file", lines: 78,   desc: "Zod schema for PermissionUpdate events" },
+        { name: "getNextPermissionMode.ts",    type: "file", lines: 101,  desc: "State machine for permission mode transitions on user input" },
+        { name: "autoModeState.ts",            type: "file", lines: 39,   desc: "Tracks current auto-mode approval state across the session" },
+        { name: "PermissionResult.ts",         type: "file", lines: 35,   desc: "PermissionResult: allow | deny | ask with optional reason string" },
+        { name: "PermissionRule.ts",           type: "file", lines: 40,   desc: "PermissionRule type: tool glob, path glob, always-allow flag" },
+        { name: "classifierShared.ts",         type: "file", lines: 39,   desc: "Shared types and constants for auto-mode and yolo classifiers" },
+        { name: "denialTracking.ts",           type: "file", lines: 45,   desc: "Tracks denial events for analytics and auto-mode learning" },
+      ]},
+      { name: "messages", type: "dir", desc: "2 files — SDK↔internal message type normalisation and mappers", children: [
+        { name: "mappers.ts",   type: "file", lines: 290, desc: "Maps between Anthropic SDK message types and Claude Code's internal Message types" },
+        { name: "systemInit.ts",type: "file", lines: 96,  desc: "Builds the initial system message array for a new conversation" },
+      ]},
+      { name: "git", type: "dir", desc: "3 files — git filesystem operations, config parsing, gitignore checking", children: [
+        { name: "gitFilesystem.ts",   type: "file", lines: 699, desc: "Git repo operations: diff, log, status, branch, worktree creation/deletion" },
+        { name: "gitConfigParser.ts", type: "file", lines: 277, desc: "Parses .git/config and ~/.gitconfig for user name, email, remote URLs" },
+        { name: "gitignore.ts",       type: "file", lines: 99,  desc: "Checks if a path is gitignored — used to skip files in code indexing" },
+      ]},
+      { name: "shell", type: "dir", desc: "10 files — shell detection, bash/PowerShell providers, read-only command validation", children: [
+        { name: "readOnlyCommandValidation.ts", type: "file", lines: 1893, desc: "Validates that a bash command is truly read-only (no writes, no network, no side effects)" },
+        { name: "bashProvider.ts",              type: "file", lines: 255,  desc: "Bash shell provider — resolves bash path, sets safe env, runs commands" },
+        { name: "prefix.ts",                    type: "file", lines: 367,  desc: "Shell prefix injection — prepends safety wrappers to dangerous commands" },
+        { name: "specPrefix.ts",                type: "file", lines: 241,  desc: "Spec-mode prefix injection for sandboxed execution" },
+        { name: "powershellProvider.ts",        type: "file", lines: 123,  desc: "PowerShell provider — resolves pwsh/powershell path, runs PS commands" },
+        { name: "powershellDetection.ts",       type: "file", lines: 107,  desc: "Detects PowerShell version and availability on the current system" },
+        { name: "shellProvider.ts",             type: "file", lines: 33,   desc: "Shell provider interface — abstraction for bash vs PowerShell" },
+        { name: "shellToolUtils.ts",            type: "file", lines: 22,   desc: "Shared utilities for shell tool implementations" },
+        { name: "resolveDefaultShell.ts",       type: "file", lines: 14,   desc: "Resolves the default shell for the current platform" },
+        { name: "outputLimits.ts",              type: "file", lines: 14,   desc: "Output size limits for shell commands (max bytes before truncation)" },
+      ]},
+      { name: "model", type: "dir", desc: "16 files — model string parsing, context windows, cost, aliases, Bedrock/vertex support", children: [
+        { name: "model.ts",               type: "file", lines: 618, desc: "Canonical model ID parsing, getMarketingName(), getContextWindow(), getDefaultModel()" },
+        { name: "modelOptions.ts",        type: "file", lines: 540, desc: "All model options: temperature, top_p, max_tokens, thinking budget per model" },
+        { name: "bedrock.ts",             type: "file", lines: 265, desc: "AWS Bedrock model ID mapping and endpoint configuration" },
+        { name: "modelAllowlist.ts",      type: "file", lines: 170, desc: "Enterprise-configurable model allowlist — restricts which models users can choose" },
+        { name: "modelStrings.ts",        type: "file", lines: 166, desc: "All canonical model ID string constants (claude-opus-4-7, claude-sonnet-4-6, etc.)" },
+        { name: "agent.ts",               type: "file", lines: 157, desc: "Agent-specific model selection logic — sub-agents use a different default than main" },
+        { name: "validateModel.ts",       type: "file", lines: 159, desc: "Validates model IDs: checks against allowlist, deprecation list, and availability" },
+        { name: "modelCapabilities.ts",   type: "file", lines: 118, desc: "Per-model capability flags: supportsThinking, supportsFastMode, supportsVision" },
+        { name: "configs.ts",             type: "file", lines: 118, desc: "Model configuration objects: API params, prompt caching, interleaved thinking config" },
+        { name: "deprecation.ts",         type: "file", lines: 101, desc: "Deprecated model ID list with sunset dates and migration guidance" },
+        { name: "aliases.ts",             type: "file", lines: 25,  desc: "User-friendly model aliases: 'opus' → 'claude-opus-4-7', 'sonnet' → latest Sonnet" },
+        { name: "antModels.ts",           type: "file", lines: 64,  desc: "Anthropic-internal model IDs (codenames, pre-release) gated behind dev channels" },
+        { name: "check1mAccess.ts",       type: "file", lines: 72,  desc: "Checks subscription tier access to 1M-context models" },
+        { name: "contextWindowUpgradeCheck.ts", type: "file", lines: 47, desc: "Detects when a user could upgrade to a larger context window model" },
+        { name: "modelSupportOverrides.ts", type: "file", lines: 50, desc: "Per-account model support overrides from billing API" },
+        { name: "providers.ts",           type: "file", lines: 40,  desc: "Model provider enum: anthropic, bedrock, vertex" },
+      ]},
+      { name: "settings", type: "dir", desc: "15 entries — config loading, MDM, validation, type definitions, change detection", children: [
+        { name: "settings.ts",           type: "file", lines: 1015, desc: "Main settings loader — reads .claude/settings.json, ~/.claude.json, MDM, env vars with priority merge" },
+        { name: "types.ts",              type: "file", lines: 1148, desc: "All settings type definitions: UserSettings, ProjectSettings, GlobalSettings, MDMSettings" },
+        { name: "changeDetector.ts",     type: "file", lines: 488,  desc: "File watcher that detects settings changes mid-session and triggers live reload" },
+        { name: "permissionValidation.ts", type: "file", lines: 262, desc: "Validates permission rules in settings for syntax errors and semantic conflicts" },
+        { name: "validation.ts",         type: "file", lines: 265,  desc: "Full settings object validation with detailed error messages per field" },
+        { name: "validationTips.ts",     type: "file", lines: 164,  desc: "Human-readable tips for common settings validation errors" },
+        { name: "constants.ts",          type: "file", lines: 202,  desc: "Settings-related string constants: file paths, env var names, default values" },
+        { name: "applySettingsChange.ts",type: "file", lines: 92,   desc: "Applies incremental settings changes to the running session without restart" },
+        { name: "settingsCache.ts",      type: "file", lines: 80,   desc: "Memoization cache for settings reads — invalidated by setState() in bootstrap" },
+        { name: "toolValidationConfig.ts", type: "file", lines: 103, desc: "Per-tool validation configuration for settings-based tool restrictions" },
+        { name: "mdm",                   type: "dir",               desc: "MDM (Mobile Device Management) policy loader for enterprise-managed settings" },
+        { name: "pluginOnlyPolicy.ts",   type: "file", lines: 60,   desc: "Enterprise policy restricting Claude Code to plugin-provided tools only" },
+        { name: "allErrors.ts",          type: "file", lines: 32,   desc: "Aggregates all validation errors across settings files" },
+        { name: "internalWrites.ts",     type: "file", lines: 37,   desc: "Internal settings write helpers (used by Claude Code itself, not user code)" },
+        { name: "managedPath.ts",        type: "file", lines: 34,   desc: "Resolves managed settings file paths for MDM-controlled configurations" },
+      ]},
+      { name: "bash", type: "dir", desc: "11 entries — full bash AST parser, command analysis, shell completion, heredoc handling", children: [
+        { name: "bashParser.ts",       type: "file", lines: 4436, desc: "Complete bash parser producing an AST — used for safe command analysis and injection detection" },
+        { name: "ast.ts",              type: "file", lines: 2679, desc: "Bash AST node types and visitor pattern for static analysis" },
+        { name: "commands.ts",         type: "file", lines: 1339, desc: "Command-level analysis: extracts subcommands, flags, arguments from parsed AST" },
+        { name: "heredoc.ts",          type: "file", lines: 733,  desc: "Heredoc parsing and expansion — handles <<EOF, <<'EOF', <<-EOF syntax" },
+        { name: "ShellSnapshot.ts",    type: "file", lines: 582,  desc: "Captures shell environment state before/after command for diff analysis" },
+        { name: "shellCompletion.ts",  type: "file", lines: 259,  desc: "Shell tab-completion for partially typed commands in the typeahead" },
+        { name: "shellQuote.ts",       type: "file", lines: 304,  desc: "Safe shell quoting — escapes arguments to prevent injection" },
+        { name: "ParsedCommand.ts",    type: "file", lines: 318,  desc: "Parsed command representation with type guards for different command forms" },
+        { name: "bashPipeCommand.ts",  type: "file", lines: 294,  desc: "Pipeline-specific analysis — extracts commands in pipe chains" },
+        { name: "treeSitterAnalysis.ts", type: "file", lines: 506, desc: "Tree-sitter backed deep analysis for complex bash constructs" },
+        { name: "specs",               type: "dir",               desc: "Test fixtures and specification files for bash parser edge cases" },
+      ]},
+      { name: "suggestions", type: "dir", desc: "5 files — typeahead suggestion backends: commands, directories, shell history, Slack, skill tracking", children: [
+        { name: "commandSuggestions.ts",    type: "file", lines: 567, desc: "Slash-command suggestions: fuzzy match, argument hints, description display" },
+        { name: "directoryCompletion.ts",   type: "file", lines: 263, desc: "Directory and file path completion for @file syntax in the prompt" },
+        { name: "slackChannelSuggestions.ts", type: "file", lines: 209, desc: "Suggests Slack channel names from connected MCP server on #channel typing" },
+        { name: "shellHistoryCompletion.ts",type: "file", lines: 119, desc: "Recalls shell history entries matching current prefix" },
+        { name: "skillUsageTracking.ts",    type: "file", lines: 55,  desc: "Tracks which skills are used to surface frequently-used skills in typeahead" },
+      ]},
+      { name: "sandbox", type: "dir", desc: "2 files — sandbox adapter for restricted execution environments", children: [
+        { name: "sandbox-adapter.ts",    type: "file", lines: 985, desc: "Adapts tool calls to run inside a sandbox (Docker/sysbox) with restricted filesystem and network" },
+        { name: "sandbox-ui-utils.ts",   type: "file", lines: 12,  desc: "UI utilities for displaying sandbox status and violation messages" },
+      ]},
+      { name: "mcp", type: "dir", desc: "2 files — MCP date/time parsing and elicitation (follow-up question) validation", children: [
+        { name: "elicitationValidation.ts", type: "file", lines: 336, desc: "Validates MCP elicitation (structured follow-up question) payloads against JSON Schema" },
+        { name: "dateTimeParser.ts",        type: "file", lines: 121, desc: "Parses ISO 8601 and natural-language date/time strings from MCP tool parameters" },
+      ]},
+      // ── Top-level utils files (selection of most important) ────────────────
+      { name: "sideQuery.ts",      type: "file", lines: 90,  desc: "Runs a quick LLM call outside the main conversation (for memory selection, classification)" },
+      { name: "sessionStorage.ts", type: "file", lines: 180, desc: "Reads and writes session NDJSON log files — the persistence layer for all conversations" },
+      { name: "format.ts",         type: "file", lines: 160, desc: "Message formatting utilities: truncate, wrap, align, strip ANSI" },
+      { name: "diff.ts",           type: "file", lines: 145, desc: "Text diff utilities: Myers diff, chunk extraction, unified format" },
+      { name: "errors.ts",         type: "file", lines: 95,  desc: "Error type hierarchy: ToolError, PermissionError, NetworkError with rich context" },
+      { name: "signal.ts",         type: "file", lines: 88,  desc: "AbortSignal utilities: combineSignals(), createSignal(), withTimeout()" },
+      { name: "env.ts",            type: "file", lines: 75,  desc: "Typed environment variable accessors with defaults and validation" },
+      { name: "undercover.ts",     type: "file", lines: 85,  desc: "Blocks internal Anthropic codenames from appearing in model lists" },
+      { name: "cwd.ts",            type: "file", lines: 55,  desc: "getCwd() — reads the current working directory from AppState (not process.cwd())" },
+      { name: "crypto.ts",         type: "file", lines: 30,  desc: "randomUUID() wrapper that works in both Node and browser-sdk environments" },
+      { name: "debug.ts",          type: "file", lines: 65,  desc: "logForDebugging() — writes to .claude/logs/ when DEBUG=1, no-op otherwise" },
+      { name: "sleep.ts",          type: "file", lines: 12,  desc: "sleep(ms): Promise<void> — promisified setTimeout" },
+      { name: "xml.ts",            type: "file", lines: 45,  desc: "XML tag helpers for wrapping/unwrapping tool results in structured XML" },
+      { name: "hash.ts",           type: "file", lines: 40,  desc: "FNV-1a and SHA-256 hash utilities for cache keys and fingerprinting" },
     ]},
-    { name: "commands", type: "dir", desc: "70+ CLI subcommands", children: [
-      { name: "session",  type: "dir", desc: "session, resume, rewind, teleport" },
-      { name: "review",   type: "dir", desc: "PR review, diff, export" },
-      { name: "model",    type: "dir", desc: "Model selection & config" },
-      { name: "mcp",      type: "dir", desc: "MCP server management" },
-      { name: "agents",   type: "dir", desc: "Agent spawning & monitoring" },
-      { name: "doctor",   type: "dir", desc: "Environment health checks" },
+    { name: "commands", type: "dir", desc: "100+ CLI subcommands & slash-commands — every /command and CLI verb is a directory or file here", children: [
+      // ── Session management ───────────────────────────────────────────────
+      { name: "session",   type: "dir", desc: "2 files — /session list/switch/info command UI and routing" },
+      { name: "resume",    type: "dir", desc: "Resume a previous session by ID or fuzzy title search" },
+      { name: "rewind",    type: "dir", desc: "Rewind the current session to a previous turn" },
+      { name: "teleport",  type: "dir", desc: "Teleport: clone current session state to a new worktree" },
+      // ── Code review & PR ────────────────────────────────────────────────
+      { name: "review",    type: "dir", desc: "4 files — /ultrareview PR review + remote review runner" },
+      { name: "diff",      type: "dir", desc: "Show git diff as context for the current conversation" },
+      { name: "export",    type: "dir", desc: "Export conversation transcript to Markdown or JSON" },
+      { name: "pr_comments", type: "dir", desc: "Fetch and display GitHub PR comments as context" },
+      { name: "autofix-pr",  type: "dir", desc: "Auto-fix CI failures on a pull request" },
+      // ── Model & effort ───────────────────────────────────────────────────
+      { name: "model",     type: "dir", desc: "3 files — /model switch (picker UI) and model info display" },
+      { name: "effort",    type: "dir", desc: "Set the thinking effort level (low/medium/high/max)" },
+      { name: "fast",      type: "dir", desc: "Toggle fast mode (reduced thinking for quick responses)" },
+      // ── MCP server management ────────────────────────────────────────────
+      { name: "mcp",       type: "dir", desc: "4 files — /mcp list/add/remove/auth MCP server commands" },
+      // ── Agent management ─────────────────────────────────────────────────
+      { name: "agents",    type: "dir", desc: "2 files — /agents list command to show active sub-agents" },
+      { name: "tasks",     type: "dir", desc: "List and manage background tasks (/tasks, /task stop <id>)" },
+      // ── Environment & health ─────────────────────────────────────────────
+      { name: "doctor",    type: "dir", desc: "2 files — /doctor health check, routes to screens/Doctor.tsx" },
+      { name: "env",       type: "dir", desc: "Show/set environment variables for the current session" },
+      { name: "debug-tool-call", type: "dir", desc: "Debug a specific tool call by replaying it with logging" },
+      // ── Configuration ────────────────────────────────────────────────────
+      { name: "config",    type: "dir", desc: "Read/write .claude/settings.json and ~/.claude.json" },
+      { name: "keybindings", type: "dir", desc: "List and test keyboard shortcut bindings" },
+      { name: "output-style", type: "dir", desc: "Switch output style (detailed, concise, auto)" },
+      { name: "theme",     type: "dir", desc: "Switch colour theme with live preview" },
+      { name: "hooks",     type: "dir", desc: "Manage PreToolUse/PostToolUse/Stop hooks" },
+      { name: "permissions", type: "dir", desc: "Manage alwaysAllow/alwaysDeny permission rules" },
+      // ── Plugins & skills ─────────────────────────────────────────────────
+      { name: "plugin",    type: "dir", desc: "Install, list, and remove plugins from .claude/plugins/" },
+      { name: "skills",    type: "dir", desc: "List available skills and their argument hints" },
+      // ── Memory management ────────────────────────────────────────────────
+      { name: "memory",    type: "dir", desc: "View, edit, and clear MEMORY.md and per-project memory files" },
+      // ── UI & display ─────────────────────────────────────────────────────
+      { name: "compact",   type: "dir", desc: "Compact conversation history to save context window space" },
+      { name: "clear",     type: "dir", desc: "Clear the terminal and start a fresh conversation" },
+      { name: "copy",      type: "dir", desc: "Copy the last assistant response to clipboard" },
+      { name: "stats",     type: "dir", desc: "Show session statistics: tokens, cost, tool calls" },
+      { name: "cost",      type: "dir", desc: "Show running cost breakdown for the current session" },
+      { name: "release-notes", type: "dir", desc: "Show changelog for the current Claude Code version" },
+      // ── IDE & integrations ───────────────────────────────────────────────
+      { name: "ide",       type: "dir", desc: "Connect/disconnect IDE extensions (VS Code, JetBrains)" },
+      { name: "chrome",    type: "dir", desc: "Claude in Chrome extension status and setup" },
+      { name: "desktop",   type: "dir", desc: "Claude Desktop integration commands" },
+      { name: "bridge",    type: "dir", desc: "Remote Control bridge status and QR code display" },
+      { name: "remote-setup", type: "dir", desc: "Set up Remote Control session with pairing QR code" },
+      // ── Auth & account ───────────────────────────────────────────────────
+      { name: "login",     type: "dir", desc: "Authenticate via OAuth (Console or API key)" },
+      { name: "logout",    type: "dir", desc: "Clear stored credentials and sign out" },
+      { name: "passes",    type: "dir", desc: "Show subscription plan and usage limits" },
+      { name: "usage",     type: "dir", desc: "Show token and API usage stats for the billing period" },
+      // ── Git & GitHub ─────────────────────────────────────────────────────
+      { name: "install-github-app", type: "dir", desc: "Install Claude Code GitHub App for PR review access" },
+      { name: "install-slack-app",  type: "dir", desc: "Install Claude Code Slack integration" },
+      // ── Key top-level command files ──────────────────────────────────────
+      { name: "insights.ts",      type: "file", lines: 3200, desc: "3,200-line insights command — usage analytics, cost trends, session analysis" },
+      { name: "ultraplan.tsx",    type: "file", lines: 470,  desc: "Ultraplan mode: deep task decomposition and planning before execution" },
+      { name: "init.ts",          type: "file", lines: 256,  desc: "Project init: create .claude directory, CLAUDE.md, initial settings" },
+      { name: "commit-push-pr.ts",type: "file", lines: 158,  desc: "Composite command: git commit + push + create GitHub PR in one step" },
+      { name: "security-review.ts",type:"file", lines: 243,  desc: "Run security review on changed files with CVE and OWASP checklist" },
+      { name: "init-verifiers.ts",type: "file", lines: 262,  desc: "Verification step runner for /init — checks project setup is complete" },
+      { name: "install.tsx",      type: "file", lines: 299,  desc: "Claude Code installation and upgrade wizard" },
+      { name: "advisor.ts",       type: "file", lines: 109,  desc: "AI-powered advisor command for architectural guidance" },
+      { name: "brief.ts",         type: "file", lines: 130,  desc: "Generate a brief summary of a task or codebase" },
+      { name: "commit.ts",        type: "file", lines: 92,   desc: "Commit staged changes with AI-generated commit message" },
+      { name: "bridge-kick.ts",   type: "file", lines: 200,  desc: "Kick a stuck bridge session and force reconnect" },
+      { name: "version.ts",       type: "file", lines: 22,   desc: "Print current Claude Code version and build info" },
+      { name: "statusline.tsx",   type: "file", lines: 23,   desc: "Configure the IDE status line display format" },
     ]},
     { name: "vim",       type: "dir", desc: "Full modal Vim editing — motions, operators, text objects" },
     { name: "ink",       type: "dir", desc: "Custom React/Ink terminal renderer with Yoga layout" },
@@ -923,6 +1186,256 @@ const FILE_EXPLANATIONS: Record<string, FileExplanation> = {
     ],
   },
 
+  // ── Phase-3 Key Files ────────────────────────────────────────────────────
+
+  "src/screens/REPL.tsx": {
+    role: "The 5,005-line main interactive REPL screen — the heart of the Claude Code terminal experience. Renders the full chat loop: history, message stream, prompt, tool approvals, and all keyboard interactions.",
+    difficulty: "Advanced",
+    analogy: "🎙️ The live control room for a radio broadcast. It simultaneously runs the microphone (prompt input), the playback deck (message stream), the call screener (permission dialogs), the news ticker (status line), and the broadcast archive (session history) — all in perfect sync.",
+    howItWorks: [
+      { step: "Mounts inside FullscreenLayout.tsx", detail: "REPL.tsx is the main content inside the screen frame. It sets up all providers, loads session history, and renders the VirtualMessageList + PromptInput in a flex column." },
+      { step: "Session history initialisation", detail: "On mount, reads the session log file from disk, parses NDJSON events into internal Message objects, and seeds the VirtualMessageList. Handles resuming interrupted sessions." },
+      { step: "Message stream subscription", detail: "Subscribes to the QueryEngine's message stream via AppState. As streaming tokens arrive, they're appended to the last assistant message in real time without a full re-render." },
+      { step: "Tool approval intercept", detail: "When QueryEngine needs permission for a tool call, it writes a pending-permission event to AppState. REPL.tsx renders the appropriate approval dialog (BashTool, FileEdit, etc.) and waits for user response before resuming." },
+      { step: "Keyboard shortcuts", detail: "Registers dozens of keybindings: Ctrl+C to interrupt, Ctrl+R for history search, Ctrl+K for compact, Ctrl+T for model picker, Ctrl+L to clear. All go through the keybindings/ system, not raw key listeners." },
+    ],
+    connections: {
+      imports: [
+        { name: "src/state/AppState.tsx",        why: "All session state: messages, mode, cost, history" },
+        { name: "src/components/Messages.tsx",    why: "Renders the message list" },
+        { name: "src/components/PromptInput/",    why: "Renders the input box at bottom" },
+        { name: "src/keybindings/",              why: "Registers all REPL-level keyboard shortcuts" },
+        { name: "QueryEngine.ts",                why: "Sends user input and receives streaming responses" },
+      ],
+      usedBy: ["main.tsx (renders REPL screen when in interactive mode)"],
+    },
+    concepts: ["Streaming UI updates", "Session persistence", "Permission dialog intercept", "Keyboard shortcut registry", "Virtual list scrolling"],
+    hints: [
+      "How does the REPL update the UI in real time as tokens stream in without re-rendering the whole list?",
+      "Why is REPL.tsx 5,000 lines — what accounts for all that code?",
+      "How does it handle the case where a tool approval dialog appears mid-stream?",
+      "What happens to the session state when the user presses Ctrl+C mid-response?",
+    ],
+  },
+
+  "src/screens/Doctor.tsx": {
+    role: "The `claude doctor` health-check screen — runs a suite of environment diagnostics and displays pass/fail results with actionable fix instructions for each failing check.",
+    difficulty: "Intermediate",
+    analogy: "🏥 A doctor's check-up form with a list of vital signs. API key? ✅. Node version? ✅. Git installed? ⚠️ outdated. Network? ❌ unreachable. Each failing vital has a prescription for how to fix it.",
+    howItWorks: [
+      { step: "CheckList declaration", detail: "An array of {label, check: () => Promise<CheckResult>} objects. Each check is async and returns {pass: boolean, detail: string}." },
+      { step: "Parallel execution", detail: "All checks run concurrently with Promise.allSettled(). A failing check doesn't block others. Results stream in as each check completes." },
+      { step: "Colour-coded display", detail: "✅ green for pass, ⚠️ yellow for warning, ❌ red for fail. Failing checks show an indented fix instruction below them." },
+      { step: "Exit code", detail: "If any check fails, the process exits with code 1 so CI scripts can detect a broken environment." },
+    ],
+    connections: {
+      imports: [
+        { name: "src/utils/",  why: "checkApiKey(), checkNodeVersion(), checkGitInstalled() helpers" },
+        { name: "src/ink.js",  why: "Box, Text for terminal layout" },
+      ],
+      usedBy: ["main.tsx (routed by 'claude doctor' subcommand)"],
+    },
+    concepts: ["Promise.allSettled", "Parallel async checks", "Exit codes", "CI-friendly diagnostics"],
+    hints: [
+      "Why use Promise.allSettled instead of Promise.all for the health checks?",
+      "How would you add a new health check — what's the minimum code needed?",
+      "Why does a failing check set process exit code 1?",
+      "What checks would you add to diagnose MCP server connection issues?",
+    ],
+  },
+
+  "src/query/stopHooks.ts": {
+    role: "The PostToolUse and Stop hook execution engine — runs user-configured shell commands after each tool call and at session end. 473 lines managing subprocess spawning, timeout enforcement, and hook output injection.",
+    difficulty: "Advanced",
+    analogy: "🔔 A hotel bell that rings after every room-service delivery (tool call). The hotel (Claude Code) promises: 'After every delivery, we'll run your custom script.' The script can do anything — log to a file, send a Slack message, auto-format code, run tests. The hotel enforces a 30-second timeout so one slow script doesn't block the next delivery.",
+    howItWorks: [
+      { step: "Hook configuration loading", detail: "Reads PostToolUse and Stop hook matchers from bootstrap/state.ts (loaded from .claude/settings.json). Each matcher specifies: which tools trigger it (glob pattern), which command to run, and a timeout." },
+      { step: "Matcher evaluation", detail: "After each tool call, iterates all PostToolUse matchers. For each matching hook, spawns a child process with the tool name and result as environment variables." },
+      { step: "Output capture and injection", detail: "If the hook process writes to stdout, that output is captured and injected as a synthetic tool result into the conversation context. This lets hooks add information to the agent's view." },
+      { step: "Timeout enforcement", detail: "Each hook subprocess has a configurable timeout (default 60s). SIGTERM on timeout, SIGKILL after grace period. A timed-out hook logs a warning but doesn't halt the agent." },
+      { step: "Stop hooks at session end", detail: "When the user ends the session (Ctrl+D, /exit), Stop hooks run with the full session summary as environment. Used for end-of-session tasks like committing changes, posting summaries, notifying teams." },
+    ],
+    connections: {
+      imports: [
+        { name: "src/bootstrap/state.ts",  why: "Reads registered hook matchers" },
+        { name: "src/types/hooks.ts",      why: "HookMatcher and HookResult types" },
+        { name: "Node child_process",      why: "Spawns hook subprocesses" },
+      ],
+      usedBy: ["QueryEngine.ts (calls after each tool result)", "main.tsx (calls Stop hooks on exit)"],
+    },
+    concepts: ["Hook pattern", "Shell subprocess spawning", "Output injection", "Timeout with SIGTERM/SIGKILL", "Event-driven automation"],
+    hints: [
+      "What's the difference between a PostToolUse hook and a Stop hook?",
+      "How does hook stdout get injected into the agent's conversation — what does it look like to Claude?",
+      "Why would a hook that runs 'npm test' after every file edit be dangerous?",
+      "How do you write a hook that only fires after BashTool calls, not FileEdit calls?",
+    ],
+  },
+
+  "src/skills/loadSkillsDir.ts": {
+    role: "The 1,086-line skill discovery and loading engine — scans .claude/skills/ for Markdown skill definitions, validates them, builds Tool objects from them, and registers them as callable slash-commands.",
+    difficulty: "Advanced",
+    analogy: "📚 A librarian who finds all loose recipe cards (Markdown files), checks each one has a valid title and ingredient list (frontmatter validation), creates an index card per recipe (Tool object), and puts them on the available-recipes shelf (slash-command registry). Users then type '/recipe bake-bread' to run one.",
+    howItWorks: [
+      { step: "Directory scan", detail: "Recursively scans .claude/skills/ for .md files. Also checks bundled skills shipped with Claude Code." },
+      { step: "Frontmatter parsing", detail: "Reads the YAML frontmatter of each .md file: name, description, allowed-tools, argument-hint. Validates with Zod. Missing required fields → skip with warning." },
+      { step: "Tool object construction", detail: "Each valid skill becomes a SkillTool instance: name = '/<skill-name>', inputSchema = {argument: z.string()}, execute() runs the skill's prompt template with the argument substituted." },
+      { step: "MCP skill builder", detail: "mcpSkillBuilders.ts additionally converts skills into MCP-compatible tool definitions so they can be called from MCP clients (like Claude Desktop)." },
+      { step: "Bundled skills registration", detail: "bundledSkills.ts registers built-in skills (e.g. /ultrareview) from the bundled/ directory. These are always available even without a .claude/skills/ directory." },
+    ],
+    connections: {
+      imports: [
+        { name: "zod",                      why: "Validates skill frontmatter schema" },
+        { name: "gray-matter",              why: "Parses YAML frontmatter from Markdown files" },
+        { name: "src/tools/SkillTool/",     why: "Wraps each skill as a SkillTool" },
+      ],
+      usedBy: ["main.tsx (calls loadSkillsDir on startup)", "QueryEngine.ts (receives skill tools in tool map)"],
+    },
+    concepts: ["YAML frontmatter", "Dynamic tool registration", "Template substitution", "Zod validation", "Plugin/extension pattern"],
+    hints: [
+      "What's the minimum frontmatter a valid skill Markdown file must have?",
+      "How does argument substitution work — what's the template syntax in a skill prompt?",
+      "How would you write a skill that runs ESLint on the current file?",
+      "What's the difference between a skill and a custom MCP tool?",
+    ],
+  },
+
+  "src/cli/print.ts": {
+    role: "The 5,594-line CLI output rendering engine — converts all internal message types (text, tool use, tool result, thinking, error) into formatted ANSI terminal output. Every character you see in the Claude Code terminal passes through here.",
+    difficulty: "Advanced",
+    analogy: "📺 A TV broadcast studio's playback switcher. Raw footage arrives (internal messages), and print.ts decides the codec, colour grading, subtitle format, and frame rate for each clip. The same underlying message looks different in interactive mode, structured JSON mode, and CI mode — this file handles all three.",
+    howItWorks: [
+      { step: "Message type dispatch", detail: "A large switch on message.type routes each message to its renderer: renderTextMessage(), renderToolUse(), renderToolResult(), renderThinking(), renderError(), etc." },
+      { step: "ANSI colour formatting", detail: "Uses chalk-style escape codes (or raw ANSI) to colour tool names cyan, errors red, thinking dim, code blocks with syntax highlighting. All colours are gated on the NO_COLOR env var." },
+      { step: "Structured output mode", detail: "When --output-format=json is set, bypasses ANSI rendering and writes NDJSON lines instead. structuredIO.ts handles the JSON serialisation." },
+      { step: "Compact mode truncation", detail: "Long tool outputs are truncated with a '[…N lines hidden, use /expand to see all]' hint. The full content is kept in AppState; only the display is shortened." },
+      { step: "Cost and token footers", detail: "After each assistant response, prints a dim footer with token counts (input/output/cache) and incremental cost. Reads from AppState." },
+    ],
+    connections: {
+      imports: [
+        { name: "src/components/HighlightedCode.tsx", why: "Syntax-highlights code blocks before printing" },
+        { name: "src/state/AppState.tsx",             why: "Reads messages, cost, session mode" },
+        { name: "src/cli/structuredIO.ts",            why: "Delegates to structured output when --output-format=json" },
+      ],
+      usedBy: ["main.tsx (calls on each new message event)", "cli/handlers/ (uses renderX helpers directly)"],
+    },
+    concepts: ["ANSI escape codes", "Message type dispatch", "Structured output", "Compact mode", "Cost accounting display"],
+    hints: [
+      "Why is print.ts 5,500 lines — what's the breakdown between message types?",
+      "How does the NO_COLOR env var affect output — where is it checked?",
+      "How would you add a new output format (e.g. HTML) to this renderer?",
+      "Why is the full tool output kept in AppState even when the display is truncated?",
+    ],
+  },
+
+  "src/tasks/LocalMainSessionTask.ts": {
+    role: "Wraps the full interactive REPL session lifecycle as a Task object — enabling it to be managed, monitored, and stopped using the same task primitives used for sub-agents and shell commands.",
+    difficulty: "Advanced",
+    analogy: "🎬 A film production company (task manager) that can launch a movie shoot (REPL session) the same way it launches a TV commercial (shell task) or a documentary (agent task). All productions use the same scheduling, monitoring, and cancellation infrastructure.",
+    howItWorks: [
+      { step: "Implements Task interface", detail: "Exposes start(), stop(), getStatus(), onOutput() — the same interface as LocalAgentTask and LocalShellTask. This lets the coordinator treat a main session like any other task." },
+      { step: "Session initialisation", detail: "start() bootstraps AppState, loads tool registry, initialises services (MCP, analytics, memory), then enters the REPL loop." },
+      { step: "Activity tracking", detail: "Records lastActivityAt timestamp on every message and tool call. The bridge uses this to detect idle sessions eligible for recycling." },
+      { step: "Graceful shutdown", detail: "stop() triggers the session exit sequence: flush pending output, run Stop hooks, write session summary to disk, then resolve the task promise." },
+    ],
+    connections: {
+      imports: [
+        { name: "src/tasks/types.ts",  why: "Task interface" },
+        { name: "src/screens/REPL.tsx", why: "Renders the REPL screen inside this task" },
+        { name: "src/bootstrap/state.ts", why: "Initialises global session state" },
+      ],
+      usedBy: ["main.tsx (creates this task for interactive mode)", "bridgeMain.ts (manages via Task interface)"],
+    },
+    concepts: ["Task pattern", "Lifecycle management", "Activity tracking", "Graceful shutdown", "Uniform task abstraction"],
+    hints: [
+      "Why wrap the REPL as a Task instead of just calling it directly from main.tsx?",
+      "How does the bridge use the Task interface to manage REPL sessions?",
+      "What happens if stop() is called while a tool is mid-execution?",
+      "How does lastActivityAt enable session recycling in high-concurrency bridge scenarios?",
+    ],
+  },
+
+  "src/keybindings/loadUserBindings.ts": {
+    role: "Loads, validates, and merges user-defined keyboard shortcut overrides from .claude/settings.json and ~/.claude.json into the default binding map.",
+    difficulty: "Intermediate",
+    analogy: "🎹 A piano tuner who takes the factory-tuned piano (defaultBindings.ts) and applies the customer's custom tuning sheet (.claude/settings.json). The tuner checks each adjustment is valid (validate.ts), rejects conflicting notes (reservedShortcuts.ts), and produces the final tuned instrument the player uses.",
+    howItWorks: [
+      { step: "Load settings files", detail: "Reads keybindings from project settings (.claude/settings.json) and user settings (~/.claude.json). Project settings take precedence over user settings." },
+      { step: "Schema validation", detail: "Each keybinding object is validated with the Zod schema from schema.ts. Invalid entries are rejected with an actionable error message naming the bad field." },
+      { step: "Conflict detection", detail: "validate.ts checks for duplicate key assignments within the user's bindings and against reservedShortcuts.ts. Conflicts are surfaced as KeybindingWarnings in the UI." },
+      { step: "Merge with defaults", detail: "User bindings are merged over the defaultBindings map. User can override any non-reserved binding. The merged result is stored in KeybindingContext." },
+    ],
+    connections: {
+      imports: [
+        { name: "src/keybindings/defaultBindings.ts",  why: "Base binding map to merge user overrides into" },
+        { name: "src/keybindings/validate.ts",         why: "Validates and reports conflicts" },
+        { name: "src/keybindings/schema.ts",           why: "Zod schema for each keybinding entry" },
+        { name: "src/utils/settings/",                 why: "Reads settings files from disk" },
+      ],
+      usedBy: ["src/keybindings/KeybindingProviderSetup.tsx (called at startup)"],
+    },
+    concepts: ["Settings layering (project > user > default)", "Zod schema validation", "Conflict detection", "Merge pattern"],
+    hints: [
+      "Why do project-level settings take precedence over user settings?",
+      "How would you debug a keybinding that silently isn't working?",
+      "What's a reserved shortcut and why can't users override it?",
+      "How does validate.ts detect two bindings assigned to the same key?",
+    ],
+  },
+
+  "src/entrypoints/agentSdkTypes.ts": {
+    role: "The public type contract for the Claude Agent SDK npm package — defines HookEvent, ModelUsage, AgentOptions, and all other types that SDK consumers import. Changes here are breaking changes to the public API.",
+    difficulty: "Intermediate",
+    analogy: "📋 A formal contract between Claude Code (the supplier) and SDK users (the clients). Every type in this file is a legally binding specification. Adding a field is safe. Removing or renaming one breaks every client that depends on it.",
+    howItWorks: [
+      { step: "HookEvent types", detail: "Defines the shape of events passed to PreToolUse, PostToolUse, and Stop hooks when used via the SDK (not .claude/settings.json shell commands). SDK hooks are TypeScript callbacks instead of shell scripts." },
+      { step: "ModelUsage type", detail: "Token counts (input_tokens, output_tokens, cache_read_input_tokens, cache_creation_input_tokens) returned after each API call. Used for cost accounting and billing." },
+      { step: "AgentOptions", detail: "Configuration passed to the SDK's runAgent() entry point: model, maxTurns, tools, systemPrompt, hooks. The knobs an SDK consumer turns to customise behaviour." },
+      { step: "Re-exports from internal modules", detail: "Many types are imported from internal modules (bootstrap/state.ts, types/) and re-exported here as the public surface. This insulates SDK users from internal refactors." },
+    ],
+    connections: {
+      imports: [
+        { name: "src/bootstrap/state.ts",  why: "HookCallbackMatcher, AgentColorName used in HookEvent" },
+        { name: "src/types/",              why: "Imports internal types to re-export as public SDK types" },
+      ],
+      usedBy: ["src/entrypoints/sdk/ (implements these contracts)", "External SDK consumers (import from '@anthropic-ai/claude-code')"],
+    },
+    concepts: ["Public API surface", "Breaking vs non-breaking changes", "Type re-export pattern", "SDK contract design"],
+    hints: [
+      "Why are SDK types kept in a separate file rather than spread across modules?",
+      "What's the difference between a PreToolUse SDK hook and a PostToolUse shell hook?",
+      "How do you add a new field to AgentOptions without breaking existing users?",
+      "Why does ModelUsage include cache_read_input_tokens separately from input_tokens?",
+    ],
+  },
+
+  "src/remote/SessionsWebSocket.ts": {
+    role: "WebSocket server managing remote Claude Code sessions — accepts connections from web clients, authenticates them, and routes their messages to the appropriate session runner.",
+    difficulty: "Advanced",
+    analogy: "🏨 A hotel front desk with a walkie-talkie network. Guests (web clients) check in via WebSocket, get assigned a room (session), and communicate through the walkie-talkie system. The front desk authenticates each guest, routes their requests to the right room, and coordinates check-out.",
+    howItWorks: [
+      { step: "WebSocket server setup", detail: "Creates a ws.Server listening on a configured port. TLS is handled at the reverse-proxy layer; the server itself accepts plain WebSocket connections from localhost." },
+      { step: "Authentication on connect", detail: "On each new connection, validates the session token from the query string against the RemoteSessionManager's active token registry. Rejects invalid tokens with a 401 close code." },
+      { step: "Message routing", detail: "Incoming WebSocket messages are parsed as JSON, matched to a session by session ID, and dispatched to the session's RemoteSessionManager. Responses flow back over the same WebSocket." },
+      { step: "Reconnection handling", detail: "If a client disconnects and reconnects with the same session token, the WebSocket is reattached to the existing session. Buffered messages from while disconnected are replayed." },
+    ],
+    connections: {
+      imports: [
+        { name: "ws",                              why: "WebSocket server implementation" },
+        { name: "src/remote/RemoteSessionManager.ts", why: "Routes messages to the correct session" },
+        { name: "src/bootstrap/state.ts",          why: "Reads port configuration and auth settings" },
+      ],
+      usedBy: ["main.tsx (started when --remote-server flag is active)"],
+    },
+    concepts: ["WebSocket server", "Token authentication", "Message routing", "Reconnection buffering", "Session multiplexing"],
+    hints: [
+      "How does the server distinguish messages for different sessions on the same WebSocket connection?",
+      "What happens to messages buffered while a client was disconnected?",
+      "Why is TLS terminated at the reverse proxy rather than in this server?",
+      "How would you add rate limiting to protect against message flooding?",
+    ],
+  },
+
   // ── Phase-1 Directories ──────────────────────────────────────────────
 
   "src/hooks": {
@@ -1287,6 +1800,285 @@ const FILE_EXPLANATIONS: Record<string, FileExplanation> = {
       "What's the difference between z.parse() and z.safeParse()?",
       "How do you infer a TypeScript type from a Zod schema?",
       "What happens if a user has an invalid hook config — how does this schema surface the error?",
+    ],
+  },
+
+  // ── Phase-6 services/ Key Files ──────────────────────────────────────────
+
+  "src/services/api/claude.ts": {
+    role: "The 3,419-line core streaming API client — the single file responsible for every call to the Anthropic API. Handles SSE streaming, token counting, cost attribution, prompt caching, retry logic, and streaming normalisation.",
+    difficulty: "Advanced",
+    analogy: "🛰️ Mission Control for API communication. Every message Claude sends or receives passes through this satellite link. It handles signal loss (retry), bandwidth limits (rate limiting), telemetry (cost/token tracking), and frequency management (prompt cache). Nothing reaches the Anthropic servers except through here.",
+    howItWorks: [
+      { step: "createApiStream() — builds the API request", detail: "Assembles the full messages array, system prompt, tools list, model, and API parameters. Applies prompt caching headers to stable sections." },
+      { step: "SSE streaming with event parsing", detail: "Uses the Anthropic SDK's streamMessage(). Processes server-sent events: message_start, content_block_start, content_block_delta, message_delta, message_stop." },
+      { step: "Token counting and cost tracking", detail: "On message_stop, reads input_tokens, output_tokens, cache_read_input_tokens, cache_creation_input_tokens. Calls addCost() on bootstrap state with the calculated USD cost." },
+      { step: "Streaming normalisation", detail: "Combines incremental delta events into complete content blocks before dispatching. Handles thinking blocks (extended thinking), tool_use blocks, and text blocks separately." },
+      { step: "withRetry wrapper", detail: "All calls go through withRetry.ts. 429 → exponential backoff. 529 (overloaded) → longer backoff. Auth errors → immediate fail. Network errors → configurable retry count." },
+    ],
+    connections: {
+      imports: [
+        { name: "@anthropic-ai/sdk",            why: "The official Anthropic TypeScript SDK" },
+        { name: "src/services/api/withRetry.ts", why: "Wraps every API call with retry logic" },
+        { name: "src/bootstrap/state.ts",        why: "addCost(), getSessionId(), model config" },
+        { name: "src/services/api/logging.ts",   why: "Logs every request/response for debugging" },
+      ],
+      usedBy: ["QueryEngine.ts (all LLM calls)", "src/utils/sideQuery.ts (side-channel queries)"],
+    },
+    concepts: ["Server-sent events (SSE)", "Prompt caching", "Token cost accounting", "Streaming normalisation", "Exponential backoff retry"],
+    hints: [
+      "Why does the file need to track cache_read_input_tokens separately from input_tokens?",
+      "How does streaming normalisation combine delta events into complete blocks?",
+      "What happens if the API returns a 529 'overloaded' error mid-stream?",
+      "How does prompt caching work — what makes a section 'cacheable'?",
+    ],
+  },
+
+  "src/services/mcp/client.ts": {
+    role: "The 3,348-line MCP protocol client — connects to MCP servers via stdio or SSE, authenticates, discovers their tool/resource capabilities, and dispatches tool calls on behalf of the agent.",
+    difficulty: "Advanced",
+    analogy: "🔌 A universal adapter that lets Claude plug into any MCP-compatible tool server. Just like a universal power adapter has the same interface on both ends regardless of what's plugged in, MCPClient presents the same Tool interface to Claude regardless of whether the MCP server is a local Python script, a remote SaaS API, or a database.",
+    howItWorks: [
+      { step: "Server connection", detail: "Connects via stdio (local process) or SSE (remote URL). Sends the MCP 'initialize' handshake with protocol version and client capabilities." },
+      { step: "Capability discovery", detail: "Calls tools/list and resources/list to discover what the server provides. Converts MCP tool schemas to Zod schemas for validation." },
+      { step: "Dynamic Tool registration", detail: "For each discovered MCP tool, creates a MCPToolProxy implementing the Tool interface. These proxies appear in QueryEngine's tool map alongside native tools." },
+      { step: "Tool execution dispatch", detail: "When Claude calls an MCP tool, the proxy calls tools/call on the MCP server with the validated input. Handles streaming results and content type normalisation." },
+      { step: "Connection lifecycle", detail: "Manages reconnection on transport failure, tracks server health, and cleans up tool registrations when a server disconnects." },
+    ],
+    connections: {
+      imports: [
+        { name: "@modelcontextprotocol/sdk", why: "MCP SDK for protocol implementation" },
+        { name: "src/services/mcp/auth.ts",  why: "OAuth authentication for authenticated MCP servers" },
+        { name: "src/services/mcp/config.ts",why: "MCP server configuration and persistence" },
+      ],
+      usedBy: ["main.tsx (connects all configured MCP servers on startup)", "QueryEngine.ts (uses discovered tools)"],
+    },
+    concepts: ["Model Context Protocol", "Dynamic tool registration", "stdio/SSE transports", "Capability negotiation", "Proxy pattern"],
+    hints: [
+      "How does an MCP tool proxy implement the same Tool interface as a native tool?",
+      "What's the difference between a tool and a resource in MCP?",
+      "How does the client handle a MCP server that stops responding mid-session?",
+      "Why does MCP use JSON-RPC 2.0 instead of REST for its protocol?",
+    ],
+  },
+
+  "src/services/compact/compact.ts": {
+    role: "Full conversation compaction — summarises the conversation history using an LLM call to free context window space while preserving the key facts and decisions the agent needs to continue working.",
+    difficulty: "Advanced",
+    analogy: "🗜️ A ZIP compressor for conversations. Instead of throwing away messages when the context fills up, compact.ts intelligently summarises them — like a ZIP file that can be decompressed back into its key facts. The agent can continue working from the summary without losing critical context.",
+    howItWorks: [
+      { step: "Trigger detection", detail: "autoCompact.ts monitors context usage. When it exceeds a configurable threshold (default 85%), it calls compact() synchronously before the next turn." },
+      { step: "History splitting", detail: "Splits messages into 'safe to summarise' (older assistant turns, completed tool calls) and 'must keep' (the most recent N messages, any in-progress tool calls)." },
+      { step: "Summarisation LLM call", detail: "Sends the 'safe' messages to Claude with the compaction prompt template. The prompt instructs: preserve decisions, file names, key facts. Return a concise summary." },
+      { step: "History replacement", detail: "Replaces the summarised messages with a single assistant message containing the summary. The 'must keep' messages are appended after." },
+      { step: "Memory persistence", detail: "sessionMemoryCompact.ts additionally distils session key facts into MEMORY.md so they survive future compactions. Important decisions persist across the entire project lifetime." },
+    ],
+    connections: {
+      imports: [
+        { name: "src/services/api/claude.ts",   why: "Makes the summarisation LLM call" },
+        { name: "src/services/compact/prompt.ts", why: "Compaction prompt template" },
+        { name: "src/state/AppState.tsx",        why: "Reads and writes the message list" },
+      ],
+      usedBy: ["src/services/compact/autoCompact.ts (triggers at threshold)", "src/commands/compact/ (manual /compact command)"],
+    },
+    concepts: ["Context window management", "Conversation summarisation", "Memory persistence", "History splitting strategy"],
+    hints: [
+      "What's the minimum number of messages that must always be kept (never summarised)?",
+      "How does the compaction decide which facts are 'key' enough to preserve?",
+      "What happens if the summary itself is longer than the messages it replaced?",
+      "How does sessionMemoryCompact.ts work in conjunction with regular compaction?",
+    ],
+  },
+
+  "src/services/analytics/growthbook.ts": {
+    role: "The 1,155-line GrowthBook SDK wrapper — manages feature flags, A/B experiments, and live configuration updates. Every experimental feature in Claude Code is gated behind a GrowthBook feature flag checked here.",
+    difficulty: "Intermediate",
+    analogy: "🎛️ A software dimmer switch panel. Each feature is a switch that can be on, off, or graduated (10% of users, 50%, 100%). GrowthBook manages the switch states remotely — Anthropic engineers can flip switches without shipping a new version. Some switches have values (not just on/off): e.g. 'max_context_window: 100000'.",
+    howItWorks: [
+      { step: "SDK initialisation", detail: "Connects to GrowthBook's API endpoint with the user's attributed ID (hashed email or random UUID for anonymous users). Downloads the feature manifest on startup." },
+      { step: "Feature evaluation", detail: "isFeatureEnabled(featureKey) checks the manifest and any active experiments. Returns boolean. getFeatureValue(featureKey, defaultValue) returns typed values." },
+      { step: "Experiment assignment", detail: "A/B experiments use a stable hash of the user ID to assign them to a bucket. The same user always gets the same bucket — no flickering between test/control." },
+      { step: "Live updates", detail: "A background SSE connection receives push updates when feature flags change. getFeatureValue_CACHED_MAY_BE_STALE() reads the cached value — fast but potentially 1-2 seconds stale." },
+      { step: "Attributes for targeting", detail: "User attributes (subscription tier, OS, Claude version) are sent to GrowthBook for segment-based targeting: e.g. 'enable X only for Pro tier users on macOS'." },
+    ],
+    connections: {
+      imports: [
+        { name: "@growthbook/growthbook",        why: "The GrowthBook SDK" },
+        { name: "src/bootstrap/state.ts",         why: "Reads user ID, subscription tier for targeting" },
+        { name: "src/services/analytics/index.ts", why: "Initialises GrowthBook as part of analytics setup" },
+      ],
+      usedBy: ["src/constants/prompts.ts (feature-gated prompt sections)", "All features using isFeatureEnabled()", "bridge/bridgeEnabled.ts"],
+    },
+    concepts: ["Feature flags", "A/B experiments", "Stable bucket assignment", "Server-sent events push updates", "Segment-based targeting"],
+    hints: [
+      "Why use a hash of the user ID for experiment assignment instead of random?",
+      "What's the difference between isFeatureEnabled() and getFeatureValue_CACHED_MAY_BE_STALE()?",
+      "How do feature flags enable safe rollout of risky features like bypass_permissions?",
+      "What happens if the GrowthBook endpoint is unreachable at startup?",
+    ],
+  },
+
+  "src/services/autoDream/autoDream.ts": {
+    role: "The DreamTask — a background LLM task that runs after each session to extract key facts, decisions, and project-specific knowledge from the conversation and append them to MEMORY.md for future sessions.",
+    difficulty: "Advanced",
+    analogy: "💭 The brain's sleep consolidation process. During the day (session), the brain (agent) collects experiences. During sleep (autoDream), the brain processes those experiences, keeps the important ones, discards the mundane, and stores them in long-term memory (MEMORY.md). Next day, the agent wakes up knowing what it learned.",
+    howItWorks: [
+      { step: "Trigger condition", detail: "Runs after each session if: the session had >= MIN_SESSION_LENGTH exchanges AND autoDream is enabled (feature flag). Runs asynchronously — doesn't delay the user's next session start." },
+      { step: "Consolidation lock", detail: "consolidationLock.ts acquires a file lock before writing to MEMORY.md. Prevents concurrent dream tasks from two overlapping sessions corrupting the file." },
+      { step: "Fact extraction LLM call", detail: "Sends the full session history to Claude (using a cheap model) with consolidationPrompt.ts. Extracts: decisions made, patterns established, project-specific facts, common mistakes to avoid." },
+      { step: "MEMORY.md append", detail: "Appends extracted facts to MEMORY.md with a datestamp. Existing entries are never deleted — the file grows over time as knowledge accumulates." },
+      { step: "Deduplication (future)", detail: "The findRelevantMemories system handles 'too many memories' at read time by scoring and limiting to 5 relevant files per turn. Full deduplication via /consolidate-memory skill." },
+    ],
+    connections: {
+      imports: [
+        { name: "src/services/api/claude.ts",          why: "Runs the fact extraction LLM call" },
+        { name: "src/services/autoDream/consolidationLock.ts", why: "Prevents concurrent writes" },
+        { name: "src/memdir/",                          why: "Reads and writes the memory directory" },
+      ],
+      usedBy: ["main.tsx (schedules as background task after session end)"],
+    },
+    concepts: ["Background task processing", "File locking", "Memory consolidation", "Async session post-processing", "Knowledge accumulation"],
+    hints: [
+      "Why run autoDream AFTER the session ends rather than during it?",
+      "How does the consolidation lock handle the case where the computer crashes during writing?",
+      "What determines whether a session is 'long enough' to be worth dreaming about?",
+      "How does the agent's memory grow over months — what does MEMORY.md look like after 100 sessions?",
+    ],
+  },
+
+  // ── Phase-5 utils/ Key Files ─────────────────────────────────────────────
+
+  "src/utils/permissions/permissions.ts": {
+    role: "The 1,486-line core permission evaluation engine — the single function every tool call passes through before executing. Reads permission mode, allow/deny rules, and classifier decisions to return allow | deny | ask.",
+    difficulty: "Advanced",
+    analogy: "🔐 A multi-level security gate at a government building. Level 1: is the badge authorised at all? Level 2: does the visitor's clearance cover this wing? Level 3: is this specific room on the approved list? Level 4: does the auto-classifier approve this specific action? Only after all levels pass does the door open.",
+    howItWorks: [
+      { step: "Mode shortcircuits", detail: "bypass_permissions → immediate allow. plan_mode → only PLAN_MODE_SAFE_TOOLS allowed. These are checked first so everything else is gated on the mode." },
+      { step: "Hard deny rules", detail: "Enterprise MDM-configured alwaysDenyRules are checked next. These cannot be overridden by users — used for corporate policy enforcement." },
+      { step: "Hard allow rules", detail: "User-configured alwaysAllowRules from .claude/settings.json. Rules like 'Bash(git *)' allow matching commands without prompting." },
+      { step: "Auto-mode classifier", detail: "In auto mode, yoloClassifier.ts analyzes the specific command/path and returns a confidence score. High confidence → allow. Low confidence or dangerous pattern → ask." },
+      { step: "Default: ask", detail: "If nothing matched, returns 'ask' — show the approval dialog. This is the safe default for any new tool or command the agent hasn't seen before." },
+    ],
+    connections: {
+      imports: [
+        { name: "permissionsLoader.ts",  why: "Loads the current rule set" },
+        { name: "yoloClassifier.ts",     why: "Auto-mode safety classifier" },
+        { name: "dangerousPatterns.ts",  why: "Pre-compiled regex for obviously-dangerous commands" },
+      ],
+      usedBy: ["Every tool's execute() function", "QueryEngine.ts (pre-call check)"],
+    },
+    concepts: ["Multi-level security gate", "Policy evaluation order", "Fail-safe default", "Auto-mode classification", "Enterprise policy enforcement"],
+    hints: [
+      "Why does bypass_permissions mode check first instead of last?",
+      "How do you write an alwaysAllowRule that permits only 'git status' but not 'git push'?",
+      "What makes yoloClassifier different from a simple regex allowlist?",
+      "How does the system handle a command that matches both an allow AND a deny rule?",
+    ],
+  },
+
+  "src/utils/bash/bashParser.ts": {
+    role: "A 4,436-line complete bash parser that produces an Abstract Syntax Tree (AST) from shell command strings. Powers the permission classifier, read-only command validation, and shell completion — without executing any code.",
+    difficulty: "Advanced",
+    analogy: "🔬 A molecular analyser for bash commands. Instead of running `rm -rf /` (dangerous!), the parser dissects its DNA: 'this is a command node, rm is the executable, -r and -f are flags, / is the argument'. Once you have the AST, you can reason about what the command WOULD do without ever running it.",
+    howItWorks: [
+      { step: "Lexer: string → token stream", detail: "Tokenises the input into WORD, OPERATOR, REDIRECT, HEREDOC_START etc. tokens. Handles quoting rules (single, double, backtick), escape sequences, and unicode." },
+      { step: "Parser: tokens → AST", detail: "Recursive descent parser builds AST nodes: Command, Pipeline, List, Subshell, If, While, For, Case, Function. Follows bash grammar specification." },
+      { step: "Visitor pattern for analysis", detail: "ast.ts defines the visitor interface. Callers implement visit(node) for each node type they care about. readOnlyCommandValidation.ts uses this to check for writes." },
+      { step: "Heredoc handling", detail: "heredoc.ts handles the complex here-document syntax where delimiter, body, and end-marker span multiple lines. Edge cases: <<-, <<'EOF', <<\\EOF." },
+    ],
+    connections: {
+      imports: [
+        { name: "ast.ts",      why: "AST node type definitions" },
+        { name: "heredoc.ts",  why: "Heredoc parsing specialisation" },
+      ],
+      usedBy: ["utils/shell/readOnlyCommandValidation.ts", "utils/permissions/bashClassifier.ts", "utils/suggestions/shellHistoryCompletion.ts"],
+    },
+    concepts: ["Lexer/parser pipeline", "Abstract Syntax Tree", "Recursive descent parsing", "Visitor pattern", "Static analysis without execution"],
+    hints: [
+      "Why build a full AST instead of using regex to analyse bash commands?",
+      "How does the parser handle `$(command substitution)` — what AST node does it produce?",
+      "What's the visitor pattern — how does readOnlyCommandValidation use it?",
+      "How would the parser handle a command like: echo $(cat /etc/passwd | grep root)?",
+    ],
+  },
+
+  "src/utils/settings/settings.ts": {
+    role: "The 1,015-line unified settings loader — reads .claude/settings.json, ~/.claude.json, MDM configuration, and environment variables, then merges them in priority order into a single validated settings object.",
+    difficulty: "Intermediate",
+    analogy: "🗂️ A payroll department that collects salary information from four sources: the employment contract (project settings), HR database (user settings), government rules (MDM policy), and emergency overrides (env vars). Each source has a rank, and higher-ranked sources win conflicts.",
+    howItWorks: [
+      { step: "Layer 1 — environment variables", detail: "CLAUDE_MODEL, CLAUDE_PERMISSION_MODE, NO_COLOR, etc. take highest precedence. Can't be overridden by any config file." },
+      { step: "Layer 2 — project settings (.claude/settings.json)", detail: "Project-specific config: tools to allow/deny, custom hooks, model overrides for this codebase. Read relative to CWD." },
+      { step: "Layer 3 — user settings (~/.claude.json)", detail: "Personal preferences: theme, preferred model, keybindings, API key. Applies across all projects." },
+      { step: "Layer 4 — MDM policy (enterprise)", detail: "Enterprise-managed settings from an MDM server. Can lock specific settings so users can't override them." },
+      { step: "Validation and defaults", detail: "The merged settings object is validated with validation.ts Zod schemas. Missing required fields get defaults. Invalid values surface as error messages." },
+    ],
+    connections: {
+      imports: [
+        { name: "settings/validation.ts",    why: "Zod validation after merge" },
+        { name: "settings/changeDetector.ts", why: "File watcher for live reload" },
+        { name: "settings/types.ts",         why: "TypeScript types for all settings" },
+      ],
+      usedBy: ["bootstrap/state.ts (called on startup)", "query/stopHooks.ts (reads hook config)", "keybindings/loadUserBindings.ts (reads keybinding config)"],
+    },
+    concepts: ["Configuration layering", "Priority merge", "MDM enterprise management", "Live settings reload", "Fail-safe defaults"],
+    hints: [
+      "What happens if both project and user settings define different permission modes — which wins?",
+      "How does the MDM policy 'lock' a setting so users can't override it?",
+      "When is settings.ts called — once on startup or on every operation?",
+      "What's the CLAUDE_PERMISSION_MODE env var for — when would you use it?",
+    ],
+  },
+
+  "src/utils/sideQuery.ts": {
+    role: "Runs a quick one-shot LLM call completely outside the main conversation context — no history, no tools, no streaming. Used for memory selection, prompt classification, and other background intelligence tasks.",
+    difficulty: "Intermediate",
+    analogy: "📞 A private call on a separate phone line. The main conversation is happening on line 1. Line 2 is sideQuery — a completely independent call where you can ask a quick question without interrupting or polluting the main conversation.",
+    howItWorks: [
+      { step: "Fresh API call with no context", detail: "Creates a new Anthropic API call with only the provided system prompt and single user message. No conversation history, no tools passed. The response is returned as a plain string." },
+      { step: "Uses a cost-effective model", detail: "Callers pass getDefaultSonnetModel() — a fast, cheap model appropriate for classification tasks. The main conversation might be using Opus; side queries always use Sonnet." },
+      { step: "AbortSignal threading", detail: "The signal parameter threads through to the API call. If the user types a new message mid-side-query, the query is cancelled immediately." },
+      { step: "Error handling", detail: "Errors are caught and logged (not thrown). Callers handle null returns gracefully — a failed side query degrades to a default rather than crashing the session." },
+    ],
+    connections: {
+      imports: [
+        { name: "src/services/api/",      why: "Makes the actual Anthropic API call" },
+        { name: "src/bootstrap/state.ts", why: "Reads session context for API auth" },
+      ],
+      usedBy: ["src/memdir/findRelevantMemories.ts", "src/utils/contextAnalysis.ts", "src/utils/promptCategory.ts"],
+    },
+    concepts: ["Side-channel LLM query", "Context isolation", "AbortSignal cooperative cancellation", "Graceful degradation"],
+    hints: [
+      "Why must side queries NOT include the main conversation history?",
+      "What would happen if a side query used the same model as the main conversation?",
+      "How does the AbortSignal prevent side queries from running after the user has moved on?",
+      "Can a side query call tools — why or why not?",
+    ],
+  },
+
+  "src/utils/sessionStorage.ts": {
+    role: "Reads and writes session NDJSON log files — the persistence layer for all Claude Code conversations. Every message, tool call, and metadata event is appended to a .jsonl file that can be replayed, searched, and resumed.",
+    difficulty: "Intermediate",
+    analogy: "📼 A VHS recorder for conversations. Every event is recorded to tape in real time (NDJSON append). To resume a session, you rewind and replay the tape. To search history, you scan the tape index. The tape format is durable — you can read tapes from months ago.",
+    howItWorks: [
+      { step: "NDJSON append-only writes", detail: "Each message/event is JSON.stringify'd and appended as a new line to the session file. Append-only means no corruption risk — a crash mid-write at worst loses the last event." },
+      { step: "Session file naming", detail: "Files are stored at ~/.claude/projects/<hash>/sessions/<sessionId>.jsonl. The project hash is deterministic from the project root path." },
+      { step: "Resume reads", detail: "On session resume, readSessionLog() reads all lines, JSON.parses them, and reconstructs the message array. Invalid lines are skipped with a warning." },
+      { step: "Search index", detail: "getSessionIdFromLog() and searchSessionsByCustomTitle() scan session files to find sessions by title or content. Used by LogSelector and history search." },
+    ],
+    connections: {
+      imports: [
+        { name: "src/utils/json.ts",   why: "JSON serialisation with cycle detection" },
+        { name: "src/utils/path.ts",   why: "Session file path resolution" },
+      ],
+      usedBy: ["screens/REPL.tsx (loads history on mount)", "screens/ResumeConversation.tsx (lists sessions)", "hooks/useHistorySearch.ts"],
+    },
+    concepts: ["NDJSON / JSONL format", "Append-only log", "Session replay", "Deterministic path hashing"],
+    hints: [
+      "Why NDJSON instead of a single large JSON file for session storage?",
+      "How does the project hash ensure different project roots get different session directories?",
+      "What happens if a session file is corrupted — does it prevent all sessions from loading?",
+      "How would you implement a session export feature using sessionStorage.ts?",
     ],
   },
 };
@@ -1751,6 +2543,427 @@ export async function getSystemPrompt(
   ]
 
   return resolveSystemPromptSections([...cached, ...volatile])
+}`,
+
+  "src/bridge/bridgeMain.ts": `// bridgeMain.ts — Remote Control bridge orchestrator (2,809 lines)
+// Manages poll loops, session lifecycle, transport negotiation, and reconnect.
+
+import { capacityWake }      from './capacityWake.js'
+import { bridgeEnabled }     from './bridgeEnabled.js'
+import { replBridgeTransport } from './replBridgeTransport.js'
+import { pollConfig }        from './pollConfig.js'
+import { pollConfigDefaults } from './pollConfigDefaults.js'
+
+export async function runBridgeMain(signal: AbortSignal): Promise<void> {
+  if (!await bridgeEnabled()) {
+    console.error('Bridge not enabled for this subscription tier')
+    return
+  }
+
+  const config = await pollConfig.getLatest()   // GrowthBook-tuned intervals
+
+  // ── Poll loop for incoming work ───────────────────────────────────────────
+  while (!signal.aborted) {
+    let session: BridgeSession | null = null
+
+    try {
+      // seekWork() long-polls the Environments API.
+      // Returns when a code session is assigned to us, or on timeout.
+      session = await seekWork(signal, config.seekWorkIntervalMs)
+    } catch (err) {
+      if (isAtCapacityError(err)) {
+        // We're full — wait before seeking more work
+        await capacityWake(signal, config.atCapacityIntervalMs)
+        continue
+      }
+      // Real error — exponential backoff
+      await backoff(signal, config.errorBackoffMs)
+      continue
+    }
+
+    if (session) {
+      // Negotiate transport (v1 HybridTransport or v2 SSE+CCRClient)
+      const transport = await replBridgeTransport.create(session)
+      // Run the session in the background — keep polling for more
+      runSession(session, transport, signal).catch(logError)
+    }
+  }
+}
+
+// Each session runs its own full REPL lifecycle
+async function runSession(
+  session:   BridgeSession,
+  transport: BridgeTransport,
+  signal:    AbortSignal,
+): Promise<void> {
+  const bridge = await initReplBridge(session, transport, signal)
+  await bridge.waitForCompletion()
+  await bridge.cleanup()
+}`,
+
+  "src/query/stopHooks.ts": `// query/stopHooks.ts — PostToolUse and Stop hook execution engine (473 lines)
+
+import { getState } from '../bootstrap/state.js'
+import type { HookMatcher } from '../types/hooks.js'
+import { spawn } from 'child_process'
+
+// Called after every tool call with the tool name + result
+export async function runPostToolUseHooks(
+  toolName:   string,
+  toolResult: string,
+  signal:     AbortSignal,
+): Promise<string | null> {   // returns injected output, or null
+
+  const matchers: HookMatcher[] = getState().postToolUseHooks ?? []
+
+  for (const matcher of matchers) {
+    // Glob match: e.g. matcher.tools = ["BashTool", "File*"]
+    if (!toolNameMatchesPattern(toolName, matcher.tools)) continue
+
+    const output = await runHookCommand(matcher.command, {
+      CLAUDE_TOOL_NAME:   toolName,
+      CLAUDE_TOOL_RESULT: toolResult,
+    }, matcher.timeoutMs ?? 60_000, signal)
+
+    if (output) return output   // first match wins; inject its stdout
+  }
+  return null
+}
+
+// Run a single hook command as a child process
+async function runHookCommand(
+  command:   string,
+  env:       Record<string, string>,
+  timeoutMs: number,
+  signal:    AbortSignal,
+): Promise<string | null> {
+
+  return new Promise((resolve) => {
+    const proc = spawn('sh', ['-c', command], {
+      env:   { ...process.env, ...env },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+
+    let stdout = ''
+    proc.stdout.on('data', (chunk: Buffer) => stdout += chunk.toString())
+
+    // Enforce timeout
+    const timer = setTimeout(() => {
+      proc.kill('SIGTERM')
+      setTimeout(() => proc.kill('SIGKILL'), 5_000)
+      console.warn(\`Hook timed out after \${timeoutMs}ms: \${command}\`)
+      resolve(null)
+    }, timeoutMs)
+
+    proc.on('close', () => { clearTimeout(timer); resolve(stdout.trim() || null) })
+    signal.addEventListener('abort', () => proc.kill('SIGTERM'), { once: true })
+  })
+}`,
+
+  "src/skills/loadSkillsDir.ts": `// skills/loadSkillsDir.ts — skill discovery and loading engine (1,086 lines)
+
+import matter from 'gray-matter'   // parses YAML frontmatter from .md files
+import { z }   from 'zod'
+
+// Every skill Markdown file must have this frontmatter
+const SkillFrontmatterSchema = z.object({
+  name:          z.string().min(1),               // slash-command name: /my-skill
+  description:   z.string().min(1),               // shown in /help and typeahead
+  argumentHint:  z.string().optional(),            // e.g. "<filename>"
+  allowedTools:  z.array(z.string()).optional(),   // restrict to these tools
+})
+
+export interface LoadedSkill {
+  name:          string   // without leading /
+  description:   string
+  promptTemplate:string   // the full Markdown body (after frontmatter)
+  allowedTools:  string[] | undefined
+  filePath:      string
+}
+
+export async function loadSkillsDir(
+  skillsDir: string,
+): Promise<LoadedSkill[]> {
+  const mdFiles = await glob(\`\${skillsDir}/**/*.md\`)
+  const skills: LoadedSkill[] = []
+
+  for (const filePath of mdFiles) {
+    const raw = await readFile(filePath, 'utf8')
+    const { data: frontmatter, content: body } = matter(raw)
+
+    const result = SkillFrontmatterSchema.safeParse(frontmatter)
+    if (!result.success) {
+      console.warn(\`Skipping invalid skill \${filePath}: \${result.error.message}\`)
+      continue
+    }
+
+    skills.push({
+      name:          result.data.name,
+      description:   result.data.description,
+      promptTemplate:body.trim(),   // argument placeholder: {{argument}}
+      allowedTools:  result.data.allowedTools,
+      filePath,
+    })
+  }
+
+  return skills
+}
+
+// Usage example — calling a skill from the REPL:
+// User types: /translate "Hello World"
+// Skill template: "Translate the following text to French:\\n\\n{{argument}}"
+// → expanded prompt: "Translate the following text to French:\\n\\nHello World"`,
+
+  "src/keybindings/defaultBindings.ts": `// keybindings/defaultBindings.ts — factory-default keyboard shortcut map
+
+export type ActionId =
+  | 'editor.submit'          // send prompt (Enter or Ctrl+Enter)
+  | 'editor.newline'         // insert literal newline (Shift+Enter)
+  | 'editor.interrupt'       // Ctrl+C — cancel current operation
+  | 'editor.clear'           // Ctrl+L — clear transcript
+  | 'editor.compact'         // Ctrl+K — compact conversation
+  | 'editor.historyPrev'     // up arrow — recall previous input
+  | 'editor.historyNext'     // down arrow — recall next input
+  | 'editor.historySearch'   // Ctrl+R — fuzzy search history
+  | 'nav.modelPicker'        // Ctrl+T — open model picker
+  | 'nav.outputStyle'        // Ctrl+O — open output style picker
+  | 'nav.scrollUp'           // Page Up — scroll message list up
+  | 'nav.scrollDown'         // Page Down — scroll message list down
+  // ... 30+ more action IDs
+
+// Platform-aware key syntax:
+//   "mod+s"        → Ctrl+S on Windows/Linux, ⌘S on macOS
+//   "ctrl+s"       → always Ctrl+S (ignores platform)
+//   "shift+enter"  → Shift+Enter on all platforms
+
+export const DEFAULT_BINDINGS: Record<ActionId, string[]> = {
+  'editor.submit':       ['enter'],
+  'editor.newline':      ['shift+enter'],
+  'editor.interrupt':    ['ctrl+c'],
+  'editor.clear':        ['ctrl+l'],
+  'editor.compact':      ['ctrl+k'],
+  'editor.historyPrev':  ['up'],
+  'editor.historyNext':  ['down'],
+  'editor.historySearch':['ctrl+r'],
+  'nav.modelPicker':     ['ctrl+t'],
+  'nav.outputStyle':     ['ctrl+o'],
+  'nav.scrollUp':        ['pageup'],
+  'nav.scrollDown':      ['pagedown'],
+  // ...
+}
+
+// Override in .claude/settings.json:
+// { "keybindings": [{ "action": "editor.submit", "key": "ctrl+enter" }] }`,
+
+  "src/tasks/types.ts": `// tasks/types.ts — Task interface (46 lines)
+// All background tasks implement this interface: agents, shell commands,
+// dream tasks, session tasks, and remote agents.
+
+export type TaskStatus =
+  | 'pending'    // created, not yet started
+  | 'running'    // currently executing
+  | 'done'       // completed successfully
+  | 'error'      // terminated with error
+  | 'stopped'    // externally killed
+
+export interface TaskResult {
+  status:   'done' | 'error'
+  output:   string    // final output text
+  exitCode: number    // 0 = success
+}
+
+export interface Task {
+  readonly id:   string        // unique task ID (e.g. "a-agent-3f9c2b1a")
+  readonly type: string        // "agent" | "shell" | "dream" | "session"
+  status:        TaskStatus
+
+  start():   Promise<void>
+  stop():    Promise<void>     // graceful shutdown
+  getOutput(): string          // all output so far (streamed)
+  waitForCompletion(): Promise<TaskResult>
+
+  // Optional: called when new output bytes arrive
+  onOutput?: (chunk: string) => void
+}
+
+// Every task implementation (LocalAgentTask, LocalShellTask, DreamTask, etc.)
+// exports a class that implements this interface.
+// The coordinator and bridge treat all tasks uniformly via this contract.`,
+
+  "src/services/api/claude.ts": `// services/api/claude.ts — core streaming API client (3,419 lines)
+// Every message Claude sends or receives flows through this file.
+
+import Anthropic from '@anthropic-ai/sdk'
+import { addCost, getSessionId } from '../../bootstrap/state.js'
+import { withRetry }             from './withRetry.js'
+import { logApiCall }            from './logging.js'
+
+const anthropic = new Anthropic({ apiKey: getApiKey() })
+
+export async function* streamMessage(params: {
+  messages:    Anthropic.MessageParam[]
+  system:      Anthropic.SystemContentBlockParam[]   // cacheable + uncacheable sections
+  tools:       Anthropic.Tool[]
+  model:       string
+  maxTokens:   number
+  thinkingBudget?: number
+}): AsyncGenerator<StreamEvent> {
+
+  const request = buildRequest(params)   // adds cache_control headers to stable sections
+
+  // withRetry handles 429/529/network errors with exponential backoff
+  const stream = await withRetry(() =>
+    anthropic.beta.messages.stream(request, { betas: ['interleaved-thinking-2025-05-14'] })
+  )
+
+  let inputTokens  = 0
+  let outputTokens = 0
+  let cacheRead    = 0
+  let cacheCreated = 0
+
+  for await (const event of stream) {
+    if (event.type === 'content_block_delta') {
+      yield normaliseContentDelta(event)   // text | thinking | tool_use_input
+    }
+
+    if (event.type === 'message_stop') {
+      const usage = stream.finalMessage().usage
+      inputTokens  = usage.input_tokens
+      outputTokens = usage.output_tokens
+      cacheRead    = usage.cache_read_input_tokens    ?? 0
+      cacheCreated = usage.cache_creation_input_tokens ?? 0
+
+      // Track cost: (input × $3/Mtok) + (output × $15/Mtok) − (cache_read × discount)
+      const costUSD = calculateCost(params.model, inputTokens, outputTokens, cacheRead)
+      addCost(costUSD)
+
+      yield { type: 'message_stop', usage: { inputTokens, outputTokens, cacheRead, cacheCreated } }
+    }
+  }
+}`,
+
+  "src/services/mcp/client.ts": `// services/mcp/client.ts — MCP protocol client (3,348 lines)
+// Connects Claude to any MCP-compatible tool server.
+
+import { Client } from '@modelcontextprotocol/sdk/client/index.js'
+import type { Tool } from '../../Tool.js'
+
+export class MCPClient {
+  private client:  Client
+  private tools:   Map<string, MCPToolProxy> = new Map()
+
+  async connect(config: MCPServerConfig): Promise<void> {
+    // Create transport: stdio for local, SSE for remote
+    const transport = config.type === 'stdio'
+      ? new StdioClientTransport({ command: config.command, args: config.args })
+      : new SSEClientTransport(new URL(config.url!))
+
+    this.client = new Client({ name: 'claude-code', version: PKG_VERSION }, { capabilities: {} })
+    await this.client.connect(transport)
+
+    // Discover tools → register as Tool interface proxies
+    const { tools } = await this.client.listTools()
+    for (const mcpTool of tools) {
+      this.tools.set(mcpTool.name, new MCPToolProxy(this.client, mcpTool))
+    }
+  }
+
+  getTools(): Tool[] { return [...this.tools.values()] }
+}
+
+// Each MCP tool becomes a proxy implementing the native Tool interface
+class MCPToolProxy implements Tool {
+  readonly name:        string
+  readonly description: string
+  readonly inputSchema: z.ZodType
+
+  constructor(private client: Client, private mcpTool: MCPTool) {
+    this.name        = mcpTool.name
+    this.description = mcpTool.description ?? ''
+    this.inputSchema = jsonSchemaToZod(mcpTool.inputSchema)   // convert JSON Schema → Zod
+  }
+
+  async execute(input: unknown): Promise<ToolResult> {
+    const result = await this.client.callTool({ name: this.mcpTool.name, arguments: input })
+    return { type: 'tool_result', content: normaliseContent(result.content) }
+  }
+}`,
+
+  "src/services/compact/autoCompact.ts": `// services/compact/autoCompact.ts — auto-compact trigger (351 lines)
+// Monitors context usage and fires compaction when threshold is reached.
+
+import { getState }  from '../../bootstrap/state.js'
+import { compact }   from './compact.js'
+import { getModel }  from '../../utils/model/model.js'
+
+// Called before every LLM turn
+export async function maybeAutoCompact(
+  messages: Message[],
+  ctx:       QueryContext,
+): Promise<Message[]> {
+
+  const model       = getModel()
+  const contextSize = getContextWindow(model)    // e.g. 200,000 for Sonnet
+  const usedTokens  = estimateTokenCount(messages)
+  const usageRatio  = usedTokens / contextSize
+
+  // Compact threshold: 85% by default, configurable via feature flag
+  const threshold = getFeatureValue('auto_compact_threshold', 0.85)
+
+  if (usageRatio < threshold) return messages   // nothing to do
+
+  console.log(\`Context at \${Math.round(usageRatio * 100)}% — auto-compacting...\`)
+
+  // Run compaction — returns a shorter message array
+  const compacted = await compact(messages, ctx)
+
+  const newRatio = estimateTokenCount(compacted) / contextSize
+  console.log(\`Compacted: \${Math.round(usageRatio * 100)}% → \${Math.round(newRatio * 100)}%\`)
+
+  return compacted
+}`,
+
+  "src/services/autoDream/autoDream.ts": `// services/autoDream/autoDream.ts — background memory consolidation (324 lines)
+
+import { consolidationLock }  from './consolidationLock.js'
+import { CONSOLIDATION_PROMPT } from './consolidationPrompt.js'
+import { loadMemoryPrompt }   from '../../memdir/memdir.js'
+import { sideQuery }          from '../../utils/sideQuery.js'
+
+const MIN_SESSION_EXCHANGES = 3   // skip tiny/test sessions
+
+export async function runAutoDream(
+  sessionMessages: Message[],
+  memoryDir:       string,
+): Promise<void> {
+
+  // Only dream about real sessions
+  const exchanges = sessionMessages.filter(m => m.role === 'assistant').length
+  if (exchanges < MIN_SESSION_EXCHANGES) return
+
+  // One dream at a time across all sessions (file lock on MEMORY.md)
+  const lock = await consolidationLock.acquire(memoryDir)
+  if (!lock) { console.log('AutoDream: lock held by another session, skipping'); return }
+
+  try {
+    // Ask a cheap model to extract memorable facts
+    const facts = await sideQuery({
+      system: CONSOLIDATION_PROMPT,
+      prompt: formatSessionForDreaming(sessionMessages),
+      model:  getDefaultSonnetModel(),
+      signal: AbortSignal.timeout(30_000),
+    })
+
+    if (!facts?.trim()) return
+
+    // Append to MEMORY.md with datestamp
+    const entry = \`\\n## Session \${new Date().toLocaleDateString()}\\n\${facts}\\n\`
+    await appendFile(join(memoryDir, 'MEMORY.md'), entry, 'utf8')
+    console.log(\`AutoDream: appended \${facts.split('\\n').length} facts to MEMORY.md\`)
+
+  } finally {
+    lock.release()
+  }
 }`,
 };
 
