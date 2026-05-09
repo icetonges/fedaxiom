@@ -1826,6 +1826,14 @@ export default function HomePage() {
           }}>
             <BookOpen size={16} /> Course Guide
           </a>
+          <Link href="/ai-guide" style={{
+            display: "flex", alignItems: "center", gap: 9,
+            padding: "13px 26px", borderRadius: 10,
+            background: "rgba(232,121,249,0.10)", border: "1px solid rgba(232,121,249,0.30)",
+            color: "#e879f9", fontSize: 15, fontWeight: 600, textDecoration: "none",
+          }}>
+            <Brain size={16} /> AI Concept Guide
+          </Link>
         </div>
       </div>
 
@@ -1989,12 +1997,15 @@ export default function HomePage() {
         <SectionHeader icon={<Zap size={18}/>} label="Quick Launch" title="Jump Into Practice" sub="All tools and destinations in one place" color="#818cf8" />
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
           {[
-            { href: "/studio",    icon: <Bot size={17}/>,       color: "#818cf8", label: "AI Studio",      sub: "Chat · Agent · Chain · A2A" },
-            { href: "/knowledge", icon: <Database size={17}/>,  color: "#34d399", label: "Knowledge Base",  sub: "Upload · RAG · Embed" },
-            { href: "/live-feed", icon: <Activity size={17}/>,  color: "#38bdf8", label: "Live Feed",       sub: "AI news · model releases" },
-            { href: "/notebook",  icon: <BookOpen size={17}/>,  color: "#fbbf24", label: "Notebook",        sub: "AI-assisted notes" },
-            { href: "/career",    icon: <TrendingUp size={17}/>,color: "#f87171", label: "Career Tracker",  sub: "Skills · roadmap · gaps" },
-            { href: "/projects",  icon: <Code2 size={17}/>,     color: "#94a3b8", label: "Projects",        sub: "Builds · prototypes" },
+            { href: "/studio",        icon: <Bot size={17}/>,       color: "#818cf8", label: "AI Studio",       sub: "Chat · Agent · Chain · A2A" },
+            { href: "/ai-guide",      icon: <Brain size={17}/>,     color: "#e879f9", label: "AI Concept Guide", sub: "Knowledge · Skills · Workflows · RAG" },
+            { href: "/learn",         icon: <BookOpen size={17}/>,  color: "#f59e0b", label: "Agent Builder",    sub: "35-step guided builder · LEGO canvas" },
+            { href: "/code-analysis", icon: <Code2 size={17}/>,     color: "#34d399", label: "Code Explorer",    sub: "1,884 files · Claude Code source" },
+            { href: "/knowledge",     icon: <Database size={17}/>,  color: "#38bdf8", label: "Knowledge Base",   sub: "Upload · RAG · Embed" },
+            { href: "/live-feed",     icon: <Activity size={17}/>,  color: "#22d3ee", label: "Live Feed",        sub: "AI news · model releases" },
+            { href: "/notebook",      icon: <Layers size={17}/>,    color: "#fbbf24", label: "Notebook",         sub: "AI-assisted notes" },
+            { href: "/career",        icon: <TrendingUp size={17}/>,color: "#f87171", label: "Career Tracker",   sub: "Skills · roadmap · gaps" },
+            { href: "/projects",      icon: <Wrench size={17}/>,    color: "#94a3b8", label: "Projects",         sub: "Builds · prototypes" },
           ].map(item => (
             <Link key={item.href} href={item.href} style={{
               display: "flex", alignItems: "center", gap: 13,
