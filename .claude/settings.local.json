@@ -44,7 +44,13 @@
       "mcp__Claude_Preview__preview_start",
       "Bash(npx prisma *)",
       "Bash(node -e ' *)",
-      "Bash(node scripts/patch-learn-tab.js)"
+      "Bash(node scripts/patch-learn-tab.js)",
+      "Bash(Get-ChildItem -Recurse -Directory)",
+      "Bash(Select-Object FullName)",
+      "Bash(grep -n \"^  \\\\\"src/\\\\|^};\\\\s*$\\\\|^const FOLDER_PURPOSES\\\\|^const CODE_SNIPPETS\\\\|// ─── CODE SNIPPETS\\\\|// ─── FOLDER\" \"/c/Users/Peter-HP/git peter note/ClaudeCode/axiom/tender-mirzakhani-08fca3/app/code-analysis/page.tsx\")",
+      "Bash(Get-ChildItem \"C:\\\\Users\\\\Peter-HP\\\\git peter note\\\\AI Study Note\\\\claude_code_Template\\\\src\\\\tools\" -Directory)",
+      "Bash(Select-Object -ExpandProperty Name)",
+      "Bash(Sort-Object)"
     ]
   }
 }

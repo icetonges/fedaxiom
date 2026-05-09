@@ -25,19 +25,49 @@ const FILE_TREE: TreeNode[] = [
     { name: "query.ts",        type: "file", lines: 280,  desc: "Query pipeline (pre/post processing, history)" },
     { name: "history.ts",      type: "file", lines: 185,  desc: "Session history management & persistence" },
     { name: "cost-tracker.ts", type: "file", lines: 130,  desc: "Token usage & cost aggregation" },
-    { name: "tools", type: "dir", children: [
-      { name: "FileReadTool.ts",   type: "file", lines: 95,  desc: "Read any file from local filesystem" },
-      { name: "FileEditTool.ts",   type: "file", lines: 280, desc: "Precise old→new string replacement editing" },
-      { name: "FileWriteTool.ts",  type: "file", lines: 120, desc: "Write / overwrite full file contents" },
-      { name: "GlobTool.ts",       type: "file", lines: 88,  desc: "Fast glob pattern file matching" },
-      { name: "GrepTool.ts",       type: "file", lines: 102, desc: "Ripgrep-powered content search" },
-      { name: "BashTool.ts",       type: "file", lines: 195, desc: "Execute Bash commands with timeout & sandbox" },
-      { name: "PowerShellTool.ts", type: "file", lines: 180, desc: "Execute PowerShell (Windows)" },
-      { name: "AgentTool.ts",      type: "file", lines: 310, desc: "Spawn async sub-agents as background tasks" },
-      { name: "MCPTool.ts",        type: "file", lines: 175, desc: "Dynamic MCP protocol tool execution" },
-      { name: "WebFetchTool.ts",   type: "file", lines: 145, desc: "HTTP fetch with Markdown conversion" },
-      { name: "WebSearchTool.ts",  type: "file", lines: 130, desc: "Web search via search engine API" },
-      { name: "TodoWriteTool.ts",  type: "file", lines: 88,  desc: "Structured todo list management" },
+    { name: "tools", type: "dir", desc: "42 tool directories + shared/utils — each tool is a self-contained module with prompt, schema, execute, and tests", children: [
+      { name: "AgentTool",          type: "dir", desc: "15 files — spawn sub-agents, load agent dirs, built-in Explore/Plan agents, fork, swarm" },
+      { name: "BashTool",           type: "dir", desc: "18 files — bash execution, timeout, sandbox, shell detection, Windows/macOS/Linux paths" },
+      { name: "PowerShellTool",     type: "dir", desc: "14 files — PowerShell execution (Windows), script escaping, output formatting" },
+      { name: "FileEditTool",       type: "dir", desc: "6 files  — precise old→new string replacement with uniqueness enforcement" },
+      { name: "FileReadTool",       type: "dir", desc: "5 files  — read files with optional offset/limit, line numbers, PDF/notebook support" },
+      { name: "FileWriteTool",      type: "dir", desc: "3 files  — write/overwrite full file contents, parent dir creation" },
+      { name: "GlobTool",           type: "dir", desc: "3 files  — fast glob pattern matching, mod-time sorted results" },
+      { name: "GrepTool",           type: "dir", desc: "3 files  — ripgrep-powered content search with context lines, file type filter" },
+      { name: "WebFetchTool",       type: "dir", desc: "5 files  — HTTP fetch with Markdown conversion, robots.txt compliance" },
+      { name: "WebSearchTool",      type: "dir", desc: "3 files  — web search via Brave/Google API, result ranking" },
+      { name: "TodoWriteTool",      type: "dir", desc: "3 files  — structured task list management, status transitions" },
+      { name: "TaskCreateTool",     type: "dir", desc: "3 files  — create background tasks (LocalAgentTask)" },
+      { name: "TaskOutputTool",     type: "dir", desc: "2 files  — poll task output file for new bytes" },
+      { name: "TaskGetTool",        type: "dir", desc: "3 files  — retrieve a specific task by ID" },
+      { name: "TaskListTool",       type: "dir", desc: "3 files  — list all active tasks in the session" },
+      { name: "TaskStopTool",       type: "dir", desc: "3 files  — stop/kill a running task by ID" },
+      { name: "TaskUpdateTool",     type: "dir", desc: "3 files  — update task metadata or status" },
+      { name: "SendMessageTool",    type: "dir", desc: "4 files  — send messages between agents in a team channel" },
+      { name: "TeamCreateTool",     type: "dir", desc: "4 files  — create shared team communication channel for multi-agent sessions" },
+      { name: "TeamDeleteTool",     type: "dir", desc: "4 files  — delete a team channel and clean up subscribers" },
+      { name: "MCPTool",            type: "dir", desc: "4 files  — dynamic MCP protocol tool execution, capability dispatch" },
+      { name: "ListMcpResourcesTool", type: "dir", desc: "3 files — list available resources on a connected MCP server" },
+      { name: "ReadMcpResourceTool",  type: "dir", desc: "3 files — read the contents of a specific MCP resource" },
+      { name: "McpAuthTool",        type: "dir", desc: "1 file   — initiate OAuth auth flow for a MCP server" },
+      { name: "SkillTool",          type: "dir", desc: "4 files  — load and execute user-defined skills from .claude/skills/" },
+      { name: "ScheduleCronTool",   type: "dir", desc: "5 files  — create/delete/list cron-style recurring tasks" },
+      { name: "RemoteTriggerTool",  type: "dir", desc: "3 files  — trigger remote agent sessions programmatically" },
+      { name: "EnterWorktreeTool",  type: "dir", desc: "4 files  — switch the session CWD into a git worktree" },
+      { name: "ExitWorktreeTool",   type: "dir", desc: "4 files  — exit worktree and restore previous CWD" },
+      { name: "EnterPlanModeTool",  type: "dir", desc: "4 files  — enable read-only plan mode (no writes/edits allowed)" },
+      { name: "ExitPlanModeTool",   type: "dir", desc: "4 files  — exit plan mode and restore normal permissions" },
+      { name: "REPLTool",           type: "dir", desc: "2 files  — interactive REPL mode tool (JS/Python persistent sessions)" },
+      { name: "LSPTool",            type: "dir", desc: "6 files  — LSP hover/definition/diagnostics queries for code navigation" },
+      { name: "NotebookEditTool",   type: "dir", desc: "4 files  — edit Jupyter notebook cells and metadata" },
+      { name: "AskUserQuestionTool",type: "dir", desc: "2 files  — prompt user for clarification before acting" },
+      { name: "BriefTool",          type: "dir", desc: "5 files  — generate a concise brief/summary of work done" },
+      { name: "ConfigTool",         type: "dir", desc: "5 files  — read/write Claude Code config (~/.claude.json)" },
+      { name: "SleepTool",          type: "dir", desc: "1 file   — wait N seconds (used in multi-agent sequencing)" },
+      { name: "SyntheticOutputTool",type: "dir", desc: "1 file   — inject synthetic tool output for testing/replay" },
+      { name: "ToolSearchTool",     type: "dir", desc: "3 files  — search available tools by keyword for dynamic tool discovery" },
+      { name: "shared",             type: "dir", desc: "Shared tool utilities: permission checking, diff formatting, error types" },
+      { name: "utils.ts",           type: "file", lines: 120, desc: "Cross-tool helper functions: input sanitization, timeout wrappers" },
     ]},
     { name: "services", type: "dir", children: [
       { name: "api",       type: "dir", desc: "Anthropic Claude SDK — streaming, cost, retry" },
@@ -49,13 +79,39 @@ const FILE_TREE: TreeNode[] = [
       { name: "analytics", type: "dir", desc: "GrowthBook feature gates & telemetry" },
       { name: "plugins",   type: "dir", desc: "Plugin lifecycle: discovery, versioning, cache" },
     ]},
-    { name: "bridge", type: "dir", desc: "IDE integration — 32 files, JWT WebSocket", children: [
-      { name: "bridgeApi.ts",        type: "file", lines: 240, desc: "Bridge REST API surface" },
-      { name: "bridgeMessaging.ts",  type: "file", lines: 310, desc: "Message framing & dispatch" },
-      { name: "bridgeUI.ts",         type: "file", lines: 195, desc: "UI state sync to IDE" },
-      { name: "replBridge.ts",       type: "file", lines: 280, desc: "REPL session tunneling" },
-      { name: "remoteBridgeCore.ts", type: "file", lines: 355, desc: "Remote execution core" },
-      { name: "jwtUtils.ts",         type: "file", lines: 90,  desc: "JWT signing for bridge sessions" },
+    { name: "bridge", type: "dir", desc: "Remote Control bridge — 31 files, SSE+HTTP+JWT, session tunneling & transport", children: [
+      { name: "bridgeMain.ts",              type: "file", lines: 2809, desc: "Main bridge core orchestrator — poll loops, session lifecycle, transport management" },
+      { name: "replBridge.ts",              type: "file", lines: 2267, desc: "REPL bridge implementation — session lifecycle, transport mgmt, message handling" },
+      { name: "remoteBridgeCore.ts",        type: "file", lines: 958,  desc: "Env-less Remote Control bridge, connects directly to session-ingress (no Environments API)" },
+      { name: "initReplBridge.ts",          type: "file", lines: 545,  desc: "REPL-specific wrapper around initBridgeCore — reads bootstrap state and delegates" },
+      { name: "sessionRunner.ts",           type: "file", lines: 512,  desc: "Spawns child processes for session execution with activity tracking & error logging" },
+      { name: "bridgeApi.ts",               type: "file", lines: 482,  desc: "HTTP client for bridge API — error handling, token refresh, CCR communication" },
+      { name: "bridgeUI.ts",                type: "file", lines: 467,  desc: "Terminal UI for bridge status — QR codes, footer text, connect/session URLs" },
+      { name: "bridgeMessaging.ts",         type: "file", lines: 423,  desc: "Transport-layer helpers — bridge message handling, ingress parsing, control requests" },
+      { name: "ContextVisualization.tsx",   type: "file", lines: 486,  desc: "Visualization of context items with filtering, expansion, and token counting (shared)" },
+      { name: "createSession.ts",           type: "file", lines: 348,  desc: "Session creation with git source resolution and outcome handling" },
+      { name: "replBridgeTransport.ts",     type: "file", lines: 360,  desc: "Transport abstraction — v1 (HybridTransport) and v2 (SSE+CCRClient) protocols" },
+      { name: "trustedDevice.ts",           type: "file", lines: 197,  desc: "Trusted device token source for elevated-security bridge sessions via secure storage" },
+      { name: "bridgeEnabled.ts",           type: "file", lines: 193,  desc: "Runtime check for bridge mode entitlement based on subscription + feature flags" },
+      { name: "envLessBridgeConfig.ts",     type: "file", lines: 159,  desc: "Configuration schema for env-less bridge — retry, timeout, and dedup settings" },
+      { name: "inboundAttachments.ts",      type: "file", lines: 159,  desc: "Resolves file_uuid attachments on inbound bridge messages via OAuth-authed file API" },
+      { name: "codeSessionApi.ts",          type: "file", lines: 158,  desc: "Thin HTTP wrappers for CCR v2 code-session API (createSession, fetchCredentials)" },
+      { name: "bridgeDebug.ts",             type: "file", lines: 124,  desc: "Ant-only fault injection for manually testing bridge recovery paths & failure modes" },
+      { name: "workSecret.ts",              type: "file", lines: 122,  desc: "Work secret decoding and validation for base64url-encoded session credentials" },
+      { name: "pollConfig.ts",              type: "file", lines: 108,  desc: "Zod schema for bridge poll interval configuration with GrowthBook live tuning" },
+      { name: "bridgeStatusUtil.ts",        type: "file", lines: 144,  desc: "Status state machine & UI formatting utilities for bridge connection status display" },
+      { name: "debugUtils.ts",              type: "file", lines: 130,  desc: "Debug logging utilities with secret field redaction & structured message truncation" },
+      { name: "jwtUtils.ts",                type: "file", lines: 231,  desc: "JWT payload decoding & duration formatting utilities for bridge auth tokens" },
+      { name: "types.ts",                   type: "file", lines: 242,  desc: "TypeScript interface defs for bridge protocols, work data, session handles, config" },
+      { name: "inboundMessages.ts",         type: "file", lines: 74,   desc: "Processes inbound user messages — extracts content & normalises image blocks" },
+      { name: "bridgePointer.ts",           type: "file", lines: 192,  desc: "Disk-persisted pointer utility for tracking worktree state across runs" },
+      { name: "sessionIdCompat.ts",         type: "file", lines: 53,   desc: "Session ID tag translation helpers for CCR v2 compat layer with CSE shim gating" },
+      { name: "capacityWake.ts",            type: "file", lines: 50,   desc: "Capacity-wake primitive for bridge poll loops — signal merging & early wakeup" },
+      { name: "bridgePermissionCallbacks.ts", type: "file", lines: 39, desc: "Type defs & callback handlers for bridge permission request/response flow" },
+      { name: "replBridgeHandle.ts",        type: "file", lines: 31,   desc: "Global pointer to active REPL bridge handle for tools/commands to invoke bridge" },
+      { name: "bridgeConfig.ts",            type: "file", lines: 43,   desc: "Shared bridge auth/URL resolution with Ant-only dev overrides for OAuth tokens" },
+      { name: "flushGate.ts",               type: "file", lines: 64,   desc: "State machine gating message writes during initial flush to prevent interleaved arrival" },
+      { name: "pollConfigDefaults.ts",      type: "file", lines: 77,   desc: "Bridge poll interval constants for seek-work and at-capacity states" },
     ]},
     { name: "buddy", type: "dir", desc: "Tamagotchi companion — 18 species, PRNG from userId hash", children: [
       { name: "companion.ts", type: "file", lines: 410, desc: "Deterministic generation via Mulberry32 PRNG" },
@@ -66,13 +122,151 @@ const FILE_TREE: TreeNode[] = [
     { name: "coordinator", type: "dir", desc: "Multi-agent swarm — parallel worker orchestration", children: [
       { name: "coordinatorMode.ts", type: "file", lines: 480, desc: "Swarm spawning & team coordination" },
     ]},
-    { name: "components", type: "dir", desc: "60+ React/Ink terminal UI components", children: [
-      { name: "design-system",     type: "dir",  desc: "Base design tokens & primitives" },
-      { name: "TrustDialog.tsx",   type: "file", lines: 145, desc: "First-run user consent dialog" },
-      { name: "Messages.tsx",      type: "file", lines: 390, desc: "Chat message rendering pipeline" },
-      { name: "PromptInput.tsx",   type: "file", lines: 285, desc: "Multi-line prompt editor with history" },
-      { name: "HighlightedCode.tsx", type: "file", lines: 180, desc: "Syntax-highlighted code blocks" },
-      { name: "Diff.tsx",          type: "file", lines: 240, desc: "Side-by-side diff visualization" },
+    { name: "components", type: "dir", desc: "141 React/Ink terminal UI components + 32 subdirectories (354 more files)", children: [
+      { name: "agents",          type: "dir", desc: "26 files — agent spawning UI, progress lines, swarm status, coordinator view" },
+      { name: "messages",        type: "dir", desc: "41 files — all message content block renderers: text, tool use, images, diffs" },
+      { name: "permissions",     type: "dir", desc: "51 files — permission request dialogs, allow/deny UI, rule editors" },
+      { name: "PromptInput",     type: "dir", desc: "21 files — multi-line input, typeahead popup, ghost text, mode indicators" },
+      { name: "Spinner",         type: "dir", desc: "12 files — animated spinner variants for different operation types" },
+      { name: "tasks",           type: "dir", desc: "12 files — TodoWrite task list display, completion tracking, reordering" },
+      { name: "mcp",             type: "dir", desc: "13 files — MCP server connection dialogs, tool approval, capability display" },
+      { name: "design-system",   type: "dir", desc: "16 files — base design tokens, colour palette, typography, box primitives" },
+      { name: "FeedbackSurvey",  type: "dir", desc: "9 files — in-app feedback surveys, NPS, thumbs up/down widgets" },
+      { name: "LogoV2",          type: "dir", desc: "15 files — Claude brand logo in ASCII/Unicode, animated variants" },
+      { name: "CustomSelect",    type: "dir", desc: "10 files — keyboard-navigable select dropdown components" },
+      { name: "sandbox",         type: "dir", desc: "5 files — sandbox violation display, constraint warning banners" },
+      { name: "wizard",          type: "dir", desc: "5 files — multi-step setup wizard flow components" },
+      { name: "diff",            type: "dir", desc: "3 files — side-by-side and unified diff view renderers" },
+      { name: "teams",           type: "dir", desc: "2 files — multi-agent teammate list and team status header" },
+      { name: "memory",          type: "dir", desc: "2 files — memory usage indicator, MEMORY.md preview widget" },
+      { name: "TrustDialog",     type: "dir", desc: "2 files — first-run user trust/consent dialog components" },
+      { name: "StructuredDiff",  type: "dir", desc: "2 files — structured diff rendering for JSON/YAML changes" },
+      { name: "hooks",           type: "dir", desc: "6 files — component-level hooks: useFocus, useScrollPosition, etc." },
+      { name: "Settings",        type: "dir", desc: "4 files — settings screen UI, keybinding editor, theme selector" },
+      { name: "shell",           type: "dir", desc: "4 files — shell command output rendering, stderr/stdout display" },
+      { name: "HelpV2",          type: "dir", desc: "3 files — help screen with command reference and keyboard shortcuts" },
+      { name: "ui",              type: "dir", desc: "3 files — shared low-level UI primitives (Box, Text wrappers)" },
+      { name: "skills",          type: "dir", desc: "1 file  — skill execution result display component" },
+      { name: "grove",           type: "dir", desc: "1 file  — Grove (Anthropic internal cloud) integration widget" },
+      { name: "Passes",          type: "dir", desc: "1 file  — subscription plan badge display" },
+      { name: "DesktopUpsell",   type: "dir", desc: "1 file  — desktop app upsell prompt for web users" },
+      { name: "HighlightedCode", type: "dir", desc: "1 file  — async syntax highlighting worker bridge" },
+      { name: "ClaudeCodeHint",  type: "dir", desc: "1 file  — inline hint component for Claude Code feature callouts" },
+      { name: "LspRecommendation",type:"dir", desc: "1 file  — LSP install recommendation banner" },
+      { name: "ManagedSettingsSecurityDialog", type: "dir", desc: "2 files — MDM-managed settings security alert dialog" },
+      // ── Top-level component files ──────────────────────────────────────────
+      { name: "Messages.tsx",               type: "file", lines: 807,  desc: "Main messages container — message list, scrolling, interactions" },
+      { name: "VirtualMessageList.tsx",     type: "file", lines: 1058, desc: "Virtual scrolling list for efficient large transcript rendering" },
+      { name: "Stats.tsx",                  type: "file", lines: 1183, desc: "Comprehensive statistics view — charts, token usage, performance metrics" },
+      { name: "ScrollKeybindingHandler.tsx",type: "file", lines: 984,  desc: "Keyboard handler for scroll — selection, copy-on-select, focus mgmt" },
+      { name: "LogSelector.tsx",            type: "file", lines: 1565, desc: "Complex dialog for browsing session logs with search & filter" },
+      { name: "Message.tsx",                type: "file", lines: 626,  desc: "Core message renderer — all message types and content blocks" },
+      { name: "FullscreenLayout.tsx",       type: "file", lines: 626,  desc: "Main fullscreen layout — modal pane, scroll chrome, transcript" },
+      { name: "ConsoleOAuthFlow.tsx",       type: "file", lines: 623,  desc: "Full OAuth authentication flow UI for terminal-based login" },
+      { name: "Spinner.tsx",                type: "file", lines: 541,  desc: "Animated spinner component with various styles and states" },
+      { name: "Feedback.tsx",               type: "file", lines: 560,  desc: "Comprehensive feedback dialog with survey and transcript sharing" },
+      { name: "MessageSelector.tsx",        type: "file", lines: 814,  desc: "Component for selecting and filtering messages with keyboard nav" },
+      { name: "ModelPicker.tsx",            type: "file", lines: 448,  desc: "Model selection dialog with effort level and fast mode controls" },
+      { name: "messageActions.tsx",         type: "file", lines: 443,  desc: "Message action handlers — copy, share, retry with state management" },
+      { name: "BridgeDialog.tsx",           type: "file", lines: 401,  desc: "Remote Control bridge setup dialog with session info and URL display" },
+      { name: "MessageRow.tsx",             type: "file", lines: 370,  desc: "Single row/message display with selection and action menu" },
+      { name: "ThemePicker.tsx",            type: "file", lines: 333,  desc: "Dialog for selecting colour theme with live preview" },
+      { name: "GlobalSearchDialog.tsx",     type: "file", lines: 341,  desc: "Global search dialog for finding messages across transcript" },
+      { name: "RemoteEnvironmentDialog.tsx",type: "file", lines: 340,  desc: "Dialog for managing remote environment configuration" },
+      { name: "ResumeTask.tsx",             type: "file", lines: 253,  desc: "Component for resuming paused/interrupted tasks" },
+      { name: "CoordinatorAgentStatus.tsx", type: "file", lines: 269,  desc: "Status display for coordinator agent runs and progress" },
+      { name: "Onboarding.tsx",             type: "file", lines: 242,  desc: "Initial onboarding flow for new users" },
+      { name: "QuickOpenDialog.tsx",        type: "file", lines: 243,  desc: "Quick file open dialog with search and recent items" },
+      { name: "WorktreeExitDialog.tsx",     type: "file", lines: 228,  desc: "Dialog for confirming worktree exit with state preservation" },
+      { name: "MarkdownTable.tsx",          type: "file", lines: 291,  desc: "Table renderer for Markdown with column formatting" },
+      { name: "TaskListV2.tsx",             type: "file", lines: 371,  desc: "Task list display with completion state and management" },
+      { name: "EffortCallout.tsx",          type: "file", lines: 260,  desc: "Callout explaining effort/thinking modes with examples" },
+      { name: "HighlightedCode.tsx",        type: "file", lines: 190,  desc: "Code block with syntax highlighting via CLI highlight service" },
+      { name: "StructuredDiff.tsx",         type: "file", lines: 186,  desc: "Diff display for structured/formatted content" },
+      { name: "DesktopHandoff.tsx",         type: "file", lines: 193,  desc: "Component handling handoff from web to desktop Claude Code" },
+      { name: "NativeAutoUpdater.tsx",      type: "file", lines: 186,  desc: "Native app auto-update handler for desktop platforms" },
+      { name: "FileEditToolDiff.tsx",       type: "file", lines: 180,  desc: "Diff display for file edit tool operations" },
+      { name: "AutoUpdater.tsx",            type: "file", lines: 189,  desc: "Auto-update manager — periodic package update checks & install" },
+      { name: "Markdown.tsx",               type: "file", lines: 226,  desc: "Markdown renderer with token caching and lazy syntax highlighting" },
+      { name: "StatusLine.tsx",             type: "file", lines: 310,  desc: "Status bar displaying connection, tokens, model, and indicators" },
+      { name: "AgentProgressLine.tsx",      type: "file", lines: 136,  desc: "Agent execution progress — type, description, tool count, tokens" },
+      { name: "FileEditToolUpdatedMessage.tsx", type: "file", lines: 124, desc: "Message displayed when files are updated via edit tool" },
+      { name: "FileEditToolUseRejectedMessage.tsx", type: "file", lines: 170, desc: "Message for rejected file edit with fallback options" },
+      { name: "TokenWarning.tsx",           type: "file", lines: 178,  desc: "Warning component for token limit/usage alerts" },
+      { name: "FallbackToolUseErrorMessage.tsx", type: "file", lines: 116, desc: "Error message display for tool use failures" },
+      { name: "ApproveApiKey.tsx",          type: "file", lines: 123,  desc: "Dialog for user approval of API key usage" },
+      { name: "AutoModeOptInDialog.tsx",    type: "file", lines: 141,  desc: "Dialog for opting into automatic mode with consent confirmation" },
+      { name: "MCPServerApprovalDialog.tsx",type: "file", lines: 115,  desc: "Dialog for approving MCP server connections" },
+      { name: "MCPServerDesktopImportDialog.tsx", type: "file", lines: 203, desc: "Dialog for importing MCP servers from desktop config" },
+      { name: "MCPServerMultiselectDialog.tsx", type: "file", lines: 133, desc: "Multiselect dialog for choosing MCP servers" },
+      { name: "IdeAutoConnectDialog.tsx",   type: "file", lines: 154,  desc: "Dialog prompting IDE auto-connect configuration" },
+      { name: "IdeOnboardingDialog.tsx",    type: "file", lines: 167,  desc: "Onboarding flow for IDE integration setup" },
+      { name: "ClaudeInChromeOnboarding.tsx", type: "file", lines: 121, desc: "Onboarding for Claude in Chrome extension setup & connection" },
+      { name: "ClaudeMdExternalIncludesDialog.tsx", type: "file", lines: 137, desc: "Dialog for CLAUDE.md external file includes with path resolution" },
+      { name: "ContextVisualization.tsx",   type: "file", lines: 486,  desc: "Visualization of context items with filtering, expansion, token count" },
+      { name: "SessionPreview.tsx",         type: "file", lines: 194,  desc: "Preview of session information and metadata" },
+      { name: "BaseTextInput.tsx",          type: "file", lines: 135,  desc: "Base text input component with shared input handling" },
+      { name: "TextInput.tsx",              type: "file", lines: 117,  desc: "Text input component with validation and styling" },
+      { name: "VimTextInput.tsx",           type: "file", lines: 140,  desc: "Text input with Vim keybinding support" },
+      { name: "CompactSummary.tsx",         type: "file", lines: 118,  desc: "Compact message summary for condensed transcript view" },
+      { name: "HistorySearchDialog.tsx",    type: "file", lines: 118,  desc: "Dialog for searching and navigating transcript history" },
+      { name: "IdleReturnDialog.tsx",       type: "file", lines: 118,  desc: "Dialog confirming return from idle state" },
+      { name: "InvalidConfigDialog.tsx",    type: "file", lines: 154,  desc: "Error dialog for invalid configuration files" },
+      { name: "InvalidSettingsDialog.tsx",  type: "file", lines: 88,   desc: "Error dialog for invalid settings" },
+      { name: "DiagnosticsDisplay.tsx",     type: "file", lines: 95,   desc: "Display diagnostics and system health information" },
+      { name: "ValidationErrorsList.tsx",   type: "file", lines: 143,  desc: "List display of validation errors with context" },
+      { name: "SkillImprovementSurvey.tsx", type: "file", lines: 151,  desc: "Survey component for skill improvement feedback" },
+      { name: "ThinkingToggle.tsx",         type: "file", lines: 153,  desc: "Toggle control for thinking/effort mode" },
+      { name: "App.tsx",                    type: "file", lines: 55,   desc: "Top-level wrapper providing FPS metrics, stats context, AppState" },
+      { name: "OutputStylePicker.tsx",      type: "file", lines: 112,  desc: "Dialog for selecting output display style" },
+      { name: "ExportDialog.tsx",           type: "file", lines: 124,  desc: "Dialog for exporting transcript with format options" },
+      { name: "ShowInIDEPrompt.tsx",        type: "file", lines: 170,  desc: "Prompt to open file/location in IDE from current message" },
+      { name: "WorkflowMultiselectDialog.tsx", type: "file", lines: 128, desc: "Multiselect dialog for choosing workflows" },
+      { name: "TagTabs.tsx",                type: "file", lines: 127,  desc: "Tab component with filtering and selection" },
+      { name: "TeleportProgress.tsx",       type: "file", lines: 139,  desc: "Progress indicator for teleport operations" },
+      { name: "TeleportResumeWrapper.tsx",  type: "file", lines: 166,  desc: "Wrapper component for resuming teleport operations" },
+      { name: "TeleportError.tsx",          type: "file", lines: 187,  desc: "Error display component for teleport operations" },
+      { name: "TeleportRepoMismatchDialog.tsx", type: "file", lines: 104, desc: "Dialog alerting to repository mismatch during teleport" },
+      { name: "TeleportStash.tsx",          type: "file", lines: 112,  desc: "Component displaying teleport stash information" },
+      { name: "RemoteCallout.tsx",          type: "file", lines: 74,   desc: "Callout component for Remote Control information" },
+      { name: "SearchBox.tsx",              type: "file", lines: 72,   desc: "Search input component with focus handling" },
+      { name: "PrBadge.tsx",                type: "file", lines: 97,   desc: "Badge component displaying PR information" },
+      { name: "LanguagePicker.tsx",         type: "file", lines: 86,   desc: "Component for selecting preferred language" },
+      { name: "BypassPermissionsModeDialog.tsx", type: "file", lines: 87, desc: "Dialog requesting user confirmation to bypass permission checks" },
+      { name: "ChannelDowngradeDialog.tsx", type: "file", lines: 101,  desc: "Notification dialog for channel downgrade with migration guidance" },
+      { name: "DevChannelsDialog.tsx",      type: "file", lines: 105,  desc: "Dialog for selecting development channels (canary, beta, stable)" },
+      { name: "KeybindingWarnings.tsx",     type: "file", lines: 54,   desc: "Warnings display for keybinding conflicts or issues" },
+      { name: "CostThresholdDialog.tsx",    type: "file", lines: 50,   desc: "Dialog for cost threshold warnings and limits" },
+      { name: "ContextSuggestions.tsx",     type: "file", lines: 47,   desc: "Component displaying suggested context files or resources" },
+      { name: "ConfigurableShortcutHint.tsx", type: "file", lines: 56, desc: "Keyboard shortcut hint displaying bound keybinding or fallback" },
+      { name: "DevBar.tsx",                 type: "file", lines: 48,   desc: "Development bar for internal debugging and feature testing" },
+      { name: "EffortIndicator.ts",         type: "file", lines: 40,   desc: "Effort level indicator symbols and styling definitions" },
+      { name: "FastIcon.tsx",               type: "file", lines: 46,   desc: "Icon component for fast mode indicator" },
+      { name: "FilePathLink.tsx",           type: "file", lines: 42,   desc: "Clickable file path component that opens files in IDE" },
+      { name: "OffscreenFreeze.tsx",        type: "file", lines: 42,   desc: "Component preventing offscreen rendering / memory leaks" },
+      { name: "CtrlOToExpand.tsx",          type: "file", lines: 50,   desc: "Hint text directing user to press Ctrl+O to expand content" },
+      { name: "ToolUseLoader.tsx",          type: "file", lines: 42,   desc: "Loading indicator for tool use execution" },
+      { name: "MessageTimestamp.tsx",       type: "file", lines: 63,   desc: "Formatted message timestamp display" },
+      { name: "MessageModel.tsx",           type: "file", lines: 43,   desc: "Model name display component for messages" },
+      { name: "MessageResponse.tsx",        type: "file", lines: 77,   desc: "Response message wrapper component" },
+      { name: "TeammateViewHeader.tsx",     type: "file", lines: 81,   desc: "Header for teammate view display in multi-agent sessions" },
+      { name: "IdeStatusIndicator.tsx",     type: "file", lines: 58,   desc: "Status indicator for IDE connection state" },
+      { name: "StatusNotices.tsx",          type: "file", lines: 54,   desc: "Component for displaying status notices and alerts" },
+      { name: "BashModeProgress.tsx",       type: "file", lines: 56,   desc: "Progress indicator for bash mode execution" },
+      { name: "MemoryUsageIndicator.tsx",   type: "file", lines: 35,   desc: "Display of memory usage metrics" },
+      { name: "StructuredDiffList.tsx",     type: "file", lines: 29,   desc: "List container for multiple structured diffs" },
+      { name: "AutoUpdaterWrapper.tsx",     type: "file", lines: 91,   desc: "Wrapper that conditionally renders AutoUpdater based on platform" },
+      { name: "AwsAuthStatusBox.tsx",       type: "file", lines: 82,   desc: "Status box displaying AWS authentication state" },
+      { name: "ClickableImageRef.tsx",      type: "file", lines: 72,   desc: "Image reference component with click-to-open functionality" },
+      { name: "SessionBackgroundHint.tsx",  type: "file", lines: 107,  desc: "Hint about background session operations" },
+      { name: "SandboxViolationExpandedView.tsx", type: "file", lines: 98, desc: "Expanded view of sandbox constraint violations" },
+      { name: "PackageManagerAutoUpdater.tsx", type: "file", lines: 104, desc: "Auto-update handler for npm/package-manager installs" },
+      { name: "NotebookEditToolUseRejectedMessage.tsx", type: "file", lines: 92, desc: "Message for rejected notebook edit tool use" },
+      { name: "FallbackToolUseRejectedMessage.tsx", type: "file", lines: 16, desc: "Simple message for rejected tool use operations" },
+      { name: "ExitFlow.tsx",               type: "file", lines: 48,   desc: "Exit confirmation flow with cleanup messaging" },
+      { name: "InterruptedByUser.tsx",      type: "file", lines: 15,   desc: "Simple message for user-interrupted operations" },
+      { name: "PressEnterToContinue.tsx",   type: "file", lines: 15,   desc: "Simple prompt to press Enter to continue" },
+      { name: "SentryErrorBoundary.ts",     type: "file", lines: 22,   desc: "Error boundary wrapper for Sentry error reporting" },
     ]},
     { name: "utils", type: "dir", desc: "100+ utility modules across 15 domains", children: [
       { name: "permissions", type: "dir", desc: "Tool permission rules & enforcement engine" },
@@ -94,6 +288,187 @@ const FILE_TREE: TreeNode[] = [
     { name: "vim",       type: "dir", desc: "Full modal Vim editing — motions, operators, text objects" },
     { name: "ink",       type: "dir", desc: "Custom React/Ink terminal renderer with Yoga layout" },
     { name: "native-ts", type: "dir", desc: "TypeScript bindings: file-index, color-diff, yoga-layout" },
+
+    { name: "hooks", type: "dir", desc: "40+ React hooks — autocomplete, voice, polling, REPL bridge, history search", children: [
+      { name: "useTypeahead.tsx",         type: "file", lines: 1384, desc: "Smart autocomplete with keyboard nav, caching & fuzzy match" },
+      { name: "useInboxPoller.ts",        type: "file", lines: 969,  desc: "Polls inbox for new tasks/messages with exponential backoff" },
+      { name: "fileSuggestions.ts",       type: "file", lines: 811,  desc: "File path suggestions via lazy-loaded index + ripgrep" },
+      { name: "useVoiceIntegration.tsx",  type: "file", lines: 676,  desc: "Voice recording, transcription & audio level visualisation" },
+      { name: "useReplBridge.tsx",        type: "file", lines: 722,  desc: "REPL bridge for interactive code execution contexts" },
+      { name: "useDiffInIDE.ts",          type: "file", lines: 379,  desc: "IDE diff view integration for file change display" },
+      { name: "useHistorySearch.ts",      type: "file", lines: 303,  desc: "Conversation history search with filtering & pagination" },
+      { name: "useCancelRequest.ts",      type: "file", lines: 276,  desc: "API request cancellation & timeout management" },
+      { name: "useAssistantHistory.ts",   type: "file", lines: 250,  desc: "Assistant history navigation with pagination" },
+      { name: "unifiedSuggestions.ts",    type: "file", lines: 202,  desc: "Merges file/MCP/agent suggestions via Fuse.js fuzzy match" },
+      { name: "useTeleportResume.tsx",    type: "file", lines: 84,   desc: "Session resume for teleported sessions" },
+      { name: "renderPlaceholder.ts",     type: "file", lines: 51,   desc: "Cursor-styled placeholder text for text inputs" },
+    ]},
+
+    { name: "constants", type: "dir", desc: "21 config files — system prompts, API limits, beta flags, output styles", children: [
+      { name: "prompts.ts",        type: "file", lines: 914, desc: "All Claude API system prompt templates & context builders" },
+      { name: "oauth.ts",          type: "file", lines: 234, desc: "OAuth configuration & endpoints (GitHub / Google)" },
+      { name: "outputStyles.ts",   type: "file", lines: 216, desc: "Terminal output styling — colours, bold, dim definitions" },
+      { name: "spinnerVerbs.ts",   type: "file", lines: 204, desc: "Loading spinner text messages (verbs shown during work)" },
+      { name: "github-app.ts",     type: "file", lines: 144, desc: "GitHub App configuration, scopes & API endpoints" },
+      { name: "files.ts",          type: "file", lines: 156, desc: "Gitignore patterns, config filenames, path constants" },
+      { name: "tools.ts",          type: "file", lines: 112, desc: "Tool name identifier string constants" },
+      { name: "apiLimits.ts",      type: "file", lines: 94,  desc: "API limits: image max size, token caps, message limits" },
+      { name: "system.ts",         type: "file", lines: 95,  desc: "System-level prompt section strings" },
+      { name: "product.ts",        type: "file", lines: 76,  desc: "Product branding, version & marketing constants" },
+      { name: "betas.ts",          type: "file", lines: 52,  desc: "Beta API headers: INTERLEAVED_THINKING, FAST_MODE_BETA" },
+      { name: "common.ts",         type: "file", lines: 33,  desc: "getLocalISODate(), getSessionStartDate() shared helpers" },
+    ]},
+
+    { name: "context", type: "dir", desc: "9 React Context providers — notifications, stats, overlays, voice, modals", children: [
+      { name: "notifications.tsx",        type: "file", lines: 239, desc: "Notification queue: priority, timeouts & folding logic" },
+      { name: "stats.tsx",                type: "file", lines: 219, desc: "Session statistics & metrics via React Context" },
+      { name: "overlayContext.tsx",       type: "file", lines: 150, desc: "Overlay / modal UI state management" },
+      { name: "promptOverlayContext.tsx", type: "file", lines: 124, desc: "Prompt-specific overlay state & interactions" },
+      { name: "voice.tsx",                type: "file", lines: 87,  desc: "Voice input/output state context" },
+      { name: "QueuedMessageContext.tsx", type: "file", lines: 62,  desc: "Deferred UI update message queue" },
+      { name: "modalContext.tsx",         type: "file", lines: 57,  desc: "Modal dialog state & open/close control" },
+      { name: "mailbox.tsx",              type: "file", lines: 37,  desc: "Inter-component Mailbox for message passing" },
+      { name: "fpsMetrics.tsx",           type: "file", lines: 29,  desc: "FPS performance metrics context for dev profiling" },
+    ]},
+
+    { name: "state", type: "dir", desc: "6 files — AppState store, memoized selectors, change listeners, multi-agent helpers", children: [
+      { name: "AppStateStore.ts",       type: "file", lines: 569, desc: "Core AppState type & all state field definitions" },
+      { name: "AppState.tsx",           type: "file", lines: 199, desc: "React provider + useAppStateStore() hook" },
+      { name: "onChangeAppState.ts",    type: "file", lines: 171, desc: "State change subscriptions & side-effect triggers" },
+      { name: "selectors.ts",           type: "file", lines: 76,  desc: "Memoized state selectors for efficient queries" },
+      { name: "store.ts",               type: "file", lines: 34,  desc: "Generic createStore() — listeners, snapshots, updates" },
+      { name: "teammateViewHelpers.ts", type: "file", lines: 141, desc: "Multi-agent teammate UI state utilities" },
+    ]},
+
+    { name: "types", type: "dir", desc: "7 TypeScript definition files — permissions, plugins, hooks, branded IDs", children: [
+      { name: "permissions.ts",    type: "file", lines: 441, desc: "Permission rule types, evaluation & access control defs" },
+      { name: "textInputTypes.ts", type: "file", lines: 387, desc: "Text input handler & voice input type definitions" },
+      { name: "plugin.ts",         type: "file", lines: 363, desc: "PluginManifest, BuiltinPluginDefinition & config types" },
+      { name: "logs.ts",           type: "file", lines: 330, desc: "Logging event & analytics type definitions" },
+      { name: "hooks.ts",          type: "file", lines: 290, desc: "Hook events, permission updates & Zod validation schemas" },
+      { name: "command.ts",        type: "file", lines: 216, desc: "PromptCommand, LocalCommandResult & skill exec types" },
+      { name: "ids.ts",            type: "file", lines: 44,  desc: "Branded types: SessionId & AgentId — prevent ID mix-ups" },
+    ]},
+
+    { name: "memdir", type: "dir", desc: "Memory system — CLAUDE.md loading, LLM relevance scoring, team memory paths", children: [
+      { name: "memdir.ts",              type: "file", lines: 507, desc: "Core memory directory ops: load files, metadata, CLAUDE.md" },
+      { name: "findRelevantMemories.ts",type: "file", lines: 141, desc: "Sonnet-powered relevance scoring for memory retrieval" },
+      { name: "teamMemPaths.ts",        type: "file", lines: 292, desc: "Team memory path handling for multi-agent sessions" },
+      { name: "paths.ts",               type: "file", lines: 278, desc: "Memory directory path resolution with feature flags" },
+      { name: "memoryTypes.ts",         type: "file", lines: 271, desc: "Memory taxonomy: user / feedback / project / reference" },
+      { name: "teamMemPrompts.ts",      type: "file", lines: 100, desc: "System prompts for injecting team memory into context" },
+      { name: "memoryScan.ts",          type: "file", lines: 94,  desc: "Scans memory files for headers & builds memory manifest" },
+      { name: "memoryAge.ts",           type: "file", lines: 53,  desc: "memoryAge() / memoryAgeDays() — staleness assessment" },
+    ]},
+
+    { name: "assistant", type: "dir", desc: "Claude API session history — paginated event fetching", children: [
+      { name: "sessionHistory.ts", type: "file", lines: 88, desc: "fetchLatestEvents() + fetchOlderEvents() with pagination" },
+    ]},
+
+    { name: "bootstrap", type: "dir", desc: "Global session state — CWD, costs, tokens, permissions, plan mode, slow ops", children: [
+      { name: "state.ts", type: "file", lines: 1758, desc: "Single source of truth for all non-reactive session globals" },
+    ]},
+
+    { name: "schemas", type: "dir", desc: "Zod validation schemas for hooks config & permission rule syntax", children: [
+      { name: "hooks.ts", type: "file", lines: 40, desc: "Zod schemas for hook event types and permission rules" },
+    ]},
+
+    { name: "migrations", type: "dir", desc: "11 migration files — model renames, settings moves, feature flag resets, permission schema upgrades", children: [
+      { name: "migrateSonnet45ToSonnet46.ts",               type: "file", lines: 67,  desc: "Migrate claude-sonnet-4-5 references to claude-sonnet-4-6 across all settings" },
+      { name: "migrateEnableAllProjectMcpServersToSettings.ts", type: "file", lines: 118, desc: "Move enableAllProjectMcpServers flag from per-project to global settings" },
+      { name: "migrateAutoUpdatesToSettings.ts",             type: "file", lines: 61,  desc: "Migrate auto-update preferences from legacy location to unified settings" },
+      { name: "resetProToOpusDefault.ts",                    type: "file", lines: 51,  desc: "Reset Pro-tier users back to Opus as the default model" },
+      { name: "resetAutoModeOptInForDefaultOffer.ts",        type: "file", lines: 51,  desc: "Reset auto-mode opt-in flags for new default offer rollout" },
+      { name: "migrateSonnet1mToSonnet45.ts",                type: "file", lines: 48,  desc: "Rename claude-sonnet-1m model ID to claude-sonnet-4-5" },
+      { name: "migrateLegacyOpusToCurrent.ts",               type: "file", lines: 57,  desc: "Rename legacy opus model IDs to current canonical claude-opus-* IDs" },
+      { name: "migrateFennecToOpus.ts",                      type: "file", lines: 45,  desc: "Rename internal codename 'fennec' to 'claude-opus-4-7'" },
+      { name: "migrateOpusToOpus1m.ts",                      type: "file", lines: 43,  desc: "Rename claude-opus to claude-opus-1m" },
+      { name: "migrateBypassPermissionsAcceptedToSettings.ts", type: "file", lines: 40, desc: "Move bypass-permissions acceptance flag into main settings schema" },
+      { name: "migrateReplBridgeEnabledToRemoteControlAtStartup.ts", type: "file", lines: 22, desc: "Rename replBridgeEnabled → remoteControlAtStartup setting key" },
+    ]},
+    { name: "keybindings", type: "dir", desc: "14 files — keyboard shortcut registry: user bindings, Vim maps, platform overrides, validation", children: [
+      { name: "loadUserBindings.ts",     type: "file", lines: 472, desc: "Loads and merges user keybinding overrides from .claude/settings.json" },
+      { name: "validate.ts",             type: "file", lines: 498, desc: "Validates keybinding configs: detects conflicts, invalid key names, reserved shortcuts" },
+      { name: "defaultBindings.ts",      type: "file", lines: 340, desc: "Default keyboard shortcut map for all Claude Code actions (submit, cancel, scroll, etc.)" },
+      { name: "KeybindingProviderSetup.tsx", type: "file", lines: 307, desc: "React provider that wires keybinding context into the component tree at startup" },
+      { name: "resolver.ts",             type: "file", lines: 244, desc: "Resolves platform-specific key strings (Ctrl→Cmd on macOS, etc.)" },
+      { name: "KeybindingContext.tsx",   type: "file", lines: 242, desc: "React context holding the active keybinding map + registration/unregister API" },
+      { name: "schema.ts",               type: "file", lines: 236, desc: "Zod schema for validating user-provided keybinding objects" },
+      { name: "parser.ts",               type: "file", lines: 203, desc: "Parses keybinding string notation (e.g. 'ctrl+shift+enter') into key descriptor objects" },
+      { name: "useKeybinding.ts",        type: "file", lines: 196, desc: "Hook that subscribes to a named keybinding and fires a callback when pressed" },
+      { name: "reservedShortcuts.ts",    type: "file", lines: 127, desc: "List of reserved shortcuts that users cannot override (e.g. Ctrl+C, Ctrl+Z)" },
+      { name: "match.ts",                type: "file", lines: 120, desc: "Event-to-binding matcher: checks if a KeyboardEvent matches a binding descriptor" },
+      { name: "shortcutFormat.ts",       type: "file", lines: 63,  desc: "Formats key descriptors into human-readable strings ('⌘⇧↵')" },
+      { name: "useShortcutDisplay.ts",   type: "file", lines: 59,  desc: "Hook that returns the display string for a named keybinding" },
+      { name: "template.ts",             type: "file", lines: 52,  desc: "Template literals for generating keybinding documentation strings" },
+    ]},
+    { name: "skills",  type: "dir", desc: "4 entries — skill discovery, manifest loading, bundled skills, MCP skill builder", children: [
+      { name: "loadSkillsDir.ts",  type: "file", lines: 1086, desc: "Discovers, validates, and loads all .claude/skills/*.md skill definitions into memory" },
+      { name: "bundledSkills.ts",  type: "file", lines: 220,  desc: "Registers built-in bundled skills (e.g. /ultrareview) shipped with Claude Code" },
+      { name: "mcpSkillBuilders.ts", type: "file", lines: 44,  desc: "Builds MCP-compatible tool definitions from loaded skill manifests" },
+      { name: "bundled",           type: "dir",               desc: "Built-in skill .md files shipped with Claude Code (ultrareview, etc.)" },
+    ]},
+    { name: "screens", type: "dir", desc: "3 top-level screen components — REPL chat, Doctor diagnostics, ResumeConversation", children: [
+      { name: "REPL.tsx",                type: "file", lines: 5005, desc: "The main interactive REPL screen — 5,000-line component managing the full chat session loop" },
+      { name: "Doctor.tsx",              type: "file", lines: 574,  desc: "Health-check screen: API key, network, git, node version, config validity checks" },
+      { name: "ResumeConversation.tsx",  type: "file", lines: 398,  desc: "Session resume screen — lists previous sessions, lets user pick one to continue" },
+    ]},
+    { name: "server",  type: "dir", desc: "3 files — direct-connect session server for SDK mode (no CLI polling required)", children: [
+      { name: "directConnectManager.ts",     type: "file", lines: 213, desc: "Manages direct-connect sessions: accepts connections, routes to session runners" },
+      { name: "createDirectConnectSession.ts", type: "file", lines: 88,  desc: "Creates a new direct-connect session with auth validation and runner spawn" },
+      { name: "types.ts",                    type: "file", lines: 57,  desc: "TypeScript types for direct-connect session protocol" },
+    ]},
+    { name: "remote",  type: "dir", desc: "4 files — remote session management, WebSocket sessions, permission bridge, SDK adapter", children: [
+      { name: "SessionsWebSocket.ts",       type: "file", lines: 404, desc: "WebSocket server managing remote Claude Code sessions for web/API clients" },
+      { name: "RemoteSessionManager.ts",    type: "file", lines: 343, desc: "Orchestrates remote session lifecycle: create, route, teardown, reconnect" },
+      { name: "sdkMessageAdapter.ts",       type: "file", lines: 302, desc: "Adapts between internal message format and the Claude Agent SDK wire format" },
+      { name: "remotePermissionBridge.ts",  type: "file", lines: 78,  desc: "Bridges permission requests from remote sessions back to the local terminal for approval" },
+    ]},
+    { name: "outputStyles", type: "dir", desc: "1 file — output formatting strategy (compact vs verbose mode)" },
+    { name: "plugins",      type: "dir", desc: "1 file — plugin runtime: load → validate → sandbox → execute" },
+    { name: "entrypoints", type: "dir", desc: "5 files + sdk/ — binary entry points: CLI, MCP server, SDK, init, sandbox types", children: [
+      { name: "cli.tsx",           type: "file", lines: 302, desc: "CLI entry point — bootstraps the terminal REPL and routes to Commander subcommands" },
+      { name: "agentSdkTypes.ts",  type: "file", lines: 443, desc: "Public types exported by the Claude Agent SDK: HookEvent, ModelUsage, AgentOptions" },
+      { name: "init.ts",           type: "file", lines: 340, desc: "One-time init entry point — runs setup wizard, creates .claude directory, API key prompt" },
+      { name: "mcp.ts",            type: "file", lines: 196, desc: "MCP server entry point — exposes Claude Code as an MCP-compatible tool provider" },
+      { name: "sandboxTypes.ts",   type: "file", lines: 156, desc: "Sandbox constraint types for the headless/CI execution mode" },
+      { name: "sdk",               type: "dir",              desc: "SDK entry point implementation files for the Claude Agent SDK npm package" },
+    ]},
+    { name: "query",   type: "dir", desc: "4 files — query preprocessing, token budget management, stop hooks, dependency injection", children: [
+      { name: "stopHooks.ts",   type: "file", lines: 473, desc: "PostToolUse and Stop hook execution engine — runs user-configured shell hooks after tool calls" },
+      { name: "tokenBudget.ts", type: "file", lines: 93,  desc: "Computes per-turn token budget: max_tokens, thinking budget, betas based on model" },
+      { name: "config.ts",      type: "file", lines: 46,  desc: "QueryEngine configuration defaults and API call parameter builders" },
+      { name: "deps.ts",        type: "file", lines: 40,  desc: "Dependency injection container types for QueryEngine construction" },
+    ]},
+    { name: "cli",     type: "dir", desc: "8 entries — CLI output formatting, structured I/O, remote I/O, update logic, transports", children: [
+      { name: "print.ts",               type: "file", lines: 5594, desc: "5,500-line CLI output engine — renders all message types to terminal ANSI" },
+      { name: "structuredIO.ts",        type: "file", lines: 859,  desc: "Structured JSON output mode for CI/scripting: serialises messages as NDJSON" },
+      { name: "update.ts",              type: "file", lines: 422,  desc: "CLI update logic: checks npm registry, compares semver, prompts user to upgrade" },
+      { name: "remoteIO.ts",            type: "file", lines: 255,  desc: "Remote I/O adapter for forwarding CLI output over a network connection" },
+      { name: "transports",             type: "dir",               desc: "Transport implementations: stdio, SSE, WebSocket for CLI output delivery" },
+      { name: "handlers",               type: "dir",               desc: "Route handlers for CLI subcommand logic (review, session, model, etc.)" },
+      { name: "exit.ts",                type: "file", lines: 31,   desc: "Graceful exit handler — flushes output, closes connections, saves session" },
+      { name: "ndjsonSafeStringify.ts", type: "file", lines: 32,   desc: "JSON.stringify wrapper that handles circular references for NDJSON output" },
+    ]},
+    { name: "tasks",   type: "dir", desc: "9 entries — all task types: dream, teammate, agent, shell, session, remote + utilities", children: [
+      { name: "LocalMainSessionTask.ts", type: "file", lines: 479, desc: "Main session task — wraps the full REPL session lifecycle as a Task" },
+      { name: "LocalAgentTask",          type: "dir",               desc: "Background sub-agent task: spawn, run ReAct loop, write output file" },
+      { name: "LocalShellTask",          type: "dir",               desc: "Shell command task: spawn process, stream output, enforce timeout" },
+      { name: "DreamTask",               type: "dir",               desc: "Background memory consolidation task (autoDream): extract facts → MEMORY.md" },
+      { name: "InProcessTeammateTask",   type: "dir",               desc: "In-process teammate for multi-agent coordination (shared-memory, no IPC)" },
+      { name: "RemoteAgentTask",         type: "dir",               desc: "Remote agent task: manages a sub-agent running on a remote machine" },
+      { name: "stopTask.ts",             type: "file", lines: 100,  desc: "Sends SIGTERM/SIGKILL to stop a running task with configurable grace period" },
+      { name: "pillLabel.ts",            type: "file", lines: 82,   desc: "Generates coloured pill labels for task status display (running, done, error)" },
+      { name: "types.ts",                type: "file", lines: 46,   desc: "Task interface and TaskResult types used by all task implementations" },
+    ]},
+    { name: "voice",       type: "dir", desc: "1 file — voice mode entitlement check", children: [
+      { name: "voiceModeEnabled.ts", type: "file", lines: 54, desc: "Checks subscription + feature flag to determine if voice input mode is available" },
+    ]},
+    { name: "moreright",   type: "dir", desc: "1 file — right-panel UI hook: diff preview, file explorer, context manager" },
+    { name: "upstreamproxy",type:"dir", desc: "2 files — HTTP proxy for routing API calls in enterprise environments", children: [
+      { name: "upstreamproxy.ts", type: "file", lines: 180, desc: "HTTP proxy server: intercepts API calls and routes to enterprise proxy endpoints" },
+      { name: "relay.ts",         type: "file", lines: 95,  desc: "TCP relay for upstream proxy tunnel connections" },
+    ]},
   ]},
 ];
 
@@ -431,6 +806,489 @@ const FILE_EXPLANATIONS: Record<string, FileExplanation> = {
       "How does the tool prevent shell injection attacks when the LLM provides command arguments?",
     ],
   },
+
+  // ── Phase-2 Key Files ─────────────────────────────────────────────────────
+
+  "src/bridge/bridgeMain.ts": {
+    role: "The main orchestrator for the Remote Control bridge — manages poll loops, session lifecycle, transport negotiation, and reconnection logic across 2,809 lines.",
+    difficulty: "Advanced",
+    analogy: "🧑‍✈️ An air traffic controller managing dozens of planes simultaneously. bridgeMain.ts knows which sessions are landing, which are in holding patterns, which transports are active, and coordinates all handoffs without any two operations stepping on each other.",
+    howItWorks: [
+      { step: "Poll loop for incoming work", detail: "Polls the Environments API for new code-session assignments. Uses capacityWake.ts to merge 'capacity available' signals and abort signals into a unified wakeup mechanism." },
+      { step: "Session lifecycle management", detail: "Creates, tracks, and tears down bridge sessions. Each session gets its own transport (SSE or HybridTransport), message queue, and lifecycle callbacks." },
+      { step: "Transport negotiation", detail: "Checks feature flags and subscription entitlement to choose between v1 (HybridTransport) and v2 (SSE+CCRClient) transports. v2 is faster but requires a newer entitlement." },
+      { step: "Reconnection and retry", detail: "On transport failure, applies exponential backoff from pollConfigDefaults.ts. Distinguishes 'at-capacity' (pause polling) from 'error' (retry with backoff)." },
+    ],
+    connections: {
+      imports: [
+        { name: "bridgeMessaging.ts",  why: "Message framing and dispatch" },
+        { name: "replBridgeTransport.ts", why: "Transport abstraction for v1/v2" },
+        { name: "capacityWake.ts",     why: "Poll loop wakeup primitive" },
+        { name: "pollConfig.ts",       why: "GrowthBook-tuned poll intervals" },
+      ],
+      usedBy: ["main.tsx (when --remote flag is active)"],
+    },
+    concepts: ["Long-poll loop", "Transport negotiation", "Exponential backoff", "Session lifecycle", "Signal composition"],
+    hints: [
+      "How does the poll loop avoid busy-waiting while still responding quickly to new work?",
+      "What's the difference between the v1 HybridTransport and the v2 SSE+CCRClient transport?",
+      "How does bridgeMain.ts handle two sessions arriving simultaneously?",
+      "What triggers the 'at-capacity' state and how does it resume?",
+    ],
+  },
+
+  "src/bridge/replBridge.ts": {
+    role: "The REPL-mode bridge implementation — 2,267 lines managing session creation, inbound message processing, tool execution routing, and bidirectional state sync with the connected IDE.",
+    difficulty: "Advanced",
+    analogy: "🏢 The concierge desk of a hotel (your CLI REPL) that's wired into the room-service system (IDE). Every guest request (IDE message) is authenticated, parsed, routed to the kitchen (QueryEngine), and the result is delivered back — all while keeping the lobby running normally.",
+    howItWorks: [
+      { step: "Session handshake", detail: "On first connection, replBridge exchanges capability declarations with the IDE. Both sides announce which protocol versions and features they support." },
+      { step: "Inbound message processing", detail: "inboundMessages.ts deserialises messages, resolves file attachments via inboundAttachments.ts, and injects them into the REPL's active conversation." },
+      { step: "Tool call routing", detail: "IDE-triggered tool calls (openFile, showDiff) are intercepted before QueryEngine and handled directly by the bridge without an LLM round-trip." },
+      { step: "State sync", detail: "bridgeUI.ts pushes UI state (status indicator, cost, token count) back to the IDE on every significant state change so the status bar stays current." },
+    ],
+    connections: {
+      imports: [
+        { name: "inboundMessages.ts",    why: "Deserialises and validates inbound messages" },
+        { name: "inboundAttachments.ts", why: "Resolves file UUID attachments" },
+        { name: "bridgeUI.ts",           why: "Updates IDE status bar" },
+        { name: "replBridgeHandle.ts",   why: "Exposes the active handle globally for tools" },
+      ],
+      usedBy: ["initReplBridge.ts", "bridgeMain.ts"],
+    },
+    concepts: ["Bidirectional state sync", "Capability negotiation", "Message deserialisation", "Tool call interception"],
+    hints: [
+      "Why are some tool calls intercepted at the bridge layer rather than reaching QueryEngine?",
+      "How does replBridge recover if the IDE disconnects mid-conversation?",
+      "What's replBridgeHandle.ts for — why does it need to be global?",
+      "How does inboundAttachments.ts resolve file UUID attachments — what API does it call?",
+    ],
+  },
+
+  "src/components": {
+    role: "141 top-level React/Ink components + 32 subdirectories (354 more files) — the entire visual layer of the Claude Code terminal UI. Everything you see when you run `claude` is composed from components here.",
+    difficulty: "Intermediate",
+    analogy: "🎭 A theatre with 500 props, costumes, and stage pieces. The main stage is main.tsx, but every chair, curtain, spotlight, and actor's costume comes from this directory. The design-system/ provides the materials, messages/ renders the dialogue, permissions/ stages the approval scenes.",
+    howItWorks: [
+      { step: "React + Ink terminal rendering", detail: "Ink wraps React to render into terminal ANSI output instead of a DOM. Components use <Box> (flexbox), <Text> (styled text), and useInput() (keyboard events). There's no HTML or CSS." },
+      { step: "FullscreenLayout.tsx — the root shell", detail: "Provides the outer chrome: scroll pane, modal overlay layer, status line at bottom, and the transcript area. All other components render inside it." },
+      { step: "Messages.tsx + VirtualMessageList.tsx", detail: "Messages manages the logical list (filtering, selection, scroll anchoring). VirtualMessageList handles windowed rendering so 10,000-message transcripts stay fast." },
+      { step: "PromptInput/ subdirectory", detail: "21 files for the input box: multi-line text, typeahead popup, ghost text, mode icons (plan/auto), and the input footer showing completion hints." },
+      { step: "permissions/ subdirectory — 51 files", detail: "Every tool approval dialog, allow/deny rule editor, and permission mode switch lives here. It's the most safety-critical UI in the codebase." },
+    ],
+    connections: {
+      imports: [
+        { name: "src/state/",    why: "Reads AppState via hooks for session data, messages, mode" },
+        { name: "src/context/",  why: "Reads notification, overlay, voice contexts" },
+        { name: "src/hooks/",    why: "useTypeahead, useInboxPoller, useHistorySearch" },
+        { name: "src/ink.js",    why: "Ink primitives: Box, Text, useInput, useApp" },
+      ],
+      usedBy: ["main.tsx (imports App.tsx as root component)"],
+    },
+    concepts: ["Ink/React terminal rendering", "Virtual scrolling", "Component composition", "Permission UX", "Overlay stack management"],
+    hints: [
+      "Why use React/Ink for terminal UI instead of writing ANSI codes directly?",
+      "How does VirtualMessageList.tsx keep rendering fast with thousands of messages?",
+      "What's the difference between the permissions/ subdirectory and the src/permissions/ utilities directory?",
+      "Why are there 51 files in permissions/ — what accounts for that much code?",
+    ],
+  },
+
+  "src/tools": {
+    role: "42 tool subdirectories (plus shared/ and utils.ts) — each tool is a self-contained module implementing the Tool interface: prompt documentation, Zod input schema, execute() function, and tests. Together they give Claude its hands.",
+    difficulty: "Intermediate",
+    analogy: "🧰 A professional toolbox where every tool has its own labeled compartment. You never rummage through a pile — you look up 'BashTool' and get its handle, safety instructions, and manual in one place. Adding a new tool means adding a new compartment without touching any existing ones.",
+    howItWorks: [
+      { step: "Tool interface contract", detail: "Every tool exports a class or object implementing Tool: {name, description, inputSchema (Zod), execute(input, ctx) → ToolResult}. The LLM uses 'description' to decide when to call the tool." },
+      { step: "QueryEngine.ts loads all tools", detail: "loadAllTools() in main.tsx maps every tool into a Map<string, Tool>. QueryEngine receives this map and passes tools to the Anthropic API as the 'tools' parameter." },
+      { step: "Input schema → LLM tool call", detail: "The Zod schema is serialised to JSON Schema and sent to the API. The LLM produces a tool_use block whose 'input' field is validated against this schema before execute() is called." },
+      { step: "Permission check in execute()", detail: "Before doing any work, execute() calls checkToolPermission(). If the user hasn't allowed this tool+input combo, it returns a permission-request result instead of executing." },
+      { step: "AgentTool/ — the meta-tool", detail: "15 files because it's a tool factory: it spawns sub-agents, loads user-defined agent dirs, provides built-in Explore/Plan agents, and manages the swarm orchestration protocol." },
+    ],
+    connections: {
+      imports: [
+        { name: "src/Tool.ts",         why: "The Tool interface and ToolResult type that every tool implements" },
+        { name: "src/bootstrap/state.ts", why: "Permission mode, session info" },
+        { name: "src/constants/",      why: "TOOL_NAME constants imported by QueryEngine" },
+        { name: "shared/",             why: "Shared permission checking, diff formatting, output truncation" },
+      ],
+      usedBy: ["QueryEngine.ts", "coordinator/coordinatorMode.ts", "permissions/ (for approval dialogs)"],
+    },
+    concepts: ["Tool interface pattern", "JSON Schema for LLM tools", "Zod validation", "Permission-gated execution", "Recursive agent delegation"],
+    hints: [
+      "Why is each tool a separate directory rather than a single file per tool?",
+      "How does the LLM know which tool to call — what makes a good tool description?",
+      "What happens if a tool's Zod schema validation fails at runtime?",
+      "Why does AgentTool/ need 15 files when most tools need only 2-3?",
+    ],
+  },
+
+  // ── Phase-1 Directories ──────────────────────────────────────────────
+
+  "src/hooks": {
+    role: "React hooks layer — all stateful UI logic is encapsulated here, keeping components thin and testable. Typeahead, inbox polling, file suggestions, shell history, and keybinding context all live in this folder.",
+    difficulty: "Intermediate",
+    analogy: "🎛️ The control panel of a recording studio. The microphone (component) just captures sound, but all the mixing knobs — reverb, EQ, compression — are the hooks. You swap out a knob without rewiring the microphone.",
+    howItWorks: [
+      { step: "useTypeahead.tsx — 600+ line suggestion engine", detail: "Manages the inline typeahead popup: slash-commands, @file paths, shell history completions, Slack channel names (#channel), agent names, and shell completions. Uses debounce, unicode-aware regex, and background cache refresh." },
+      { step: "useInboxPoller.ts — background polling", detail: "Polls the notification inbox endpoint on a fixed interval. Surfaces new notification badges in the UI. Uses AbortSignal for teardown and avoids re-triggering while already polling." },
+      { step: "fileSuggestions.ts — file-index backed completions", detail: "Builds an in-memory file index on startup, then provides O(1) prefix search for @file completions. Refreshes the cache in the background after each file write." },
+      { step: "useKeybinding.ts — keyboard shortcut registry", detail: "Registers named keybindings from settings. Components call useKeybindings(['editor.submit']) to get platform-aware key strings without hardcoding Ctrl/Cmd logic." },
+    ],
+    connections: {
+      imports: [
+        { name: "src/context/",     why: "Reads overlay, notification, and app contexts" },
+        { name: "src/state/",       why: "Reads AppState via useAppStateStore" },
+        { name: "src/keybindings/", why: "Consumes keybinding registry" },
+      ],
+      usedBy: ["components/PromptInput/", "components/Inbox/", "main.tsx"],
+    },
+    concepts: ["Custom React hooks", "Debounce pattern", "Background cache refresh", "Keyboard shortcut registry", "Typeahead UX"],
+    hints: [
+      "Why are file completions cached in memory rather than queried on every keystroke?",
+      "How does useTypeahead handle unicode paths (CJK filenames, accented chars)?",
+      "What's the difference between useKeybinding and directly listening for keyboard events?",
+      "How does the inbox poller avoid spamming the server if the user has Claude open all day?",
+    ],
+  },
+
+  "src/hooks/useTypeahead.tsx": {
+    role: "The core typeahead / autocomplete engine for the prompt input box. Handles slash-commands, @file paths, shell completions, Slack channel names, shell history, and agent names — all in one unified suggestion list.",
+    difficulty: "Advanced",
+    analogy: "🔭 A smart search bar like VS Code's Command Palette. As you type, it simultaneously queries multiple sources (commands, file system, history, external APIs), merges them into a ranked list, and lets you navigate with arrow keys — all without blocking the UI thread.",
+    howItWorks: [
+      { step: "Input classification", detail: "Regex patterns (AT_TOKEN_HEAD_RE, HASH_CHANNEL_RE, etc.) classify each keystroke: is it an @file path, a #slack-channel, a /slash-command, or plain text? Each type triggers a different completion backend." },
+      { step: "Unified suggestion merge", detail: "generateUnifiedSuggestions() collects results from all active backends and deduplicates by ID. The list is scored and trimmed to a max display count." },
+      { step: "Keyboard navigation with overlay context", detail: "useRegisterOverlay() integrates with the overlay system so arrow keys and Enter are captured by the suggestion list and don't bubble to the REPL. Dismissed via Escape." },
+      { step: "Selection preservation on update", detail: "getPreservedSelection() tries to keep the same suggestion highlighted after the list refreshes (by matching suggestion IDs), preventing the cursor jumping to position 0 on every keystroke." },
+      { step: "Ghost text inline hint", detail: "The top suggestion can render as inline ghost text directly in the input. When the user presses Tab, the ghost text is applied. This is distinct from the popup list." },
+    ],
+    connections: {
+      imports: [
+        { name: "src/context/notifications.js",    why: "Surfaces typeahead errors as toast notifications" },
+        { name: "src/keybindings/",                why: "Tab/Enter/Escape are keybinding-driven, not hardcoded" },
+        { name: "src/utils/suggestions/",          why: "commandSuggestions, directoryCompletion, shellHistoryCompletion, slackChannelSuggestions" },
+        { name: "src/hooks/fileSuggestions.js",    why: "File index for @path completions" },
+        { name: "src/hooks/unifiedSuggestions.js", why: "Merges all suggestion sources into one ranked list" },
+      ],
+      usedBy: ["components/PromptInput/PromptInput.tsx"],
+    },
+    concepts: ["Typeahead / autocomplete", "Unicode-aware regex", "Overlay context pattern", "Ghost text", "Debounce", "Multi-source suggestion merge"],
+    hints: [
+      "Why use unicode property escapes (\\p{L}, \\p{N}) rather than simple \\w in path regexes?",
+      "How does the ghost-text hint differ from the popup suggestion list — when is each shown?",
+      "What happens if two suggestion backends return conflicting entries with the same ID?",
+      "How does the overlay system prevent arrow keys from scrolling the terminal while the popup is open?",
+    ],
+  },
+
+  "src/constants": {
+    role: "Compile-time constants and runtime-computed configuration — system prompt text, tool names, XML tag strings, output style definitions, and session metadata. Everything that's 'always true' about the system lives here.",
+    difficulty: "Beginner",
+    analogy: "📜 The legal contract template of the system. The actual negotiation (runtime) fills in names and dates, but the clauses (system prompt wording, tool names, XML tags) are fixed upfront. You change a clause once and every contract using it updates automatically.",
+    howItWorks: [
+      { step: "prompts.ts — system prompt assembly", detail: "Exports a getSystemPrompt() function that reads runtime state (OS, CWD, git, model, settings) and interpolates it into the static prompt template. This is sent as the 'system' message on every API call." },
+      { step: "common.ts — session-level constants", detail: "getSessionStartDate(), model IDs, and other values that are constant for the lifetime of a session but vary between sessions." },
+      { step: "outputStyles.ts — rendering styles", detail: "Defines color/format styles for different output categories: code blocks, errors, hints, tool results. Components import style names from here rather than hardcoding colors." },
+      { step: "xml.ts — XML tag strings", detail: "Tool results and structured data are wrapped in XML tags like <function_calls>. All tag names are exported as constants so they stay in sync between producer (tool output) and consumer (prompt assembly)." },
+    ],
+    connections: {
+      imports: [
+        { name: "src/utils/",     why: "Reads env, git, cwd, model, settings, worktree state at prompt assembly time" },
+        { name: "src/tools/*/",   why: "Imports TOOL_NAME constants from each tool to keep tool references consistent" },
+        { name: "src/memdir/",    why: "loadMemoryPrompt() injected into system prompt each turn" },
+      ],
+      usedBy: ["QueryEngine.ts (passes system prompt to API)", "all tools (import their own name constants)"],
+    },
+    concepts: ["System prompt engineering", "Compile-time vs runtime constants", "XML tagging for LLM output", "Output style tokens"],
+    hints: [
+      "Why are tool names declared as constants rather than just using string literals?",
+      "What information in the system prompt changes on every single API call vs stays the same?",
+      "How does memory injection (loadMemoryPrompt) work — when is it called?",
+      "Why wrap tool results in XML tags instead of just returning plain text?",
+    ],
+  },
+
+  "src/constants/prompts.ts": {
+    role: "Assembles the Claude Code system prompt dynamically at runtime — the most important single file in the repo. It reads OS info, working directory, git status, model, settings, memory files, and feature flags, then stitches them into the instruction set sent to the LLM on every conversation turn.",
+    difficulty: "Advanced",
+    analogy: "🎬 A film director's shot list that gets customised for every shoot. The script (static prompt template) stays the same, but the cast (tool names), location (CWD), and props (memory files, feature flags) are different every session. Get this file wrong and the entire agent misbehaves.",
+    howItWorks: [
+      { step: "Massive import section", detail: "Imports tool name constants from every tool directory (BashTool, AgentTool, FileWriteTool, TodoWriteTool…), utils, and services. This file is intentionally import-heavy to keep a single source of truth for what the LLM is told about each tool." },
+      { step: "getSystemPrompt(tools, commands, mcpServers) → string", detail: "The main export. Calls resolveSystemPromptSections() which assembles cacheable (stable) and uncacheable (volatile) sections separately for API prompt caching efficiency." },
+      { step: "systemPromptSection() for cacheable text", detail: "Stable sections (tool docs, core instructions, safety rules) are wrapped in systemPromptSection(). These hit the Anthropic prompt cache on every turn — crucial for cost." },
+      { step: "DANGEROUS_uncachedSystemPromptSection() for volatile text", detail: "Current date, CWD, git branch, and memory file content change frequently. These are placed in uncached sections to avoid cache misses invalidating the stable sections." },
+      { step: "loadMemoryPrompt() injection", detail: "Reads MEMORY.md and any relevant per-query memories and appends them to the system prompt. Called fresh on every turn so the agent always has up-to-date notes." },
+    ],
+    connections: {
+      imports: [
+        { name: "src/memdir/memdir.js",      why: "Injects MEMORY.md + relevant memories into the prompt" },
+        { name: "src/bootstrap/state.js",    why: "Reads isNonInteractiveSession, sessionId flags" },
+        { name: "src/services/analytics/",   why: "Reads GrowthBook feature flag values for conditional prompt sections" },
+        { name: "src/tools/*/prompt.js",     why: "Each tool exports its own documentation string — imported and stitched in here" },
+      ],
+      usedBy: ["QueryEngine.ts (passes result to Anthropic API as system param)"],
+    },
+    concepts: ["Prompt caching", "Dynamic system prompt assembly", "Prompt engineering at scale", "Feature-flag gated instructions", "Memory injection"],
+    hints: [
+      "What's the difference between a cached and uncached system prompt section — why does it matter for cost?",
+      "How does the prompt change when a new MCP server is connected mid-session?",
+      "Why is memory injected fresh on every turn rather than once at session start?",
+      "How do feature flags change what instructions the LLM receives?",
+    ],
+  },
+
+  "src/context": {
+    role: "React Context providers that share cross-cutting state between deeply nested components — notification toasts, overlay stack, keyboard focus, and app-level flags. Avoids prop drilling for UI state that many components need simultaneously.",
+    difficulty: "Intermediate",
+    analogy: "📡 A building's public address system. Instead of running wires from the DJ booth (parent component) to every room (child component), the PA broadcasts to everyone who tunes in. Any component can subscribe to toasts or overlay state without props passing through every intermediate layer.",
+    howItWorks: [
+      { step: "notifications.tsx — toast notification bus", detail: "Provides useNotifications() hook. Components call addNotification({type:'error', message:'…'}) from anywhere in the tree. The NotificationProvider renders them as floating toasts. No prop-drilling needed." },
+      { step: "overlayContext.tsx — modal/popup stack", detail: "Tracks which overlays are currently active (typeahead popup, confirmation dialog, etc.). useRegisterOverlay() mounts an overlay; useIsModalOverlayActive() checks if anything is blocking keyboard focus." },
+      { step: "keyboardContext.tsx — focus arbitration", detail: "When multiple components want keyboard events (REPL input + typeahead + confirmation dialog), this context decides who has priority. Prevents keystrokes going to both the input and a popup simultaneously." },
+    ],
+    connections: {
+      imports: [
+        { name: "React",         why: "createContext, useContext, useState, useCallback" },
+        { name: "src/hooks/",    why: "Hooks consume context values" },
+      ],
+      usedBy: ["main.tsx (wraps all providers)", "components/PromptInput/", "components/Inbox/"],
+    },
+    concepts: ["React Context API", "Provider pattern", "Prop drilling avoidance", "Overlay stack management", "Cross-cutting concerns"],
+    hints: [
+      "When should you use React Context vs Zustand store vs local useState?",
+      "How does the overlay context prevent keyboard events from leaking to background components?",
+      "What happens if a component calls useNotifications() outside a NotificationProvider?",
+      "How would you test a component that depends on context values?",
+    ],
+  },
+
+  "src/state": {
+    role: "Framework-agnostic state management layer. createStore() builds observable stores used by AppState, settings caches, and tool state. Chosen over Zustand/Redux because Claude Code runs in both React (Ink) and non-React (headless SDK) contexts.",
+    difficulty: "Intermediate",
+    analogy: "🏦 A bank's ledger system. Any department (component, hook, background task) can deposit or withdraw, and the ledger fires a notification to all interested parties whenever the balance changes. No department owns the ledger — it's shared infrastructure.",
+    howItWorks: [
+      { step: "createStore<T>(initialState, onChange?)", detail: "Creates a typed observable store. Callers pass an updater function: setState(prev => ({...prev, count: prev.count+1})). The store calls onChange and all listeners only when the new state differs (Object.is check)." },
+      { step: "getState() / setState() / subscribe()", detail: "The three-method Store<T> interface. subscribe() returns an unsubscribe function — React components call it in useEffect cleanup to avoid memory leaks." },
+      { step: "AppState.ts — the main application store", detail: "The largest store instance. Holds CWD, session ID, permission mode, tool output history, pending operations, and more. Exposed via useAppStateStore() and useAppState() hooks." },
+      { step: "AppStateStore.ts — selector hooks", detail: "Provides fine-grained selector hooks (useCurrentDir(), usePermissionMode()) so components re-render only when their specific slice of state changes." },
+    ],
+    connections: {
+      imports: [
+        { name: "store.ts",    why: "createStore() is the only dependency — zero external packages" },
+      ],
+      usedBy: ["src/hooks/ (consumes via selectors)", "src/services/ (reads permission mode)", "QueryEngine.ts (reads session, CWD)", "main.tsx (initialises AppState)"],
+    },
+    concepts: ["Observable store pattern", "Selector hooks", "Object.is equality", "Subscription cleanup", "Framework-agnostic state"],
+    hints: [
+      "Why use Object.is(next, prev) instead of === to skip unchanged state?",
+      "Why build a custom store instead of using Zustand or Jotai?",
+      "What's the difference between AppState (store instance) and AppStateStore (selector hooks file)?",
+      "How does the unsubscribe pattern prevent memory leaks in React components?",
+    ],
+  },
+
+  "src/state/store.ts": {
+    role: "35-line zero-dependency observable store factory. The foundation of all state management in Claude Code — creates typed reactive stores with subscribe/setState/getState without importing React, Zustand, or any external package.",
+    difficulty: "Beginner",
+    analogy: "⚡ A tiny power strip with a surge protector. Any appliance (component) can plug in (subscribe). When a new value arrives, every appliance is notified. The surge protector (Object.is check) ensures no unnecessary notifications fire.",
+    howItWorks: [
+      { step: "createStore<T>(initialState, onChange?)", detail: "Returns a Store<T> object. The state variable is captured in a closure — not exported directly — so the only mutations go through setState." },
+      { step: "setState with updater function", detail: "Takes a (prev: T) => T updater. This immutable pattern ensures consumers always get a new object reference when state changes, which React's rendering can detect." },
+      { step: "Object.is guard", detail: "if (Object.is(next, prev)) return — skips notifications when state hasn't actually changed. Prevents infinite render loops when complex objects are rebuilt but are structurally identical." },
+      { step: "Set<Listener> for subscriptions", detail: "Using a Set (not array) means subscribe/unsubscribe are O(1) and duplicate subscriptions are silently ignored." },
+    ],
+    connections: {
+      imports: [],
+      usedBy: ["src/state/AppState.ts", "src/state/AppStateStore.ts", "src/utils/settings/settingsCache.ts"],
+    },
+    concepts: ["Observable pattern", "Closure-based encapsulation", "Immutable state updates", "Set vs Array for subscriptions"],
+    hints: [
+      "Why does setState accept a function (prev => next) rather than a value directly?",
+      "What's the advantage of storing listeners in a Set vs an Array?",
+      "How would you add middleware (like logging) to this store?",
+      "Why is the state variable kept in a closure rather than exposed as a property?",
+    ],
+  },
+
+  "src/types": {
+    role: "Shared TypeScript type declarations used across the entire codebase — branded ID types, hook schemas, command types, and text input mode types. Centralising types here prevents circular imports and keeps the type system coherent.",
+    difficulty: "Beginner",
+    analogy: "📋 The shared vocabulary dictionary of a team. If engineers, designers, and managers all use the word 'session' to mean different things, bugs happen. types/ defines exactly what a SessionId, AgentId, or Command IS, and TypeScript enforces everyone speaks the same language.",
+    howItWorks: [
+      { step: "ids.ts — branded ID types", detail: "SessionId and AgentId are string & {__brand: 'SessionId'} — phantom types that prevent mixing up IDs at compile time. toAgentId() validates the format before branding." },
+      { step: "hooks.ts — hook schema types", detail: "Defines the Zod-validated shape of hook configurations: PreToolUse, PostToolUse, Stop hook matchers. Type-safe hook config parsing." },
+      { step: "textInputTypes.ts — prompt input types", detail: "PromptInputMode, InlineGhostText, and SuggestionType union types used by the typeahead and prompt input components." },
+      { step: "command.ts — command registry types", detail: "The Command interface: name, aliases, description, handler. Used by the slash-command system." },
+    ],
+    connections: {
+      imports: [
+        { name: "zod",          why: "hooks.ts uses Zod schemas for hook config validation" },
+      ],
+      usedBy: ["src/hooks/ (textInputTypes)", "src/bootstrap/state.ts (SessionId)", "src/keybindings/ (hooks types)", "src/commands.ts (Command interface)"],
+    },
+    concepts: ["Branded / phantom types", "TypeScript type-only imports", "Zod schema types", "Preventing type confusion bugs"],
+    hints: [
+      "What bug does the SessionId brand prevent that plain string wouldn't catch?",
+      "Why is the __brand property marked readonly — what happens if you remove that?",
+      "How does toAgentId() differ from asAgentId() — when should you use each?",
+      "When should a type live in types/ vs be co-located with the module that uses it?",
+    ],
+  },
+
+  "src/types/ids.ts": {
+    role: "Branded string types for SessionId and AgentId — a compile-time safety net that makes it impossible to accidentally pass a session ID where an agent ID is expected, or vice versa.",
+    difficulty: "Beginner",
+    analogy: "🎫 Two types of stadium passes — a VIP wristband (SessionId) and a press badge (AgentId). They're both made of plastic (string), but the scanner (TypeScript) refuses to let you swap them. You can't sneak into the VIP lounge with a press badge even though they look identical.",
+    howItWorks: [
+      { step: "Branded type declaration", detail: "type SessionId = string & { readonly __brand: 'SessionId' }. The __brand property only exists in the type system — it has zero runtime cost. TypeScript treats SessionId and AgentId as incompatible even though both are strings at runtime." },
+      { step: "asSessionId / asAgentId — trust casts", detail: "Used at the system boundary (e.g., when reading a raw string from config). These are type assertions — no validation. Use sparingly." },
+      { step: "toAgentId — validated cast", detail: "Checks the format with AGENT_ID_PATTERN (/^a(?:.+-)?[0-9a-f]{16}$/) before branding. Returns null if invalid. Use this when parsing IDs from external sources." },
+    ],
+    connections: {
+      imports: [],
+      usedBy: ["src/bootstrap/state.ts", "src/tools/AgentTool/", "src/utils/sessionStorage.ts", "src/hooks/useTypeahead.tsx"],
+    },
+    concepts: ["Phantom / branded types", "Compile-time type safety", "Type assertion vs type guard", "Zero-cost abstractions"],
+    hints: [
+      "Why doesn't the __brand property appear in the compiled JavaScript output?",
+      "When would you choose asAgentId (trust cast) vs toAgentId (validated cast)?",
+      "How does the AGENT_ID_PATTERN regex encode the expected format — what does it match?",
+      "Could you implement branded types with a class instead of intersection types?",
+    ],
+  },
+
+  "src/memdir": {
+    role: "The memory subsystem — reads, indexes, and injects per-project memory files (MEMORY.md and domain-specific .md files) into the LLM's context. Also uses a side-LLM call to find the most relevant memories for each query without burning main-context tokens.",
+    difficulty: "Advanced",
+    analogy: "🗄️ A research librarian who knows what's in every folder without having read every page. When you ask a question, the librarian quickly scans filing labels (memory headers), picks the 3–5 most relevant folders, and puts them on your desk — rather than emptying the entire archive.",
+    howItWorks: [
+      { step: "memdir.ts — loadMemoryPrompt()", detail: "Called by constants/prompts.ts every turn. Reads MEMORY.md (always included) and calls findRelevantMemories() for additional relevant files." },
+      { step: "memoryScan.ts — header extraction", detail: "Scans all .md files in the memory directory. Reads only the first few lines (the 'header') of each file to build a MemoryHeader index — fast even with hundreds of files." },
+      { step: "findRelevantMemories.ts — Sonnet selection", detail: "Takes the user's current query + MemoryHeader list, sends them to a side Sonnet call with a selection system prompt. Sonnet returns the filenames of up to 5 most relevant memories." },
+      { step: "alreadySurfaced deduplication", detail: "Tracks which memory files were injected in previous turns so the selector doesn't re-pick them. The 5-slot budget is always spent on fresh, novel memories." },
+    ],
+    connections: {
+      imports: [
+        { name: "src/utils/sideQuery.js", why: "Runs the Sonnet selection call without affecting the main conversation context" },
+        { name: "src/utils/model/model.js", why: "getDefaultSonnetModel() — uses a fast model for selection, not the expensive main model" },
+      ],
+      usedBy: ["src/constants/prompts.ts (calls loadMemoryPrompt on every turn)"],
+    },
+    concepts: ["Memory-augmented LLM", "Side-channel LLM query", "File header scanning", "Context budget management", "Per-project memory"],
+    hints: [
+      "Why use a separate Sonnet call for memory selection rather than including all memories in the main context?",
+      "How does 'alreadySurfaced' prevent the agent from repeating itself?",
+      "What's in a MemoryHeader — how does it enable selection without reading full files?",
+      "How would you extend this system to support memory expiration (time-based decay)?",
+    ],
+  },
+
+  "src/memdir/findRelevantMemories.ts": {
+    role: "Uses a fast side-LLM call (Sonnet) to select up to 5 relevant memory files from the project memory directory for each user query — without injecting all memories into the main context window.",
+    difficulty: "Advanced",
+    analogy: "🧠 A semantic search engine that asks a second AI 'which of these filing labels are relevant to this question?' instead of reading every file. The second AI is fast and cheap — it only sees labels, not content. This is AI using AI as a tool.",
+    howItWorks: [
+      { step: "scanMemoryFiles(memoryDir, signal)", detail: "Reads the memory directory and returns MemoryHeader objects — filename + first-few-lines description — for each .md file. Fast because it doesn't read full file content." },
+      { step: "Filter alreadySurfaced", detail: "Removes memory files that were already injected in prior turns. This ensures the 5-slot budget is always spent on new information." },
+      { step: "selectRelevantMemories() via sideQuery", detail: "Sends the query + memory header list to Sonnet with SELECT_MEMORIES_SYSTEM_PROMPT. The prompt instructs Sonnet to be selective and return only filenames of clearly useful memories." },
+      { step: "Result assembly with mtime", detail: "Maps selected filenames back to full paths and mtimes (for freshness display). Returns RelevantMemory[] — path + mtimeMs — to the caller." },
+    ],
+    connections: {
+      imports: [
+        { name: "src/utils/sideQuery.js",     why: "Runs the selection LLM call as a side channel" },
+        { name: "src/memdir/memoryScan.js",   why: "Provides MemoryHeader[] to select from" },
+        { name: "src/utils/model/model.js",   why: "Gets the default Sonnet model for selection" },
+      ],
+      usedBy: ["src/memdir/memdir.ts (called by loadMemoryPrompt)"],
+    },
+    concepts: ["LLM-as-selector", "Side-channel AI query", "Context budget management", "AbortSignal for cooperative cancellation"],
+    hints: [
+      "Why does the selection system prompt say 'be selective and discerning' — what happens if you're not?",
+      "What does sideQuery do differently from a regular QueryEngine call?",
+      "How does AbortSignal allow the selection to be cancelled if the user types a new message?",
+      "What's the mtime used for in the returned RelevantMemory objects?",
+    ],
+  },
+
+  "src/bootstrap": {
+    role: "Process-level singleton state initialised once at startup and never reset. Holds OpenTelemetry providers, total cost/duration accumulators, session ID, project root, hook matchers, and the non-interactive session flag. The single source of truth for cross-session global state.",
+    difficulty: "Advanced",
+    analogy: "🏛️ The foundation slab of a building — poured once before construction begins, never modified. Every room (module) can read what's in the foundation (query session ID, cost accumulator), but nobody is allowed to tear it up and repour it mid-project.",
+    howItWorks: [
+      { step: "State type with 50+ fields", detail: "Covers telemetry providers (MeterProvider, TracerProvider, LoggerProvider), cost accumulators (totalCostUSD, totalAPIDuration), session metadata (sessionId, projectRoot), and safety flags (isNonInteractiveSession, permissionMode)." },
+      { step: "Module-level let state variable", detail: "A single module-level variable holds the current state. getState() and setState() are the only access points. This is NOT a React store — it's a plain module singleton." },
+      { step: "resetSettingsCache on setState", detail: "When state is set, it calls resetSettingsCache() to invalidate cached settings reads. Ensures settings always reflect the current state after any update." },
+      { step: "getIsNonInteractiveSession()", detail: "Exported helper checked by constants/prompts.ts to adjust prompt wording for headless/SDK mode vs interactive terminal mode." },
+    ],
+    connections: {
+      imports: [
+        { name: "@opentelemetry/api",          why: "Meter, Attributes, MetricOptions for telemetry" },
+        { name: "@anthropic-ai/sdk",           why: "BetaMessageStreamParams type" },
+        { name: "src/utils/crypto.js",         why: "randomUUID() for session ID generation" },
+        { name: "src/utils/settings/",         why: "resetSettingsCache() called on every state update" },
+      ],
+      usedBy: ["src/constants/prompts.ts", "src/services/api/", "QueryEngine.ts", "main.tsx"],
+    },
+    concepts: ["Module singleton pattern", "OpenTelemetry integration", "Process-level state", "Non-React state management", "Bootstrap isolation rule"],
+    hints: [
+      "Why is this state NOT stored in AppState (the React store) — what's the difference in their lifetimes?",
+      "What does the 'bootstrap-isolation' eslint rule enforce — why does it exist?",
+      "How does totalCostUSD get accumulated — who increments it and when?",
+      "Why must getIsNonInteractiveSession() exist — when would prompts.ts behave differently in SDK mode?",
+    ],
+  },
+
+  "src/bootstrap/state.ts": {
+    role: "Defines the 1,758-line bootstrap State type, the module-level singleton, and all exported getter/setter helpers. The authoritative source for process-wide configuration accessed by every major subsystem.",
+    difficulty: "Advanced",
+    analogy: "🖥️ A BIOS chip on a motherboard — loads before the operating system, sets CPU speed, RAM configuration, and boot order, then hands off. Every device driver (subsystem) reads BIOS settings but nothing can rewrite the BIOS mid-boot.",
+    howItWorks: [
+      { step: "State type declaration (50+ fields)", detail: "Covers originalCwd, projectRoot, totalCostUSD, totalAPIDuration, turnHookDurationMs, sessionId, permissionMode, hookMatchers, OpenTelemetry providers, model overrides, and more. A living ledger of runtime configuration." },
+      { step: "let state: State = defaultState()", detail: "Module-level singleton. Initialised once when the module first imports. No React, no Zustand — just a plain JavaScript module variable with controlled access." },
+      { step: "Exported getters and setters", detail: "getOriginalCwd(), getProjectRoot(), getTotalCostUSD(), addCost(amount), getIsNonInteractiveSession() etc. — each is a narrow accessor that prevents callers from accidentally mutating unrelated fields." },
+      { step: "resetSettingsCache side-effect", detail: "Every setState() call triggers resetSettingsCache() to invalidate the settings memoization layer, ensuring settings are always re-read after a state change." },
+    ],
+    connections: {
+      imports: [
+        { name: "@opentelemetry/*",         why: "Types for MeterProvider, TracerProvider, LoggerProvider" },
+        { name: "src/types/ids.ts",         why: "SessionId branded type" },
+        { name: "src/utils/settings/",      why: "resetSettingsCache() called in setState" },
+        { name: "src/utils/crypto.js",      why: "randomUUID() for new session IDs" },
+      ],
+      usedBy: ["src/constants/prompts.ts", "src/services/api/", "src/services/analytics/", "QueryEngine.ts", "main.tsx (initialises on startup)"],
+    },
+    concepts: ["Module singleton", "Narrow accessor pattern", "OpenTelemetry bootstrap", "Cost accounting", "Session identity"],
+    hints: [
+      "Why are there separate totalCostUSD and per-turn accumulators — what's each used for?",
+      "How does the bootstrap-isolation eslint rule prevent circular dependencies from this file?",
+      "What would break if two modules each imported state.ts and got different singleton instances?",
+      "How do OpenTelemetry providers get injected — is it at module load or at runtime init?",
+    ],
+  },
+
+  "src/schemas": {
+    role: "Zod schemas for validating external inputs — hook configuration files, plugin manifests, and user settings. Schemas live separately from the types they validate so they can be shared without pulling in heavy runtime dependencies.",
+    difficulty: "Beginner",
+    analogy: "🛡️ A passport control checkpoint. Every piece of external data (config file, hook definition, plugin manifest) must pass through schema validation before entering the application. The schema rejects malformed input early, before it can cause obscure failures deep in the system.",
+    howItWorks: [
+      { step: "hooks.ts — hook config schemas", detail: "Zod schema for PreToolUse, PostToolUse, and Stop hook matchers. Validates that hook configs have the required fields (matcher, command, timeout) and correct types. Called when loading .claude/settings.json." },
+      { step: "Runtime parse() calls", detail: "z.parse() throws with a detailed error message if the input doesn't match. This surfaces config errors with actionable messages ('expected string, got number at hooks[0].command') rather than cryptic downstream failures." },
+    ],
+    connections: {
+      imports: [
+        { name: "zod", why: "All schemas use the Zod library for declarative validation" },
+      ],
+      usedBy: ["src/utils/settings/settings.ts (validates hook configs on load)", "src/types/hooks.ts (infers TypeScript types from schemas)"],
+    },
+    concepts: ["Zod schema validation", "Runtime type safety", "Configuration validation", "Fail-fast principle"],
+    hints: [
+      "Why are schemas in a separate directory from types/ — could they be co-located?",
+      "What's the difference between z.parse() and z.safeParse()?",
+      "How do you infer a TypeScript type from a Zod schema?",
+      "What happens if a user has an invalid hook config — how does this schema surface the error?",
+    ],
+  },
 };
 
 // ─── CODE SNIPPETS ────────────────────────────────────────────────────────────
@@ -678,6 +1536,222 @@ const PLAN_MODE_SAFE_TOOLS = new Set([
   "WebFetchTool", "WebSearchTool",
   "ListMcpResourcesTool", "ReadMcpResourceTool",
 ]);`,
+
+  "src/state/store.ts": `// store.ts — 35-line zero-dependency observable store factory
+type Listener = () => void
+type OnChange<T> = (args: { newState: T; oldState: T }) => void
+
+export type Store<T> = {
+  getState:  () => T
+  setState:  (updater: (prev: T) => T) => void
+  subscribe: (listener: Listener) => () => void  // returns unsubscribe fn
+}
+
+export function createStore<T>(
+  initialState: T,
+  onChange?: OnChange<T>,
+): Store<T> {
+  let state = initialState
+  const listeners = new Set<Listener>()   // Set = O(1) add/delete, no dupes
+
+  return {
+    getState: () => state,
+
+    setState: (updater) => {
+      const prev = state
+      const next = updater(prev)
+      if (Object.is(next, prev)) return   // skip if unchanged (prevents loops)
+      state = next
+      onChange?.({ newState: next, oldState: prev })
+      for (const listener of listeners) listener()
+    },
+
+    subscribe: (listener) => {
+      listeners.add(listener)
+      return () => listeners.delete(listener)  // call returned fn to unsubscribe
+    },
+  }
+}
+
+// Usage in a React component:
+// const unsub = store.subscribe(() => setLocalState(store.getState()))
+// useEffect(() => unsub, [])   ← cleanup on unmount`,
+
+  "src/types/ids.ts": `// ids.ts — Branded types for SessionId and AgentId
+// These are phantom types: __brand only exists in the type system, zero runtime cost.
+
+export type SessionId = string & { readonly __brand: 'SessionId' }
+export type AgentId   = string & { readonly __brand: 'AgentId'   }
+
+// ── Trust casts (no validation — use at system boundaries only) ──────────────
+export function asSessionId(id: string): SessionId { return id as SessionId }
+export function asAgentId(id: string):   AgentId   { return id as AgentId   }
+
+// ── Validated cast — parses real AgentId format before branding ──────────────
+// Format: "a" + optional "<label>-" + 16 hex chars
+// e.g.  "a3f9c2b1a8e0d4f2"   or   "a-explorer-3f9c2b1a8e0d4f2"
+const AGENT_ID_PATTERN = /^a(?:.+-)?[0-9a-f]{16}$/
+
+export function toAgentId(s: string): AgentId | null {
+  return AGENT_ID_PATTERN.test(s) ? (s as AgentId) : null
+}
+
+// ── Why branded types? ───────────────────────────────────────────────────────
+// Without brands, TypeScript treats SessionId and AgentId as identical strings.
+// This function would compile with no error even though args are swapped:
+//   sendMessage(agentId, sessionId)  ← silent bug!
+// With brands:
+//   sendMessage(sessionId: SessionId, agentId: AgentId)
+//   sendMessage(agentId, sessionId)  ← TS ERROR: Argument of type 'AgentId'
+//                                      is not assignable to parameter of type 'SessionId'`,
+
+  "src/memdir/findRelevantMemories.ts": `// findRelevantMemories.ts — LLM-powered memory selection
+import { sideQuery }         from '../utils/sideQuery.js'
+import { getDefaultSonnetModel } from '../utils/model/model.js'
+import { scanMemoryFiles, type MemoryHeader } from './memoryScan.js'
+
+export type RelevantMemory = { path: string; mtimeMs: number }
+
+// System prompt for the Sonnet selector — instructs it to be selective
+const SELECT_MEMORIES_SYSTEM_PROMPT = \`You are selecting memories useful to Claude Code.
+Return filenames (up to 5) for memories clearly relevant to the query.
+Be selective — if unsure, omit. Return [] if nothing clearly applies.
+Do NOT re-select memories for tools the user is already actively using.\`
+
+export async function findRelevantMemories(
+  query:           string,
+  memoryDir:       string,
+  signal:          AbortSignal,
+  recentTools:     readonly string[]   = [],
+  alreadySurfaced: ReadonlySet<string> = new Set(),
+): Promise<RelevantMemory[]> {
+
+  // 1. Scan memory dir — reads only file headers, not full content (fast)
+  const memories = (await scanMemoryFiles(memoryDir, signal))
+    .filter(m => !alreadySurfaced.has(m.filePath))   // skip already-surfaced
+
+  if (memories.length === 0) return []
+
+  // 2. Ask Sonnet to select the most relevant filenames
+  const selectedFilenames = await selectRelevantMemories(
+    query, memories, signal, recentTools
+  )
+
+  // 3. Map filenames → full paths + mtime
+  const byFilename = new Map(memories.map(m => [m.filename, m]))
+  return selectedFilenames
+    .map(name => byFilename.get(name))
+    .filter(Boolean)
+    .map(m => ({ path: m!.filePath, mtimeMs: m!.mtimeMs }))
+}
+
+async function selectRelevantMemories(
+  query:      string,
+  memories:   MemoryHeader[],
+  signal:     AbortSignal,
+  recentTools: readonly string[],
+): Promise<string[]> {
+  const manifest = formatMemoryManifest(memories)   // "filename: description\\n..."
+  const response = await sideQuery({
+    model:  getDefaultSonnetModel(),
+    system: SELECT_MEMORIES_SYSTEM_PROMPT,
+    prompt: \`Query: \${query}\\n\\nRecent tools: \${recentTools.join(', ')}\\n\\n\${manifest}\`,
+    signal,
+  })
+  return jsonParse(response) ?? []   // Sonnet returns a JSON string[] of filenames
+}`,
+
+  "src/bootstrap/state.ts": `// bootstrap/state.ts — process-level singleton (1,758 lines total)
+// DO NOT ADD MORE STATE HERE — BE JUDICIOUS WITH GLOBAL STATE
+
+import type { SessionId } from 'src/types/ids.js'
+import { randomUUID }     from 'src/utils/crypto.js'
+import { resetSettingsCache } from 'src/utils/settings/settingsCache.js'
+
+// ── The State shape (excerpt — 50+ fields total) ─────────────────────────────
+type State = {
+  originalCwd:                    string
+  projectRoot:                    string        // stable — set once at startup
+  totalCostUSD:                   number        // cumulative session cost
+  totalAPIDuration:               number        // ms waiting for API
+  totalAPIDurationWithoutRetries: number
+  totalToolDuration:              number        // ms spent in tools
+  sessionId:                      SessionId
+  isNonInteractiveSession:        boolean       // SDK / headless mode
+  permissionMode:                 PermissionMode
+  // ... OpenTelemetry providers, hook matchers, model overrides, etc.
+}
+
+// ── Module-level singleton ────────────────────────────────────────────────────
+let state: State = createDefaultState()
+
+function createDefaultState(): State {
+  return {
+    originalCwd:  process.cwd(),
+    projectRoot:  process.cwd(),
+    totalCostUSD: 0,
+    sessionId:    randomUUID() as SessionId,
+    isNonInteractiveSession: false,
+    // ...other defaults
+  } as State
+}
+
+// ── Narrow accessors — callers never touch state directly ─────────────────────
+export function getState():                    State        { return state }
+export function setState(s: State):            void         { state = s; resetSettingsCache() }
+export function getOriginalCwd():              string       { return state.originalCwd }
+export function getTotalCostUSD():             number       { return state.totalCostUSD }
+export function addCost(amount: number):       void         { state = { ...state, totalCostUSD: state.totalCostUSD + amount } }
+export function getSessionId():                SessionId    { return state.sessionId }
+export function getIsNonInteractiveSession():  boolean      { return state.isNonInteractiveSession }
+
+// Why narrow accessors instead of exporting state directly?
+// 1. Prevents callers from mutating fields they shouldn't touch
+// 2. resetSettingsCache() always fires when state changes
+// 3. Makes grep-based usage analysis possible (search for "addCost(" not "state.")`,
+
+  "src/constants/prompts.ts": `// constants/prompts.ts — dynamic system prompt assembly (large file)
+// This file is read on EVERY API call. Changes here affect all Claude behaviour.
+
+import { loadMemoryPrompt }         from '../memdir/memdir.js'
+import { getIsNonInteractiveSession } from '../bootstrap/state.js'
+import { systemPromptSection, DANGEROUS_uncachedSystemPromptSection,
+         resolveSystemPromptSections } from './systemPromptSections.js'
+// ... 50+ more imports of tool name constants and utils
+
+export async function getSystemPrompt(
+  tools:      Tools,
+  commands:   Command[],
+  mcpServers: ConnectedMCPServer[],
+): Promise<string> {
+
+  // ── Cacheable sections (hit Anthropic prompt cache — reduces cost ──────────
+  const cached = [
+    systemPromptSection(\`
+      You are Claude Code, Anthropic's official CLI for Claude.
+      You help users with software engineering tasks...
+    \`),
+    systemPromptSection(getToolDocumentation(tools)),      // tool descriptions
+    systemPromptSection(getCommandDocumentation(commands)), // slash-command docs
+    systemPromptSection(getMcpServerDocs(mcpServers)),      // MCP tool docs
+  ]
+
+  // ── Uncached sections (volatile — change every turn) ─────────────────────
+  const volatile = [
+    DANGEROUS_uncachedSystemPromptSection(\`
+      Current date: \${new Date().toISOString()}
+      Working directory: \${getCwd()}
+      Git branch: \${await getGitBranch()}
+      Session ID: \${getSessionId()}
+      Model: \${getCanonicalName(currentModel)}
+      OS: \${osType()} \${osVersion()}
+    \`),
+    // Memory injected fresh every turn so the agent sees latest notes:
+    DANGEROUS_uncachedSystemPromptSection(await loadMemoryPrompt()),
+  ]
+
+  return resolveSystemPromptSections([...cached, ...volatile])
+}`,
 };
 
 // ─── MERMAID DIAGRAM ──────────────────────────────────────────────────────────
