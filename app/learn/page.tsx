@@ -3826,12 +3826,20 @@ function BuilderView() {
 }
 
 // ─── SCENARIOS DATA ──────────────────────────────────────────────────────────
+interface ManualEntry {
+  type: "h3" | "text" | "bullets" | "commands" | "table" | "warning" | "tip";
+  label?: string;
+  content?: string | string[] | { headers: string[]; rows: string[][] };
+}
+interface ManualChapter { title: string; icon: string; entries: ManualEntry[]; }
+
 interface Scenario {
   id: string; icon: string; color: string;
   title: string; domain: string; goal: string;
   challenge: string; architecture: string;
   blocks: CanvasBlock[]; connections: Connection[];
   outcomes: string[];
+  manual: ManualChapter[];
 }
 
 const SCENARIOS: Scenario[] = [
@@ -3863,6 +3871,203 @@ const SCENARIOS: Scenario[] = [
       { id:"s1c4", fromId:"s1b4", toId:"s1b5", color:"#4f8ef7" },
       { id:"s1c5", fromId:"s1b5", toId:"s1b6", color:"#e879f9" },
     ],
+    manual: [
+      { title:"Prerequisites & Overview", icon:"📋", entries:[
+        { type:"text", content:"This manual guides a DoD financial management team through deploying the FIAR Audit Intelligence Agent. Estimated effort: 8–12 weeks for a 2-person team (1 engineer + 1 financial analyst). The agent continuously monitors financial data, identifies audit findings, assembles evidence packages, and generates FIAR-compliant Corrective Action Plans (CAPs)." },
+        { type:"warning", content:"All data involved is FOUO at minimum. Your hosting infrastructure must meet DoD IL4/IL5 requirements (AWS GovCloud us-gov-west-1 or equivalent) before ingesting any GFEBS or DFAS data." },
+        { type:"h3", label:"Technical Prerequisites" },
+        { type:"bullets", content:[
+          "DoD CAC card + clearance for GFEBS / DEAMS / DFAS system access",
+          "AWS GovCloud account with S3, IAM, Secrets Manager, and CloudWatch",
+          "Neon Postgres (or managed Postgres) with pgvector extension enabled",
+          "Anthropic API key for Claude 3.5 Sonnet — request via anthropic.com or DoD enterprise agreement",
+          "Google Cloud API key for text-embedding-004 (768-dim vector generation)",
+          "Node.js 20+ on developer workstations; GitHub or internal GitLab for version control",
+          "ISSO approval / ATO (or ATO-in-Process) for the hosting environment",
+          "Read access to DFAS bulk file transfers OR GFEBS BI/BW reporting module",
+        ]},
+      ]},
+      { title:"Data Inventory", icon:"📦", entries:[
+        { type:"text", content:"Catalog every data asset before development. Engage your Command's Records Officer and ISSO to confirm handling procedures. Start with unclassified public documents (DoD FMR, FASAB, FIAR Guidance) before adding FOUO extracts." },
+        { type:"table", content:{ headers:["Data Asset","Source System","Format","Sensitivity","Storage Target"], rows:[
+          ["Prior Year Audit Findings (NFRs)","IG office / auditor portal","PDF, DOCX","FOUO","S3: /audit-findings/fyXXXX/"],
+          ["Prior Year Corrective Action Plans","Audit resolution portal / SharePoint","DOCX, Excel","FOUO","S3: /caps/"],
+          ["DoD FMR Volumes 1–16","comptroller.defense.gov (public)","PDF","Unclassified","S3: /policy/fmr/"],
+          ["FASAB Standards (SFFAS 1–54)","fasab.gov (public)","PDF","Unclassified","S3: /policy/fasab/"],
+          ["FIAR Guidance Handbook","OUSD(C) website (public)","PDF","Unclassified","S3: /policy/fiar/"],
+          ["GFEBS Trial Balance / GL Extract","GFEBS BI/BW reporting module","CSV, XLSX","FOUO-Controlled","S3 raw + Postgres table"],
+          ["Internal Control Documentation","Finance office SharePoint / TEAMSWORK","DOCX, PDF, Visio","FOUO","S3: /internal-controls/"],
+          ["Contract & Order Data","SPS / EDA / PD²","XML, CSV","FOUO","S3: /contracts/ + Postgres"],
+          ["Receiving Reports (DD-250/DD-250i)","WAWF (Wide Area WorkFlow)","XML, PDF","FOUO","S3: /receiving/"],
+          ["SF-132 Apportionments","OMB MAX / GFEBS","PDF, Excel","FOUO","S3: /apportionment/"],
+        ]}},
+      ]},
+      { title:"Data Architecture", icon:"🏗️", entries:[
+        { type:"text", content:"Three-tier storage: (1) Object storage for raw documents, (2) Postgres for structured transaction data and vector embeddings, (3) In-memory cache for agent session state during analysis runs." },
+        { type:"table", content:{ headers:["Component","Technology","Purpose","Estimated Size"], rows:[
+          ["Document Store","AWS S3 GovCloud","Raw PDFs, DOCX, GFEBS CSV exports","~50 GB initial, +10 GB/quarter"],
+          ["Vector Database","pgvector on Neon Postgres","768-dim embeddings for semantic search over findings & policy","~500 K vectors"],
+          ["Structured DB","Neon Postgres (additional tables)","Audit findings tracker, GL transactions, evidence links","~10 GB initial"],
+          ["Session Cache","Redis (ElastiCache GovCloud or Upstash)","Agent working memory during active audit sessions","1 GB"],
+          ["Secrets","AWS Secrets Manager","API keys, DB passwords — never in code or .env files","N/A"],
+        ]}},
+      ]},
+      { title:"Phase 1 — Infrastructure Setup", icon:"🔧", entries:[
+        { type:"h3", label:"Create S3 Bucket (AWS GovCloud)" },
+        { type:"commands", content:[
+          "# Create versioned, KMS-encrypted bucket",
+          "aws s3 mb s3://dod-audit-agent-docs --region us-gov-west-1",
+          "aws s3api put-bucket-versioning --bucket dod-audit-agent-docs \\",
+          "  --versioning-configuration Status=Enabled",
+          "aws s3api put-bucket-encryption --bucket dod-audit-agent-docs \\",
+          "  --server-side-encryption-configuration",
+          "  '{\"Rules\":[{\"ApplyServerSideEncryptionByDefault\":{\"SSEAlgorithm\":\"aws:kms\"}}]}'",
+          "",
+          "# Create folder structure",
+          "for prefix in audit-findings caps policy/fmr policy/fasab policy/fiar",
+          "              gfebs contracts receiving apportionment internal-controls; do",
+          "  aws s3api put-object --bucket dod-audit-agent-docs --key $prefix/",
+          "done",
+        ]},
+        { type:"h3", label:"Provision pgvector in Neon Postgres" },
+        { type:"commands", content:[
+          "-- Run in Neon SQL Editor",
+          "CREATE EXTENSION IF NOT EXISTS vector;",
+          "CREATE EXTENSION IF NOT EXISTS 'uuid-ossp';",
+          "",
+          "CREATE TABLE documents (",
+          "  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),",
+          "  s3_key TEXT NOT NULL, title TEXT NOT NULL,",
+          "  doc_type TEXT,  -- 'nfr'|'cap'|'policy'|'contract'|'transaction'",
+          "  fiscal_year INTEGER, created_at TIMESTAMPTZ DEFAULT now()",
+          ");",
+          "CREATE TABLE chunks (",
+          "  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),",
+          "  document_id UUID REFERENCES documents(id) ON DELETE CASCADE,",
+          "  content TEXT NOT NULL, embedding vector(768),",
+          "  chunk_index INTEGER, created_at TIMESTAMPTZ DEFAULT now()",
+          ");",
+          "CREATE INDEX ON chunks USING hnsw (embedding vector_cosine_ops);",
+          "",
+          "CREATE TABLE audit_findings (",
+          "  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),",
+          "  finding_ref TEXT UNIQUE NOT NULL,  -- e.g. NFR-FY24-001",
+          "  fiscal_year INTEGER, category TEXT,",
+          "  risk_level TEXT CHECK (risk_level IN ('high','medium','low')),",
+          "  status TEXT DEFAULT 'open',",
+          "  description TEXT, root_cause TEXT, cap_text TEXT,",
+          "  target_close DATE, created_at TIMESTAMPTZ DEFAULT now()",
+          ");",
+        ]},
+        { type:"h3", label:"Install Dependencies" },
+        { type:"commands", content:[
+          "npm init -y",
+          "npm install @anthropic-ai/sdk @neondatabase/serverless @aws-sdk/client-s3 \\",
+          "  @google/generative-ai ioredis zod dotenv tsx",
+          "npm install -D typescript @types/node vitest",
+          "",
+          "# .env.example — populate all keys; store actuals in AWS Secrets Manager",
+          "ANTHROPIC_API_KEY=sk-ant-...",
+          "DATABASE_URL=postgres://neondb...neon.tech/main?sslmode=require",
+          "AWS_ACCESS_KEY_ID=AKIA...",
+          "AWS_SECRET_ACCESS_KEY=...",
+          "AWS_REGION=us-gov-west-1",
+          "S3_BUCKET=dod-audit-agent-docs",
+          "GEMINI_API_KEY=...   # for text-embedding-004",
+          "REDIS_URL=redis://...",
+        ]},
+      ]},
+      { title:"Phase 2 — Document Ingestion Pipeline", icon:"📥", entries:[
+        { type:"text", content:"The ingestion pipeline: (1) lists new files from S3 prefix, (2) downloads each PDF/DOCX, (3) extracts text, (4) splits into 800-char chunks with 120-char overlap, (5) generates 768-dim embeddings via Gemini text-embedding-004, (6) stores chunks + embeddings in pgvector." },
+        { type:"commands", content:[
+          "# Ingest unclassified policy docs first (safe starting point)",
+          "npx tsx src/ingest/run.ts --prefix policy/fmr/ --type policy",
+          "npx tsx src/ingest/run.ts --prefix policy/fasab/ --type policy",
+          "",
+          "# After ISSO confirms env is ready — ingest FOUO audit findings",
+          "npx tsx src/ingest/run.ts --prefix audit-findings/fy2024/ --type nfr",
+          "",
+          "# Full ingestion from scratch",
+          "npx tsx src/ingest/run.ts --all",
+          "# Expected: ✅ 47 documents → 1,832 chunks → 1,832 embeddings stored",
+        ]},
+        { type:"tip", content:"Schedule nightly ingestion via GitHub Actions cron (0 2 * * *). Use S3 ETag checksums to skip documents that haven't changed — avoids re-embedding unchanged files." },
+      ]},
+      { title:"Phase 3 — Audit Finding Classifier", icon:"🔍", entries:[
+        { type:"text", content:"The classifier sends GFEBS transaction batches to Claude 3.5 Sonnet with DoD FMR compliance criteria as context. It returns structured JSON: finding category, risk level, applicable FMR paragraph reference, and initial root cause hypothesis." },
+        { type:"tip", content:"Include 3–5 prior-year finding examples in the Claude system prompt as few-shot examples. This dramatically improves classification accuracy — the model learns your auditor's exact terminology and finding format." },
+        { type:"commands", content:[
+          "# Test classifier on a single transaction",
+          "npx tsx src/classify/run.ts --transaction-id TXN-2024-000123",
+          "",
+          "# Batch classify a GFEBS extract (dry-run first)",
+          "npx tsx src/classify/batch.ts --file gfebs-q3-fy2024.csv --dry-run",
+          "npx tsx src/classify/batch.ts --file gfebs-q3-fy2024.csv",
+        ]},
+      ]},
+      { title:"Phase 4 — ReAct Loop & Evidence Assembly", icon:"🔄", entries:[
+        { type:"text", content:"For each flagged finding the ReAct loop iterates: (1) retrieve semantically similar prior findings via pgvector, (2) search supporting documentation (contracts, receiving reports), (3) verify against applicable DoD FMR paragraph, (4) assemble evidence package with source citations, (5) score confidence 0–100." },
+        { type:"warning", content:"Set MAX_STEPS=8 in your agent config. An unbounded loop can exhaust your Anthropic API quota and generate large unexpected costs on a sizable GFEBS dataset." },
+        { type:"commands", content:[
+          "# Run agent on a specific finding",
+          "npx tsx src/agent/react.ts --finding NFR-FY24-001",
+          "",
+          "# Batch — all open high-risk findings",
+          "npx tsx src/agent/batch.ts --status open --risk high",
+          "# Results written to audit_findings table + S3 /evidence-packages/",
+        ]},
+      ]},
+      { title:"Phase 5 — CAP Generation", icon:"📝", entries:[
+        { type:"text", content:"Claude generates a structured Corrective Action Plan for each confirmed finding in DoD standard format: (1) finding description, (2) root cause analysis, (3) corrective actions with responsible office and due date, (4) interim milestones, (5) estimated completion date." },
+        { type:"tip", content:"Export your existing CAP Word template structure to JSON schema and pass it as Claude's responseSchema. This ensures every CAP can be imported directly into your audit management system without reformatting." },
+        { type:"commands", content:[
+          "# Generate CAPs for all open high-risk findings",
+          "npx tsx src/cap/generate.ts --risk high --format json",
+          "",
+          "# Generate as DOCX for submission",
+          "npx tsx src/cap/generate.ts --finding NFR-FY24-001 --format docx",
+          "",
+          "# Upload generated CAPs to S3",
+          "aws s3 cp caps/ s3://dod-audit-agent-docs/caps/ --recursive",
+        ]},
+      ]},
+      { title:"Deployment", icon:"🚀", entries:[
+        { type:"bullets", content:[
+          "Step 1: Push code to GitHub — CI runs TypeScript check + unit tests on every commit",
+          "Step 2: Build Docker image: docker build -t audit-agent . (multi-stage build, ~180 MB final image)",
+          "Step 3: Push image to Amazon ECR GovCloud or Google Artifact Registry",
+          "Step 4: Deploy worker to Cloud Run (us-gov-central1) with --memory=2Gi --concurrency=1",
+          "Step 5: Deploy Next.js dashboard to Vercel — add all env vars in Vercel dashboard (never in code)",
+          "Step 6: Set CloudWatch alarms: error rate > 2%, cost per batch run > $5, ingestion failure",
+          "Step 7: Schedule nightly GitHub Actions cron for ingestion (0 2 * * * ET)",
+          "Step 8: User Acceptance Testing — validate 5 known prior-year findings are correctly detected and categorized before going live",
+        ]},
+      ]},
+      { title:"Sustainment Calendar", icon:"📅", entries:[
+        { type:"bullets", content:[
+          "Daily (automated): Ingest new GFEBS extracts and WAWF receiving reports from S3 watched prefixes",
+          "Weekly (5 min): Finance analyst reviews new agent-flagged findings — approve, dismiss, or escalate",
+          "Monthly: Verify DoD FMR and FASAB documents are current; upload revised volumes if needed",
+          "Monthly: Review agent cost dashboard — target < $50/month for a mid-size command",
+          "Quarterly: Re-embed all chunks if embedding model is upgraded (text-embedding-004 → 005 etc.)",
+          "Quarterly: Update finding classification prompts with patterns from the current audit cycle",
+          "Annually: Archive prior FY findings to S3 Glacier; reset audit_findings table for new FY",
+          "Annually: Re-validate ISSO ATO — confirm infrastructure changes haven't introduced new risks",
+        ]},
+      ]},
+      { title:"Future Enhancements", icon:"🔭", entries:[
+        { type:"bullets", content:[
+          "Real-time GFEBS API: Replace batch CSV exports with direct GFEBS OData/REST API calls when available",
+          "Multi-system coverage: Add DEAMS, Navy ERP, and LMP connectors for all-component audit coverage",
+          "Multi-agent architecture: Separate Discovery Agent, Evidence Agent, and CAP Drafting Agent orchestrated by a coordinator",
+          "Domain embedding model: Fine-tune text-embedding on DoD audit terminology to improve retrieval precision by 15–25%",
+          "FIAR readiness score: Calculate and trend a 0–100 readiness score by assertion category in the executive dashboard",
+          "Automated portal submission: Connect to DoD audit resolution portal API for one-click CAP filing",
+          "PII scrubber: Add pre-ingestion PII detection and redaction before any document is vectorized",
+          "Human feedback loop: Track analyst accept/reject decisions to continuously improve classifier accuracy",
+        ]},
+      ]},
+    ],
   },
   {
     id: "budget-execution", icon: "💰", color: "#34d399",
@@ -3891,6 +4096,168 @@ const SCENARIOS: Scenario[] = [
       { id:"s2c3", fromId:"s2b3", toId:"s2b5", color:"#fb923c" },
       { id:"s2c4", fromId:"s2b4", toId:"s2b5", color:"#fb923c" },
       { id:"s2c5", fromId:"s2b5", toId:"s2b6", color:"#e879f9" },
+    ],
+    manual: [
+      { title:"Prerequisites & Overview", icon:"📋", entries:[
+        { type:"text", content:"This manual guides a DoD comptroller office through deploying the Budget Execution & Obligation Tracker Agent. The agent monitors obligation rates vs. phased targets, forecasts year-end unobligated balances, and alerts on potential Anti-Deficiency Act (ADA) violations before they occur. Estimated effort: 6–10 weeks for a 2-person team." },
+        { type:"warning", content:"Budget execution data (GFEBS, DEAMS, apportionment documents) is FOUO. Ensure infrastructure meets DoD IL4 requirements before ingesting live execution data." },
+        { type:"h3", label:"Prerequisites" },
+        { type:"bullets", content:[
+          "GFEBS reporting access — Budget Execution module and BI/BW extract capability",
+          "DEAMS read-only credentials for Air Force appropriation data",
+          "OMB MAX credentials for SF-132 apportionment access (if applicable)",
+          "Databricks workspace provisioned for forecasting Delta tables and ML models",
+          "AWS GovCloud S3 account for document and CSV storage",
+          "Neon Postgres for obligation tracking database",
+          "Gemini API key for LLM analysis and budget narrative generation",
+          "ISSO approval for the hosting environment at IL4 or higher",
+        ]},
+      ]},
+      { title:"Data Inventory", icon:"📦", entries:[
+        { type:"text", content:"Establish recurring data pulls from GFEBS and DEAMS with your Resource Management Officer and G8/J8. Prioritize daily GFEBS execution extracts above all other feeds." },
+        { type:"table", content:{ headers:["Data Asset","Source System","Format","Sensitivity","Storage Target"], rows:[
+          ["GFEBS Budget Execution Reports (daily)","GFEBS BI/BW module","CSV, XLSX","FOUO","S3 raw + Postgres + Databricks"],
+          ["Apportionment Documents (SF-132)","OMB MAX / GFEBS","PDF, Excel","FOUO","S3: /apportionment/ + Postgres"],
+          ["Phased Funding Targets / Spend Plans","Resource Management office","Excel","FOUO","S3: /spend-plans/ + Postgres"],
+          ["Program Element (PE) / BA / Sub-Activity Mapping","President's Budget / GFEBS","Excel","Unclassified","Postgres reference table"],
+          ["Prior Year Execution Rate History (5 years)","DFAS management reports","CSV","FOUO","Databricks Delta table"],
+          ["Unliquidated Obligations (ULO) Aging Report","GFEBS","CSV","FOUO","Databricks Delta table"],
+          ["Continuing Resolution / Omnibus Guidance","OMB, DoD Comptroller (public)","PDF","Unclassified","S3: /cr-guidance/"],
+          ["ADA Violation History","OMB / DoD IG reports (public)","PDF","Unclassified","S3: /ada-history/"],
+        ]}},
+      ]},
+      { title:"Data Architecture", icon:"🏗️", entries:[
+        { type:"table", content:{ headers:["Component","Technology","Purpose","Estimated Size"], rows:[
+          ["Raw Data Lake","AWS S3 GovCloud","Apportionment docs, spend plans, GFEBS CSV extracts","~20 GB initial, +5 GB/quarter"],
+          ["Obligation Tracker DB","Neon Postgres","Current obligations by PE/BA, daily snapshots, alert history","~5 GB"],
+          ["Forecasting Platform","Databricks (Delta Lake)","Historical execution rates, ULO aging, ML training features","~50 GB"],
+          ["Execution Cache","Redis","Daily obligation rate summaries for fast dashboard load","512 MB"],
+          ["Secrets","AWS Secrets Manager","GFEBS API credentials, DB passwords, API keys","N/A"],
+        ]}},
+        { type:"tip", content:"Use Databricks Delta Live Tables to build an incremental pipeline: raw GFEBS CSV → cleaned obligations table → forecasting features. This ensures the model always trains on the latest data without manual intervention." },
+      ]},
+      { title:"Phase 1 — Infrastructure Setup", icon:"🔧", entries:[
+        { type:"commands", content:[
+          "# AWS S3 bucket",
+          "aws s3 mb s3://dod-budget-execution --region us-gov-west-1",
+          "for prefix in gfebs-extracts apportionment spend-plans cr-guidance ada-history; do",
+          "  aws s3api put-object --bucket dod-budget-execution --key $prefix/",
+          "done",
+          "",
+          "-- Neon Postgres schema",
+          "CREATE TABLE obligations (",
+          "  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),",
+          "  fiscal_year INTEGER NOT NULL,",
+          "  pe_number TEXT NOT NULL,       -- e.g. 0603123A",
+          "  ba_number TEXT, sub_activity TEXT, appropriation TEXT,",
+          "  allotment NUMERIC(18,2),",
+          "  obligations_ytd NUMERIC(18,2),",
+          "  commitments NUMERIC(18,2),",
+          "  unobligated_balance NUMERIC(18,2),",
+          "  as_of_date DATE NOT NULL,",
+          "  source_file TEXT,",
+          "  created_at TIMESTAMPTZ DEFAULT now()",
+          ");",
+          "CREATE INDEX ON obligations (fiscal_year, pe_number, as_of_date);",
+          "",
+          "CREATE TABLE obligation_targets (",
+          "  pe_number TEXT, fiscal_year INTEGER, month INTEGER,",
+          "  target_rate NUMERIC(5,4),  -- 0.45 = 45% obligated by month 6",
+          "  PRIMARY KEY (pe_number, fiscal_year, month)",
+          ");",
+          "",
+          "CREATE TABLE ada_alerts (",
+          "  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),",
+          "  pe_number TEXT, fiscal_year INTEGER,",
+          "  alert_type TEXT,  -- 'overobligation'|'rate_deviation'|'ulo_aging'",
+          "  severity TEXT,    -- 'critical'|'warning'|'info'",
+          "  message TEXT, acknowledged BOOLEAN DEFAULT false,",
+          "  created_at TIMESTAMPTZ DEFAULT now()",
+          ");",
+        ]},
+      ]},
+      { title:"Phase 2 — GFEBS Data Integration", icon:"🔌", entries:[
+        { type:"text", content:"Establish a daily automated extract from GFEBS BI/BW into S3. Work with your GFEBS system admin to schedule the extract at GFEBS EOD close (~19:00 ET). Configure an S3 Event Notification to auto-trigger the ingestion job." },
+        { type:"commands", content:[
+          "# After GFEBS extract lands in S3, run ingestion:",
+          "npx tsx src/ingest/gfebs.ts --file gfebs-extract-20241015.csv --fy 2024",
+          "",
+          "# Verify load",
+          "npx tsx src/db/verify.ts --date 2024-10-15",
+          "# Expected: ✅ 4,832 PE/BA records loaded, 0 duplicates",
+        ]},
+        { type:"tip", content:"Configure an S3 Event Notification on the gfebs-extracts/ prefix to automatically trigger a Lambda or Cloud Run job whenever GFEBS pushes a new extract file. Zero manual intervention after initial setup." },
+      ]},
+      { title:"Phase 3 — Obligation Rate Monitoring", icon:"📊", entries:[
+        { type:"text", content:"The monitoring agent compares YTD obligation rates vs. the phased target curve for each Program Element. It flags programs that are under-executing (risk of year-end cancellation of funds) or over-executing (risk of ADA violation)." },
+        { type:"commands", content:[
+          "# Run daily obligation rate check",
+          "npx tsx src/monitor/rates.ts --fy 2024 --as-of today",
+          "",
+          "# Example output:",
+          "# ⚠️  PE 0603123A: 32% obligated vs 45% target (−13%) — UNDER-EXECUTING",
+          "# 🔴 PE 0805012A: 98% obligated vs 85% target (+13%) — ADA RISK",
+          "# ✅ PE 0400121A: 67% obligated vs 65% target (+2%) — ON TRACK",
+        ]},
+      ]},
+      { title:"Phase 4 — Year-End Forecasting (Databricks)", icon:"🔮", entries:[
+        { type:"text", content:"Train a forecasting model in Databricks using 5 years of historical execution data. Features: current YTD rate, historical Q1–Q3 patterns, CR-period flags, appropriation type (O&M vs. Procurement vs. RDT&E). MLflow tracks experiments and model versions." },
+        { type:"warning", content:"ML forecasts are estimates. Always pair automated ADA alerts with a human comptroller review before escalating to leadership or taking any corrective action." },
+        { type:"commands", content:[
+          "# Train model in Databricks notebook: databricks/notebooks/train_forecast_model.py",
+          "",
+          "# Run daily inference",
+          "npx tsx src/forecast/run.ts --fy 2024",
+          "",
+          "# Example output:",
+          "# PE 0603123A: EOY forecast = 87% (target 100%) — $12.4M at cancellation risk",
+          "# PE 0805012A: EOY forecast = 103% — $2.1M over authority — ADA VIOLATION RISK",
+        ]},
+      ]},
+      { title:"Phase 5 — Alert & Daily Brief System", icon:"🔔", entries:[
+        { type:"text", content:"Gemini 2.5 Flash generates human-readable alert narratives from raw obligation data and forecast scores. Alerts are sent via email (Resend), Teams webhook, or Slack, and stored in the ada_alerts table for tracking." },
+        { type:"commands", content:[
+          "# Generate and send daily execution brief",
+          "npx tsx src/alerts/daily-brief.ts --recipients comptroller@command.mil",
+          "",
+          "# Subject line example:",
+          "# [BUDGET ALERT] FY2024 Execution Brief — 3 programs require action by COB",
+        ]},
+      ]},
+      { title:"Deployment", icon:"🚀", entries:[
+        { type:"bullets", content:[
+          "Step 1: Containerize the agent worker — Docker multi-stage build targeting Cloud Run",
+          "Step 2: Push image to Amazon ECR GovCloud or Google Artifact Registry",
+          "Step 3: Deploy worker to Cloud Run with --memory=1Gi --max-instances=3",
+          "Step 4: Deploy Next.js execution dashboard to Vercel (connect to Neon Postgres for live data)",
+          "Step 5: Set up GitHub Actions: test → build → push image → deploy on merge to main",
+          "Step 6: Configure CloudWatch alarms: ADA alert generated, daily brief failure, forecast model drift",
+          "Step 7: Schedule GFEBS ingestion cron via GitHub Actions: daily at 06:00 ET (after DFAS EOD close)",
+          "Step 8: UAT — verify 3 known prior-year ADA near-misses are detected correctly before go-live",
+        ]},
+      ]},
+      { title:"Sustainment Calendar", icon:"📅", entries:[
+        { type:"bullets", content:[
+          "Daily (automated): Ingest GFEBS extract → update obligation table → re-run forecast → send alert brief",
+          "Weekly (15 min): Comptroller reviews alert queue, acknowledges resolved items",
+          "Monthly: Verify apportionment documents in S3 match latest OMB SF-132 actions",
+          "Monthly: Review forecast accuracy — compare model predictions vs. actual obligation rates",
+          "Quarterly: Retrain Databricks forecasting model with latest execution data",
+          "Annually: Roll over fiscal year — archive FY data to S3 Glacier, initialize new FY targets",
+          "Annually: Update appropriation type mappings if budget structure changes (new PEs, colors of money)",
+        ]},
+      ]},
+      { title:"Future Enhancements", icon:"🔭", entries:[
+        { type:"bullets", content:[
+          "DEAMS real-time feed: Replace batch extracts with DEAMS API calls for Air Force appropriations",
+          "Multi-appropriation dashboard: Consolidate O&M, Procurement, RDT&E, and MILCON on one screen",
+          "Reprogramming assistant: AI agent that drafts DD-1415 reprogramming requests when UB exceeds threshold",
+          "Congressional budget justification (CBJ) generator: Auto-draft PB narrative paragraphs from execution data",
+          "Continuing resolution mode: Auto-adjust obligation targets when CR is in effect (pro-rata calculation)",
+          "Cross-command benchmarking: Compare obligation rates across similar commands (anonymized)",
+          "Natural language query: Ask 'What is the obligation rate for PE 0603123A as of Q3 FY24?' in plain English",
+        ]},
+      ]},
     ],
   },
   {
@@ -3923,12 +4290,253 @@ const SCENARIOS: Scenario[] = [
       { id:"s3c5", fromId:"s3b5", toId:"s3b6", color:"#e879f9" },
       { id:"s3c6", fromId:"s3b6", toId:"s3b7", color:"#fb923c" },
     ],
+    manual: [
+      { title:"Prerequisites & Overview", icon:"📋", entries:[
+        { type:"text", content:"This manual guides a DoD finance operations team through deploying the Finance Operations Reconciliation Agent — a multi-agent system for automated AP/AR 3-way matching, unmatched disbursement resolution, anomaly detection on journal entries, and FASAB-compliant financial statement draft generation. Estimated effort: 10–14 weeks for a team of 2 engineers + 1 finance SME." },
+        { type:"warning", content:"Invoice and disbursement data is FOUO-Controlled. MOCAS and SPS data may contain sensitive contractor payment information. Confirm data handling approvals with your Finance Officer and ISSO before ingesting any payment data." },
+        { type:"h3", label:"Prerequisites" },
+        { type:"bullets", content:[
+          "MOCAS (Contract Management System) read-only extract access via DFAS Columbus",
+          "SPS (Standard Procurement System) SFTP extract feed or API access",
+          "GFEBS disbursement module access — FI transaction-level data extract",
+          "Palantir Foundry tenant provisioned with FOUO data governance policies applied",
+          "Databricks workspace for anomaly detection model training (MLflow)",
+          "OpenAI API key for GPT-4o (or Anthropic key for Claude 3.5 Sonnet as alternative)",
+          "WAWF API credentials for receiving report validation",
+          "ISSO ATO for the hosting environment at IL4 or higher",
+        ]},
+      ]},
+      { title:"Data Inventory", icon:"📦", entries:[
+        { type:"text", content:"The reconciliation agent requires four core data streams for the 3-way match framework: Purchase Orders (SPS) → Receiving Reports (WAWF/DD-250) → Invoices (MOCAS) → Disbursements (GFEBS). All four must be present before any matching can begin." },
+        { type:"table", content:{ headers:["Data Asset","Source System","Format","Sensitivity","Storage Target"], rows:[
+          ["MOCAS Invoice Data (all open invoices)","DFAS Columbus MOCAS extract","CSV, XML","FOUO-Controlled","Palantir Foundry dataset"],
+          ["SPS Purchase Orders & Modifications","Standard Procurement System extract","XML, CSV","FOUO","Postgres + Palantir Foundry"],
+          ["GFEBS Disbursement Ledger","GFEBS BI/BW — FI module","CSV","FOUO-Controlled","Databricks Delta table"],
+          ["WAWF Receiving Reports (DD-250)","WAWF API / bulk export","XML, PDF","FOUO","S3 + Postgres"],
+          ["USSGL Chart of Accounts","Treasury / GFEBS reference","Excel","Unclassified","Postgres reference table"],
+          ["Vendor Master Data","SAM.gov + GFEBS vendor master","CSV","FOUO","Postgres vendor table"],
+          ["Unmatched Disbursement Reports","DFAS monthly report","Excel","FOUO-Controlled","Databricks Delta table"],
+          ["Journal Entry / Suspense Account Data","GFEBS FI module","CSV","FOUO-Controlled","Databricks Delta table"],
+          ["Prior Year Reconciliation Results","Finance office records","Excel, PDF","FOUO","S3: /prior-year-recon/"],
+        ]}},
+      ]},
+      { title:"Data Architecture", icon:"🏗️", entries:[
+        { type:"text", content:"Federated architecture: Palantir Foundry for governed invoice/PO datasets with lineage tracking; Databricks for ML-intensive anomaly detection; Postgres for matching results and human review queue." },
+        { type:"table", content:{ headers:["Component","Technology","Purpose","Estimated Size"], rows:[
+          ["Invoice/PO Canonical Dataset","Palantir Foundry (Datasets)","MOCAS and SPS data with governance, lineage, and FOUO labels","~100 GB (5-yr history)"],
+          ["Disbursement Analytics","Databricks (Delta Lake)","GFEBS disbursements, anomaly detection features, ML models","~200 GB"],
+          ["Reconciliation DB","Neon Postgres","Match results, unmatched queue, human review decisions","~20 GB"],
+          ["Document Store","AWS S3 GovCloud","WAWF PDFs, receiving reports, evidence packages","~30 GB"],
+          ["Secrets","AWS Secrets Manager","All credentials — never in code or .env files","N/A"],
+        ]}},
+        { type:"tip", content:"Set up Palantir Foundry data governance policies before ingesting MOCAS data. Apply 'FOUO-Controlled' sensitivity labels and restrict access to the finance reconciliation role only." },
+      ]},
+      { title:"Phase 1 — Infrastructure Setup", icon:"🔧", entries:[
+        { type:"commands", content:[
+          "-- Postgres schema for 3-way match tracking",
+          "CREATE TABLE po_invoices (",
+          "  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),",
+          "  contract_number TEXT NOT NULL,",
+          "  po_number TEXT NOT NULL,",
+          "  invoice_number TEXT,",
+          "  vendor_cage TEXT,",
+          "  po_amount NUMERIC(18,2),",
+          "  invoiced_amount NUMERIC(18,2),",
+          "  disbursed_amount NUMERIC(18,2),",
+          "  receiving_report_id TEXT,",
+          "  match_status TEXT DEFAULT 'unmatched', -- 'matched'|'partial'|'unmatched'|'dispute'",
+          "  match_confidence NUMERIC(5,4),          -- AI score 0.0–1.0",
+          "  anomaly_score NUMERIC(5,4),             -- Databricks score 0.0–1.0",
+          "  human_reviewed BOOLEAN DEFAULT false,",
+          "  created_at TIMESTAMPTZ DEFAULT now()",
+          ");",
+          "CREATE INDEX ON po_invoices (match_status, anomaly_score DESC);",
+          "CREATE INDEX ON po_invoices (contract_number, vendor_cage);",
+          "",
+          "CREATE TABLE review_queue (",
+          "  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),",
+          "  po_invoice_id UUID REFERENCES po_invoices(id),",
+          "  reason TEXT, priority INTEGER, -- 1=critical, 2=high, 3=routine",
+          "  assigned_to TEXT, resolved_at TIMESTAMPTZ, resolution TEXT,",
+          "  created_at TIMESTAMPTZ DEFAULT now()",
+          ");",
+        ]},
+      ]},
+      { title:"Phase 2 — 3-Way Match Engine (MOCAS/SPS/GFEBS)", icon:"🔗", entries:[
+        { type:"text", content:"The matching engine runs the core 3-way match: Purchase Order (SPS) → Receiving Report (WAWF/DD-250) → Invoice (MOCAS). GPT-4o handles fuzzy matching where exact numeric matching fails — e.g., contract modifications change the PO amount, or a vendor submits a partial invoice." },
+        { type:"commands", content:[
+          "# Run 3-way match for all open MOCAS invoices",
+          "npx tsx src/match/run.ts --source mocas --status open",
+          "",
+          "# Expected output:",
+          "# ✅ Matched:       1,247 invoices ($42.3M)",
+          "# ⚠️  Partial match:   89 invoices  ($4.1M) — needs review",
+          "# ❌ Unmatched:        34 invoices  ($2.8M) — queued for investigation",
+          "",
+          "# Run parallel match (SPS + Palantir Foundry simultaneously)",
+          "npx tsx src/match/parallel.ts --fy 2024 --quarter 3",
+        ]},
+        { type:"tip", content:"Use GPT-4o function-calling mode to let the LLM call your Postgres query tool when it can't match an invoice on first pass. This agentic lookup resolves ~60% of partial matches automatically without human intervention." },
+      ]},
+      { title:"Phase 3 — Anomaly Detection (Databricks)", icon:"🔬", entries:[
+        { type:"text", content:"Train an Isolation Forest model in Databricks on the GFEBS journal entry history to detect: (1) round-number disbursements (fraud indicator), (2) duplicate payments, (3) payments outside normal vendor amount range, (4) suspense account entries not cleared within 30 days." },
+        { type:"warning", content:"High anomaly scores are signals for review — not proof of fraud. Always route flagged transactions to a Certifying Officer or finance compliance team for final determination before any action is taken." },
+        { type:"commands", content:[
+          "# Train anomaly model in Databricks: databricks/notebooks/train_anomaly_model.py",
+          "# Uses MLflow for model versioning and experiment tracking",
+          "",
+          "# Run daily anomaly scoring on GFEBS disbursements",
+          "npx tsx src/anomaly/score.ts --source gfebs --date today",
+          "",
+          "# Example high-risk flags:",
+          "# 🔴 TXN-2024-089432: $50,000.00 (round number) to CAGE 3X492 — score 0.94",
+          "# 🔴 TXN-2024-091234: Duplicate of TXN-2024-088901 (same vendor, amount, +2 days)",
+          "# ⚠️  TXN-2024-094001: Suspense acct 2139 open 45 days — score 0.71",
+        ]},
+      ]},
+      { title:"Phase 4 — Financial Statement Generation", icon:"📄", entries:[
+        { type:"text", content:"GPT-4o generates draft financial statement note disclosures based on reconciliation results. It reads the USSGL chart of accounts, applies SFFAS standards, and formats notes compliant with the Treasury Financial Manual and OUSD(C) guidance." },
+        { type:"tip", content:"Include the Treasury Financial Manual (TFM) and OUSD(C) Financial Statement Preparation Guide in your S3 knowledge base. The LLM uses these as grounding references to ensure disclosure language meets federal reporting requirements — dramatically reducing the risk of non-compliant language in drafts." },
+        { type:"commands", content:[
+          "# Generate draft Notes to Financial Statements",
+          "npx tsx src/statements/generate.ts --fy 2024 --quarter 3 --output pdf",
+          "",
+          "# Specific note types:",
+          "#   --note accounts-payable",
+          "#   --note unexpended-appropriations",
+          "#   --note unmatched-transactions",
+        ]},
+      ]},
+      { title:"Phase 5 — Human Review Workflow", icon:"👤", entries:[
+        { type:"text", content:"The Human-in-Loop step routes partial matches, anomaly-flagged transactions, and unresolved disbursements to a prioritized review queue. Finance staff see the AI's evidence and recommendation, then approve or override with one click." },
+        { type:"commands", content:[
+          "# View current critical review queue",
+          "npx tsx src/review/queue.ts --priority critical",
+          "",
+          "# The Next.js dashboard at /review shows for each item:",
+          "#   - AI match confidence score and reasoning",
+          "#   - PO details, receiving report, invoice PDF side-by-side",
+          "#   - Recommended action (approve match / investigate / reject invoice)",
+          "#   - 1-click Approve / Override / Escalate buttons",
+        ]},
+      ]},
+      { title:"Deployment", icon:"🚀", entries:[
+        { type:"bullets", content:[
+          "Step 1: Provision Palantir Foundry datasets for MOCAS/SPS with FOUO labels and role-based access controls",
+          "Step 2: Deploy Databricks anomaly detection job — schedule nightly after GFEBS EOD close (~20:00 ET)",
+          "Step 3: Containerize the matching engine (Docker multi-stage) and deploy to Cloud Run",
+          "Step 4: Deploy the human review dashboard (Next.js) to Vercel or Cloud Run",
+          "Step 5: Set up GitHub Actions CI/CD: test → build → push image → deploy on merge to main",
+          "Step 6: Configure alert notifications: Teams/Slack webhook for critical anomaly flags",
+          "Step 7: Integrate CAC/PKI authentication for the review dashboard (DoD identity requirement)",
+          "Step 8: Parallel operation for 30 days — compare agent match results vs. manual process; target > 92% auto-match accuracy before full deployment",
+        ]},
+      ]},
+      { title:"Sustainment Calendar", icon:"📅", entries:[
+        { type:"bullets", content:[
+          "Daily (automated): Ingest MOCAS invoices + GFEBS disbursements → run 3-way match → score anomalies → update review queue",
+          "Daily (manual, 30 min): Finance staff processes critical review queue items — approve, dispute, or escalate",
+          "Weekly: Reconciliation supervisor reviews queue backlog and resolution rate KPIs",
+          "Monthly: Verify Palantir Foundry pipeline completeness — confirm no missing source extracts",
+          "Monthly: Retrain anomaly model if new fraud patterns identified by auditors or IG",
+          "Quarterly: Review match accuracy (target > 94% auto-match) — adjust fuzzy match thresholds",
+          "Annually: Archive prior FY data to cold storage; reset anomaly detection baselines for new FY",
+          "Annually: Review USSGL chart of accounts and SFFAS references for Treasury updates",
+        ]},
+      ]},
+      { title:"Future Enhancements", icon:"🔭", entries:[
+        { type:"bullets", content:[
+          "Real-time WAWF webhook: Replace batch receiving report pulls with WAWF push for same-day 3-way matching",
+          "LLM contract interpreter: GPT-4o reads contract clauses to auto-apply correct USSGL account mapping for complex multi-CLIN contracts",
+          "Vendor risk scoring: Aggregate anomaly history per vendor CAGE code to build a persistent vendor risk profile",
+          "IPAC reconciliation: Extend the match engine to cover IPAC (Intra-Governmental Payment and Collection) transactions",
+          "Digital signature workflow: Integrate with DoD e-signature so Certifying Officers can approve matches directly in the system",
+          "Cross-fund reconciliation: Handle transfers between appropriation types (O&M → Procurement) with correct USSGL split accounting",
+          "NLP contract parser: Auto-extract CLIN amounts, delivery dates, and payment terms from unstructured contract PDFs to improve match precision",
+        ]},
+      ]},
+    ],
   },
 ];
+
+// ─── MANUAL ENTRY RENDERER ───────────────────────────────────────────────────
+function ManualEntryBlock({ entry, color }: { entry: ManualEntry; color: string }) {
+  const [copied, setCopied] = useState(false);
+  if (entry.type === "h3") return (
+    <div style={{ fontSize: 12, fontWeight: 800, color, marginTop: 14, marginBottom: 6, letterSpacing: "0.03em" }}>{entry.label}</div>
+  );
+  if (entry.type === "text") return (
+    <p style={{ fontSize: 12.5, color: "#9aa3c0", lineHeight: 1.7, margin: "0 0 10px" }}>{entry.content as string}</p>
+  );
+  if (entry.type === "tip") return (
+    <div style={{ padding: "10px 14px", borderRadius: 8, background: "rgba(52,211,153,0.06)", border: "1px solid rgba(52,211,153,0.22)", marginBottom: 10 }}>
+      <span style={{ fontSize: 11, color: "#34d399", fontWeight: 800 }}>💡 Tip: </span>
+      <span style={{ fontSize: 11.5, color: "#7dbfa0", lineHeight: 1.65 }}>{entry.content as string}</span>
+    </div>
+  );
+  if (entry.type === "warning") return (
+    <div style={{ padding: "10px 14px", borderRadius: 8, background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.25)", marginBottom: 10 }}>
+      <span style={{ fontSize: 11, color: "#fbbf24", fontWeight: 800 }}>⚠️ Warning: </span>
+      <span style={{ fontSize: 11.5, color: "#b59a5a", lineHeight: 1.65 }}>{entry.content as string}</span>
+    </div>
+  );
+  if (entry.type === "bullets") return (
+    <ul style={{ margin: "0 0 10px", paddingLeft: 18 }}>
+      {(entry.content as string[]).map((b, i) => (
+        <li key={i} style={{ fontSize: 12, color: "#8892b0", lineHeight: 1.7, marginBottom: 3 }}>{b}</li>
+      ))}
+    </ul>
+  );
+  if (entry.type === "commands") {
+    const lines = entry.content as string[];
+    const copyAll = () => { navigator.clipboard.writeText(lines.filter(l => !l.startsWith("#") && l.trim()).join("\n")); setCopied(true); setTimeout(() => setCopied(false), 2000); };
+    return (
+      <div style={{ borderRadius: 9, background: "#07090f", border: "1px solid #1a1d2e", overflow: "hidden", marginBottom: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 12px", background: "#0b0d18", borderBottom: "1px solid #1a1d2e" }}>
+          <div style={{ display: "flex", gap: 5 }}>
+            {["#f87171","#fbbf24","#34d399"].map((c, i) => <div key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: c }} />)}
+          </div>
+          <button onClick={copyAll} style={{ display: "flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 5, fontSize: 9, fontWeight: 700, cursor: "pointer", background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.25)", color: "#f59e0b" }}>
+            {copied ? <><Check size={8} />Copied!</> : <><Copy size={8} />Copy</>}
+          </button>
+        </div>
+        <pre style={{ margin: 0, padding: "10px 14px", fontSize: 11, lineHeight: 1.7, fontFamily: "'JetBrains Mono','Fira Code',Consolas,monospace", color: "#c9d1f0", overflowX: "auto", whiteSpace: "pre" }}>
+          {lines.map((line, i) => (
+            <div key={i} style={{ color: line.startsWith("#") || line.startsWith("--") ? "#3a4060" : "#c9d1f0" }}>{line || " "}</div>
+          ))}
+        </pre>
+      </div>
+    );
+  }
+  if (entry.type === "table") {
+    const tbl = entry.content as { headers: string[]; rows: string[][] };
+    return (
+      <div style={{ overflowX: "auto", marginBottom: 12 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+          <thead>
+            <tr style={{ background: `${color}18` }}>
+              {tbl.headers.map((h, i) => <th key={i} style={{ padding: "7px 10px", textAlign: "left", color, fontWeight: 800, borderBottom: `1px solid ${color}30`, whiteSpace: "nowrap" }}>{h}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {tbl.rows.map((row, ri) => (
+              <tr key={ri} style={{ background: ri % 2 === 0 ? "rgba(255,255,255,0.01)" : "transparent" }}>
+                {row.map((cell, ci) => <td key={ci} style={{ padding: "7px 10px", color: ci === 0 ? "#c9d1f0" : "#7d88a8", borderBottom: "1px solid #1a1d2e", lineHeight: 1.4 }}>{cell}</td>)}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+  return null;
+}
 
 // ─── SCENARIOS VIEW ───────────────────────────────────────────────────────────
 function ScenariosView({ onLoad }: { onLoad: (blocks: CanvasBlock[], conns: Connection[]) => void }) {
   const [selected, setSelected] = useState<Scenario | null>(null);
+  const [detailTab, setDetailTab] = useState<"overview" | "manual">("overview");
+  const [expandedChapters, setExpandedChapters] = useState<Set<number>>(new Set([0]));
 
   return (
     <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
@@ -3940,7 +4548,7 @@ function ScenariosView({ onLoad }: { onLoad: (blocks: CanvasBlock[], conns: Conn
           Pre-built agent architectures for DoD finance. Click a scenario, then load it into the canvas to customize and generate production code.
         </div>
         {SCENARIOS.map(sc => (
-          <div key={sc.id} onClick={() => setSelected(sc)}
+          <div key={sc.id} onClick={() => { setSelected(sc); setDetailTab("overview"); setExpandedChapters(new Set([0])); }}
             style={{ padding: "14px 16px", borderRadius: 10, marginBottom: 10, cursor: "pointer",
               background: selected?.id === sc.id ? `${sc.color}12` : "#12141f",
               border: `1px solid ${selected?.id === sc.id ? sc.color : `${sc.color}30`}`,
@@ -3970,73 +4578,117 @@ function ScenariosView({ onLoad }: { onLoad: (blocks: CanvasBlock[], conns: Conn
         {selected ? (
           <>
             {/* Header */}
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 24 }}>
-              <span style={{ fontSize: 40 }}>{selected.icon}</span>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 16 }}>
+              <span style={{ fontSize: 36 }}>{selected.icon}</span>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 20, fontWeight: 800, color: "#eaedf8", marginBottom: 4 }}>{selected.title}</div>
-                <div style={{ fontSize: 12, color: selected.color, fontWeight: 600 }}>{selected.domain}</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: "#eaedf8", marginBottom: 3 }}>{selected.title}</div>
+                <div style={{ fontSize: 11, color: selected.color, fontWeight: 600 }}>{selected.domain}</div>
               </div>
               <button onClick={() => onLoad(selected.blocks, selected.connections)}
-                style={{ flexShrink: 0, padding: "10px 20px", borderRadius: 9, fontSize: 13, fontWeight: 800, cursor: "pointer",
+                style={{ flexShrink: 0, padding: "9px 18px", borderRadius: 9, fontSize: 12, fontWeight: 800, cursor: "pointer",
                   background: `${selected.color}20`, border: `1px solid ${selected.color}60`, color: selected.color }}>
                 🧩 Load into Canvas →
               </button>
             </div>
 
-            {/* Goal */}
-            <div style={{ marginBottom: 16, padding: "16px 20px", borderRadius: 10, background: `${selected.color}08`, border: `1px solid ${selected.color}20` }}>
-              <div style={{ fontSize: 10, fontWeight: 800, color: selected.color, letterSpacing: "0.1em", marginBottom: 8 }}>🎯 MISSION GOAL</div>
-              <p style={{ fontSize: 13.5, color: "#c9d1f0", lineHeight: 1.7, margin: 0 }}>{selected.goal}</p>
+            {/* Tabs */}
+            <div style={{ display: "flex", gap: 0, borderBottom: "1px solid #1a1d2e", marginBottom: 20 }}>
+              {(["overview", "manual"] as const).map(t => (
+                <button key={t} onClick={() => setDetailTab(t)} style={{
+                  padding: "8px 18px", fontSize: 12, fontWeight: 700, cursor: "pointer",
+                  background: "transparent", border: "none",
+                  borderBottom: detailTab === t ? `2px solid ${selected.color}` : "2px solid transparent",
+                  color: detailTab === t ? selected.color : "#5c6480",
+                  transition: "all 0.15s",
+                }}>
+                  {t === "overview" ? "📋 Overview" : "📖 Deployment Manual"}
+                </button>
+              ))}
             </div>
 
-            {/* Challenge */}
-            <div style={{ marginBottom: 16, padding: "16px 20px", borderRadius: 10, background: "rgba(248,113,113,0.05)", border: "1px solid rgba(248,113,113,0.18)" }}>
-              <div style={{ fontSize: 10, fontWeight: 800, color: "#f87171", letterSpacing: "0.1em", marginBottom: 8 }}>⚡ THE CHALLENGE</div>
-              <p style={{ fontSize: 13, color: "#9aa3c0", lineHeight: 1.7, margin: 0 }}>{selected.challenge}</p>
-            </div>
+            {/* Overview tab */}
+            {detailTab === "overview" && (
+              <>
+                <div style={{ marginBottom: 14, padding: "14px 18px", borderRadius: 10, background: `${selected.color}08`, border: `1px solid ${selected.color}20` }}>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: selected.color, letterSpacing: "0.1em", marginBottom: 7 }}>🎯 MISSION GOAL</div>
+                  <p style={{ fontSize: 13, color: "#c9d1f0", lineHeight: 1.7, margin: 0 }}>{selected.goal}</p>
+                </div>
+                <div style={{ marginBottom: 14, padding: "14px 18px", borderRadius: 10, background: "rgba(248,113,113,0.05)", border: "1px solid rgba(248,113,113,0.18)" }}>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: "#f87171", letterSpacing: "0.1em", marginBottom: 7 }}>⚡ THE CHALLENGE</div>
+                  <p style={{ fontSize: 12.5, color: "#9aa3c0", lineHeight: 1.7, margin: 0 }}>{selected.challenge}</p>
+                </div>
+                <div style={{ marginBottom: 14, padding: "14px 18px", borderRadius: 10, background: "rgba(167,139,250,0.05)", border: "1px solid rgba(167,139,250,0.18)" }}>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: "#a78bfa", letterSpacing: "0.1em", marginBottom: 7 }}>🏗️ AGENT ARCHITECTURE</div>
+                  <p style={{ fontSize: 12.5, color: "#9aa3c0", lineHeight: 1.7, margin: 0 }}>{selected.architecture}</p>
+                </div>
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: "#5c6480", letterSpacing: "0.1em", marginBottom: 9 }}>🧩 PRE-BUILT BLOCKS ({selected.blocks.length}) + {selected.connections.length} CONNECTIONS</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+                    {selected.blocks.map(b => (
+                      <div key={b.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: 8, background: "#12141f", border: `1px solid ${b.color}30` }}>
+                        <span style={{ fontSize: 13 }}>{b.icon}</span>
+                        <div>
+                          <div style={{ fontSize: 10.5, fontWeight: 700, color: b.color }}>{b.label}</div>
+                          <div style={{ fontSize: 9, color: "#4a5270" }}>{b.catId.toUpperCase()}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: "#5c6480", letterSpacing: "0.1em", marginBottom: 9 }}>✅ EXPECTED OUTCOMES</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                    {selected.outcomes.map((o, i) => (
+                      <div key={i} style={{ display: "flex", gap: 9, alignItems: "flex-start", padding: "9px 12px", borderRadius: 8, background: "#12141f", border: `1px solid ${selected.color}15` }}>
+                        <div style={{ width: 18, height: 18, borderRadius: 5, flexShrink: 0, background: `${selected.color}18`, border: `1px solid ${selected.color}35`, color: selected.color, fontSize: 9, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>{i + 1}</div>
+                        <span style={{ fontSize: 12, color: "#9aa3c0", lineHeight: 1.6 }}>{o}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <button onClick={() => onLoad(selected.blocks, selected.connections)}
+                  style={{ width: "100%", padding: "13px 0", borderRadius: 10, fontSize: 13, fontWeight: 800, cursor: "pointer",
+                    background: `linear-gradient(135deg, ${selected.color}ee, ${selected.color}99)`, border: "none", color: "#0d0f1a" }}>
+                  🧩 Load into Canvas → Generate Code
+                </button>
+              </>
+            )}
 
-            {/* Architecture */}
-            <div style={{ marginBottom: 16, padding: "16px 20px", borderRadius: 10, background: "rgba(167,139,250,0.05)", border: "1px solid rgba(167,139,250,0.18)" }}>
-              <div style={{ fontSize: 10, fontWeight: 800, color: "#a78bfa", letterSpacing: "0.1em", marginBottom: 8 }}>🏗️ AGENT ARCHITECTURE</div>
-              <p style={{ fontSize: 13, color: "#9aa3c0", lineHeight: 1.7, margin: 0 }}>{selected.architecture}</p>
-            </div>
-
-            {/* Block preview */}
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 10, fontWeight: 800, color: "#5c6480", letterSpacing: "0.1em", marginBottom: 10 }}>🧩 PRE-BUILT BLOCKS ({selected.blocks.length}) + {selected.connections.length} CONNECTIONS</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {selected.blocks.map(b => (
-                  <div key={b.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 8, background: "#12141f", border: `1px solid ${b.color}30` }}>
-                    <span style={{ fontSize: 14 }}>{b.icon}</span>
-                    <div>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: b.color }}>{b.label}</div>
-                      <div style={{ fontSize: 9, color: "#4a5270" }}>{b.catId.toUpperCase()}</div>
+            {/* Manual tab */}
+            {detailTab === "manual" && (
+              <div>
+                <div style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 9, background: "rgba(56,189,248,0.06)", border: "1px solid rgba(56,189,248,0.2)" }}>
+                  <div style={{ fontSize: 11, color: "#38bdf8", lineHeight: 1.6 }}>
+                    📖 <strong>Deployment Manual</strong> — Step-by-step guide covering prep work, data architecture, development phases, deployment, sustainment, and future enhancements.
+                  </div>
+                </div>
+                {selected.manual.map((chapter, ci) => {
+                  const isOpen = expandedChapters.has(ci);
+                  return (
+                    <div key={ci} style={{ marginBottom: 10, borderRadius: 10, background: "#0d0f1a", border: `1px solid ${isOpen ? selected.color + "50" : "#1a1d2e"}`, overflow: "hidden", transition: "border-color 0.15s" }}>
+                      <button onClick={() => setExpandedChapters(prev => { const n = new Set(prev); n.has(ci) ? n.delete(ci) : n.add(ci); return n; })}
+                        style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "12px 16px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}>
+                        <span style={{ fontSize: 16 }}>{chapter.icon}</span>
+                        <span style={{ flex: 1, fontSize: 13, fontWeight: 800, color: isOpen ? selected.color : "#c9d1f0" }}>{chapter.title}</span>
+                        <span style={{ fontSize: 10, color: "#4a5270" }}>{isOpen ? "▲" : "▼"}</span>
+                      </button>
+                      {isOpen && (
+                        <div style={{ padding: "4px 16px 16px" }}>
+                          {chapter.entries.map((entry, ei) => (
+                            <ManualEntryBlock key={ei} entry={entry} color={selected.color} />
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
+                <button onClick={() => onLoad(selected.blocks, selected.connections)}
+                  style={{ marginTop: 12, width: "100%", padding: "12px 0", borderRadius: 10, fontSize: 13, fontWeight: 800, cursor: "pointer",
+                    background: `linear-gradient(135deg, ${selected.color}ee, ${selected.color}99)`, border: "none", color: "#0d0f1a" }}>
+                  🧩 Load into Canvas → Generate Code
+                </button>
               </div>
-            </div>
-
-            {/* Outcomes */}
-            <div style={{ marginBottom: 24 }}>
-              <div style={{ fontSize: 10, fontWeight: 800, color: "#5c6480", letterSpacing: "0.1em", marginBottom: 10 }}>✅ EXPECTED OUTCOMES</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {selected.outcomes.map((o, i) => (
-                  <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "10px 14px", borderRadius: 8, background: "#12141f", border: `1px solid ${selected.color}15` }}>
-                    <div style={{ width: 20, height: 20, borderRadius: 6, flexShrink: 0, background: `${selected.color}18`, border: `1px solid ${selected.color}35`, color: selected.color, fontSize: 10, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>{i + 1}</div>
-                    <span style={{ fontSize: 12.5, color: "#9aa3c0", lineHeight: 1.6 }}>{o}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* CTA */}
-            <button onClick={() => onLoad(selected.blocks, selected.connections)}
-              style={{ width: "100%", padding: "14px 0", borderRadius: 10, fontSize: 14, fontWeight: 800, cursor: "pointer",
-                background: `linear-gradient(135deg, ${selected.color}ee, ${selected.color}99)`,
-                border: "none", color: "#0d0f1a" }}>
-              🧩 Load "{selected.title}" → Canvas → Generate Code
-            </button>
+            )}
           </>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 16 }}>
@@ -4228,7 +4880,10 @@ export default function LearnPage() {
                 Click <strong>right dot</strong> first → then <strong>left dot</strong> of target
               </div>
             </div>
-            {BLOCK_PALETTE.map(cat => (
+            {[...BLOCK_PALETTE].sort((a, b) => {
+              const ORD = ["knowledge","execution","memory","processing","llm","tool","workflow","orchestration","protocol","evaluation","deployment"];
+              return (ORD.indexOf(a.cat) === -1 ? 99 : ORD.indexOf(a.cat)) - (ORD.indexOf(b.cat) === -1 ? 99 : ORD.indexOf(b.cat));
+            }).map(cat => (
               <div key={cat.cat}>
                 <button onClick={() => setCollapsedCats(prev => { const next = new Set(prev); next.has(cat.cat) ? next.delete(cat.cat) : next.add(cat.cat); return next; })}
                   style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", padding: "7px 12px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}>
