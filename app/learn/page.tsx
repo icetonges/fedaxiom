@@ -84,6 +84,25 @@ const BLOCK_PALETTE: BlockCat[] = [
     { id:"railway",  label:"Railway",    icon:"🚃", desc:"Simple Docker hosting, no K8s needed.",  deps:[], env:["RAILWAY_TOKEN"] },
     { id:"k8s",      label:"Kubernetes", icon:"⚓", desc:"Enterprise-grade pod orchestration.",    deps:[], env:[] },
   ]},
+  { cat:"knowledge", label:"📚 Knowledge", color:"#22d3ee", blocks:[
+    { id:"docloader",     label:"Doc Loader",      icon:"📥", desc:"Load PDFs, Word docs, spreadsheets.",           deps:[], env:[] },
+    { id:"knowledgebase", label:"Knowledge Base",  icon:"🗂️", desc:"Structured store with full-text search.",       deps:[], env:[] },
+    { id:"webscraper",    label:"Web Scraper",     icon:"🕷️", desc:"Crawl & extract web content for ingestion.",    deps:["cheerio"], env:[] },
+    { id:"docparser",     label:"Doc Parser",      icon:"🔎", desc:"Extract tables, headings, sections from docs.", deps:[], env:[] },
+  ]},
+  { cat:"workflow", label:"🔄 Workflow", color:"#f97316", blocks:[
+    { id:"cronTrigger",    label:"Cron Trigger",    icon:"⏰", desc:"Schedule agent runs on a time interval.",       deps:[], env:[] },
+    { id:"webhookTrigger", label:"Webhook Trigger", icon:"🪝", desc:"Trigger agent from HTTP webhook.",              deps:["express"], env:[] },
+    { id:"humanloop",      label:"Human-in-Loop",   icon:"👤", desc:"Pause execution for human review/approval.",    deps:[], env:[] },
+    { id:"statemachine",   label:"State Machine",   icon:"📊", desc:"Track multi-step workflow state persistently.", deps:[], env:[] },
+  ]},
+  { cat:"execution", label:"⚙️ Exec Environments", color:"#fb923c", blocks:[
+    { id:"awss3",      label:"AWS S3",           icon:"🪣", desc:"Store/retrieve files from Amazon S3.",              deps:["@aws-sdk/client-s3"], env:["AWS_ACCESS_KEY_ID","AWS_SECRET_ACCESS_KEY","AWS_REGION","S3_BUCKET"] },
+    { id:"databricks", label:"Databricks",       icon:"🔷", desc:"Run Spark jobs & query Unity Catalog.",            deps:["@databricks/sdk"], env:["DATABRICKS_HOST","DATABRICKS_TOKEN"] },
+    { id:"palantir",   label:"Palantir Foundry", icon:"🏛️", desc:"Read/write Foundry datasets & pipelines.",         deps:[], env:["FOUNDRY_TOKEN","FOUNDRY_URL"] },
+    { id:"snowflake",  label:"Snowflake",        icon:"❄️", desc:"Query Snowflake data warehouse.",                  deps:["snowflake-sdk"], env:["SNOWFLAKE_ACCOUNT","SNOWFLAKE_USER","SNOWFLAKE_PASSWORD"] },
+    { id:"azureblob",  label:"Azure Blob",       icon:"☁️", desc:"Microsoft Azure Blob Storage.",                    deps:["@azure/storage-blob"], env:["AZURE_STORAGE_CONNECTION_STRING"] },
+  ]},
 ];
 
 const BLOCK_W = 172;
@@ -3806,9 +3825,236 @@ function BuilderView() {
   );
 }
 
+// ─── SCENARIOS DATA ──────────────────────────────────────────────────────────
+interface Scenario {
+  id: string; icon: string; color: string;
+  title: string; domain: string; goal: string;
+  challenge: string; architecture: string;
+  blocks: CanvasBlock[]; connections: Connection[];
+  outcomes: string[];
+}
+
+const SCENARIOS: Scenario[] = [
+  {
+    id: "fiar-audit", icon: "🔍", color: "#4f8ef7",
+    title: "FIAR Audit Intelligence Agent",
+    domain: "DoD Financial Management — Clean Audit Opinion",
+    goal: "AI agent that continuously monitors financial data, identifies audit findings, traces root causes, and recommends corrective actions to achieve and sustain a clean audit opinion under FIAR methodology.",
+    challenge: "DoD financial systems (GFEBS, DEAMS, Navy ERP) generate millions of transactions across disconnected systems. Auditors need AI to triage findings, verify SOP compliance, and surface evidence packages faster than manual review allows.",
+    architecture: "Doc Loader ingests audit criteria (FASAB, GAAP, DoD FMR) → pgvector for semantic search over findings history → Claude 3.5 Sonnet reasons over evidence → ReAct Loop iterates: query system → check compliance → flag findings → generate CAP → LLM Judge scores each finding by risk level.",
+    outcomes: [
+      "Automated triage of audit findings by risk level (High / Medium / Low)",
+      "Evidence package assembly from GFEBS, DEAMS, and SPS source systems",
+      "Corrective Action Plan (CAP) generation aligned to the FIAR playbook",
+      "Continuous audit-readiness dashboard with real-time finding trends",
+    ],
+    blocks: [
+      { id:"s1b1", typeId:"docloader",  catId:"knowledge",     label:"Doc Loader",        icon:"📥", color:"#22d3ee", x:40,  y:60,  deps:[], env:[] },
+      { id:"s1b2", typeId:"pgvector",   catId:"memory",        label:"pgvector (Neon)",   icon:"🐘", color:"#a78bfa", x:260, y:60,  deps:["@neondatabase/serverless"], env:["DATABASE_URL"] },
+      { id:"s1b3", typeId:"sqlquery",   catId:"tool",          label:"SQL Query",         icon:"🗄️", color:"#34d399", x:260, y:170, deps:["@neondatabase/serverless"], env:["DATABASE_URL"] },
+      { id:"s1b4", typeId:"claude35",   catId:"llm",           label:"Claude 3.5 Sonnet", icon:"🧬", color:"#4f8ef7", x:480, y:100, deps:["@anthropic-ai/sdk"], env:["ANTHROPIC_API_KEY"] },
+      { id:"s1b5", typeId:"reactloop",  catId:"orchestration", label:"ReAct Loop",        icon:"🔄", color:"#e879f9", x:700, y:100, deps:[], env:[] },
+      { id:"s1b6", typeId:"llmjudge",   catId:"evaluation",    label:"LLM Judge",         icon:"⚖️", color:"#fbbf24", x:920, y:100, deps:[], env:[] },
+    ],
+    connections: [
+      { id:"s1c1", fromId:"s1b1", toId:"s1b2", color:"#22d3ee" },
+      { id:"s1c2", fromId:"s1b2", toId:"s1b4", color:"#a78bfa" },
+      { id:"s1c3", fromId:"s1b3", toId:"s1b5", color:"#34d399" },
+      { id:"s1c4", fromId:"s1b4", toId:"s1b5", color:"#4f8ef7" },
+      { id:"s1c5", fromId:"s1b5", toId:"s1b6", color:"#e879f9" },
+    ],
+  },
+  {
+    id: "budget-execution", icon: "💰", color: "#34d399",
+    title: "Budget Execution & Obligation Tracker",
+    domain: "DoD Financial Management — Budget & Finance Operations",
+    goal: "AI agent that monitors obligation rates, detects unobligated balance risk, forecasts year-end spend, and surfaces potential anti-deficiency violations before they occur — enabling DoD comptrollers to maintain execution within apportionment.",
+    challenge: "Budget execution across DoD spans GFEBS, DEAMS, PBIS, and Excel-based spend plans. Comptrollers manually reconcile these systems daily. AI can automate reconciliation, predict obligation rates, and alert on variances exceeding threshold.",
+    architecture: "Gemini 2.5 Flash queries SFIS-equivalent SQL tables for current obligations → AWS S3 holds apportionment files and budget documents → Databricks runs spend projection models → Sequential Chain: load budget → query actuals → compare plan vs. actual → forecast EOY → generate alerts → RAGAS validates forecast accuracy.",
+    outcomes: [
+      "Real-time obligation rate monitoring vs. phased target curve",
+      "Anti-deficiency violation early-warning alerts with root cause",
+      "Year-end unobligated balance (UB) forecasting by program element",
+      "Automated reconciliation between GFEBS, DEAMS, and spend plans",
+    ],
+    blocks: [
+      { id:"s2b1", typeId:"gemini25",   catId:"llm",           label:"Gemini 2.5 Flash",  icon:"✨", color:"#4f8ef7", x:40,  y:120, deps:["@google/generative-ai"], env:["GEMINI_API_KEY"] },
+      { id:"s2b2", typeId:"sqlquery",   catId:"tool",          label:"SQL Query",         icon:"🗄️", color:"#34d399", x:260, y:60,  deps:["@neondatabase/serverless"], env:["DATABASE_URL"] },
+      { id:"s2b3", typeId:"awss3",      catId:"execution",     label:"AWS S3",            icon:"🪣", color:"#fb923c", x:260, y:160, deps:["@aws-sdk/client-s3"], env:["AWS_ACCESS_KEY_ID","AWS_SECRET_ACCESS_KEY","AWS_REGION","S3_BUCKET"] },
+      { id:"s2b4", typeId:"databricks", catId:"execution",     label:"Databricks",        icon:"🔷", color:"#fb923c", x:260, y:260, deps:["@databricks/sdk"], env:["DATABRICKS_HOST","DATABRICKS_TOKEN"] },
+      { id:"s2b5", typeId:"sequential", catId:"orchestration", label:"Sequential Chain",  icon:"➡️", color:"#e879f9", x:490, y:150, deps:[], env:[] },
+      { id:"s2b6", typeId:"ragas",      catId:"evaluation",    label:"RAGAS Metrics",     icon:"📈", color:"#fbbf24", x:720, y:150, deps:[], env:[] },
+    ],
+    connections: [
+      { id:"s2c1", fromId:"s2b1", toId:"s2b5", color:"#4f8ef7" },
+      { id:"s2c2", fromId:"s2b2", toId:"s2b5", color:"#34d399" },
+      { id:"s2c3", fromId:"s2b3", toId:"s2b5", color:"#fb923c" },
+      { id:"s2c4", fromId:"s2b4", toId:"s2b5", color:"#fb923c" },
+      { id:"s2c5", fromId:"s2b5", toId:"s2b6", color:"#e879f9" },
+    ],
+  },
+  {
+    id: "finance-ops", icon: "⚙️", color: "#e879f9",
+    title: "Finance Operations Reconciliation Agent",
+    domain: "DoD Financial Management — AP/AR & Financial Reporting",
+    goal: "Multi-agent system for automated AP/AR reconciliation, SPS/MOCAS invoice matching, unmatched disbursements resolution, and FASAB-compliant financial statement generation — reducing manual effort for DoD finance offices.",
+    challenge: "DoD processes millions of invoices through MOCAS, SPS, and GFEBS. Unmatched disbursements and entitlement errors cause audit findings. AI agents can match invoices, flag anomalies, and draft corrective journal entries at scale.",
+    architecture: "GPT-4o orchestrates a parallel fan-out: SQL agent queries MOCAS/SPS data concurrently with Palantir Foundry dataset reads → Databricks runs anomaly detection models on journal entries → Summarizer compresses large transaction sets → LLM Judge scores reconciliation quality and flags items needing human review.",
+    outcomes: [
+      "Automated invoice-to-obligation matching across SPS, MOCAS, and GFEBS",
+      "Unmatched disbursement root cause analysis with recommended remediation",
+      "FASAB-compliant financial statement draft generation",
+      "Anomaly detection on journal entries for fraud indicators",
+    ],
+    blocks: [
+      { id:"s3b1", typeId:"gpt4o",      catId:"llm",           label:"GPT-4o",            icon:"🤖", color:"#4f8ef7", x:40,  y:150, deps:["openai"], env:["OPENAI_API_KEY"] },
+      { id:"s3b2", typeId:"sqlquery",   catId:"tool",          label:"SQL Query",         icon:"🗄️", color:"#34d399", x:260, y:60,  deps:["@neondatabase/serverless"], env:["DATABASE_URL"] },
+      { id:"s3b3", typeId:"palantir",   catId:"execution",     label:"Palantir Foundry",  icon:"🏛️", color:"#fb923c", x:260, y:160, deps:[], env:["FOUNDRY_TOKEN","FOUNDRY_URL"] },
+      { id:"s3b4", typeId:"databricks", catId:"execution",     label:"Databricks",        icon:"🔷", color:"#fb923c", x:260, y:260, deps:["@databricks/sdk"], env:["DATABRICKS_HOST","DATABRICKS_TOKEN"] },
+      { id:"s3b5", typeId:"parallel",   catId:"orchestration", label:"Parallel Fan-out",  icon:"⑂",  color:"#e879f9", x:490, y:160, deps:[], env:[] },
+      { id:"s3b6", typeId:"summarizer", catId:"processing",    label:"Summarizer",        icon:"📝", color:"#fb923c", x:710, y:160, deps:[], env:[] },
+      { id:"s3b7", typeId:"llmjudge",   catId:"evaluation",    label:"LLM Judge",         icon:"⚖️", color:"#fbbf24", x:930, y:160, deps:[], env:[] },
+    ],
+    connections: [
+      { id:"s3c1", fromId:"s3b1", toId:"s3b5", color:"#4f8ef7" },
+      { id:"s3c2", fromId:"s3b2", toId:"s3b5", color:"#34d399" },
+      { id:"s3c3", fromId:"s3b3", toId:"s3b5", color:"#fb923c" },
+      { id:"s3c4", fromId:"s3b4", toId:"s3b5", color:"#fb923c" },
+      { id:"s3c5", fromId:"s3b5", toId:"s3b6", color:"#e879f9" },
+      { id:"s3c6", fromId:"s3b6", toId:"s3b7", color:"#fb923c" },
+    ],
+  },
+];
+
+// ─── SCENARIOS VIEW ───────────────────────────────────────────────────────────
+function ScenariosView({ onLoad }: { onLoad: (blocks: CanvasBlock[], conns: Connection[]) => void }) {
+  const [selected, setSelected] = useState<Scenario | null>(null);
+
+  return (
+    <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+
+      {/* Scenario list */}
+      <div style={{ width: 310, flexShrink: 0, borderRight: "1px solid #1a1d2e", overflowY: "auto", background: "#0a0c15", padding: 16 }}>
+        <div style={{ fontSize: 10, fontWeight: 800, color: "#3d4460", letterSpacing: "0.1em", marginBottom: 6 }}>🎯 DOD FINANCIAL MANAGEMENT</div>
+        <div style={{ fontSize: 11, color: "#4a5270", marginBottom: 16, lineHeight: 1.5 }}>
+          Pre-built agent architectures for DoD finance. Click a scenario, then load it into the canvas to customize and generate production code.
+        </div>
+        {SCENARIOS.map(sc => (
+          <div key={sc.id} onClick={() => setSelected(sc)}
+            style={{ padding: "14px 16px", borderRadius: 10, marginBottom: 10, cursor: "pointer",
+              background: selected?.id === sc.id ? `${sc.color}12` : "#12141f",
+              border: `1px solid ${selected?.id === sc.id ? sc.color : `${sc.color}30`}`,
+              transition: "all 0.15s" }}
+            onMouseEnter={e => { if (selected?.id !== sc.id) e.currentTarget.style.borderColor = `${sc.color}60`; }}
+            onMouseLeave={e => { if (selected?.id !== sc.id) e.currentTarget.style.borderColor = `${sc.color}30`; }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+              <span style={{ fontSize: 22 }}>{sc.icon}</span>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 800, color: sc.color }}>{sc.title}</div>
+                <div style={{ fontSize: 10, color: "#5c6480", marginTop: 2 }}>{sc.domain}</div>
+              </div>
+            </div>
+            <div style={{ fontSize: 11, color: "#7d88a8", lineHeight: 1.5 }}>{sc.goal.slice(0, 110)}…</div>
+            <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 4 }}>
+              {sc.blocks.slice(0, 4).map(b => (
+                <span key={b.id} style={{ fontSize: 9, padding: "2px 6px", borderRadius: 8, background: `${b.color}15`, border: `1px solid ${b.color}30`, color: b.color }}>{b.icon} {b.label}</span>
+              ))}
+              {sc.blocks.length > 4 && <span style={{ fontSize: 9, color: "#4a5270" }}>+{sc.blocks.length - 4} more</span>}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Scenario detail */}
+      <div style={{ flex: 1, overflowY: "auto", padding: 28 }}>
+        {selected ? (
+          <>
+            {/* Header */}
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 24 }}>
+              <span style={{ fontSize: 40 }}>{selected.icon}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 20, fontWeight: 800, color: "#eaedf8", marginBottom: 4 }}>{selected.title}</div>
+                <div style={{ fontSize: 12, color: selected.color, fontWeight: 600 }}>{selected.domain}</div>
+              </div>
+              <button onClick={() => onLoad(selected.blocks, selected.connections)}
+                style={{ flexShrink: 0, padding: "10px 20px", borderRadius: 9, fontSize: 13, fontWeight: 800, cursor: "pointer",
+                  background: `${selected.color}20`, border: `1px solid ${selected.color}60`, color: selected.color }}>
+                🧩 Load into Canvas →
+              </button>
+            </div>
+
+            {/* Goal */}
+            <div style={{ marginBottom: 16, padding: "16px 20px", borderRadius: 10, background: `${selected.color}08`, border: `1px solid ${selected.color}20` }}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: selected.color, letterSpacing: "0.1em", marginBottom: 8 }}>🎯 MISSION GOAL</div>
+              <p style={{ fontSize: 13.5, color: "#c9d1f0", lineHeight: 1.7, margin: 0 }}>{selected.goal}</p>
+            </div>
+
+            {/* Challenge */}
+            <div style={{ marginBottom: 16, padding: "16px 20px", borderRadius: 10, background: "rgba(248,113,113,0.05)", border: "1px solid rgba(248,113,113,0.18)" }}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: "#f87171", letterSpacing: "0.1em", marginBottom: 8 }}>⚡ THE CHALLENGE</div>
+              <p style={{ fontSize: 13, color: "#9aa3c0", lineHeight: 1.7, margin: 0 }}>{selected.challenge}</p>
+            </div>
+
+            {/* Architecture */}
+            <div style={{ marginBottom: 16, padding: "16px 20px", borderRadius: 10, background: "rgba(167,139,250,0.05)", border: "1px solid rgba(167,139,250,0.18)" }}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: "#a78bfa", letterSpacing: "0.1em", marginBottom: 8 }}>🏗️ AGENT ARCHITECTURE</div>
+              <p style={{ fontSize: 13, color: "#9aa3c0", lineHeight: 1.7, margin: 0 }}>{selected.architecture}</p>
+            </div>
+
+            {/* Block preview */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: "#5c6480", letterSpacing: "0.1em", marginBottom: 10 }}>🧩 PRE-BUILT BLOCKS ({selected.blocks.length}) + {selected.connections.length} CONNECTIONS</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {selected.blocks.map(b => (
+                  <div key={b.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 8, background: "#12141f", border: `1px solid ${b.color}30` }}>
+                    <span style={{ fontSize: 14 }}>{b.icon}</span>
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: b.color }}>{b.label}</div>
+                      <div style={{ fontSize: 9, color: "#4a5270" }}>{b.catId.toUpperCase()}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Outcomes */}
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: "#5c6480", letterSpacing: "0.1em", marginBottom: 10 }}>✅ EXPECTED OUTCOMES</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {selected.outcomes.map((o, i) => (
+                  <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "10px 14px", borderRadius: 8, background: "#12141f", border: `1px solid ${selected.color}15` }}>
+                    <div style={{ width: 20, height: 20, borderRadius: 6, flexShrink: 0, background: `${selected.color}18`, border: `1px solid ${selected.color}35`, color: selected.color, fontSize: 10, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>{i + 1}</div>
+                    <span style={{ fontSize: 12.5, color: "#9aa3c0", lineHeight: 1.6 }}>{o}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* CTA */}
+            <button onClick={() => onLoad(selected.blocks, selected.connections)}
+              style={{ width: "100%", padding: "14px 0", borderRadius: 10, fontSize: 14, fontWeight: 800, cursor: "pointer",
+                background: `linear-gradient(135deg, ${selected.color}ee, ${selected.color}99)`,
+                border: "none", color: "#0d0f1a" }}>
+              🧩 Load "{selected.title}" → Canvas → Generate Code
+            </button>
+          </>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 16 }}>
+            <span style={{ fontSize: 52, opacity: 0.2 }}>🎯</span>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#3d4460" }}>Select a DoD financial scenario</div>
+            <div style={{ fontSize: 13, color: "#2a2e46", textAlign: "center", maxWidth: 420, lineHeight: 1.7 }}>
+              Each scenario pre-loads a production-ready agent architecture tailored to DoD financial management — FIAR, budget execution, and finance operations.
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── MAIN PAGE ───────────────────────────────────────────────────────────────
 export default function LearnPage() {
-  type Mode = "canvas" | "curriculum" | "builder";
+  type Mode = "canvas" | "curriculum" | "builder" | "scenarios";
   const [mode, setMode] = useState<Mode>("canvas");
 
   // Canvas state
@@ -3893,6 +4139,14 @@ export default function LearnPage() {
     });
   }, []);
 
+  const handleLoadScenario = useCallback((blocks: CanvasBlock[], conns: Connection[]) => {
+    setCanvasBlocks(blocks);
+    setConnections(conns);
+    setSelectedBlock(null);
+    setConnectingFrom(null);
+    setMode("canvas");
+  }, []);
+
   const generatedFiles = canvasBlocks.length > 0 ? generateProject(canvasBlocks) : {};
   const genFileNames = Object.keys(generatedFiles);
   const selectedBlockDef = canvasBlocks.find(b => b.id === selectedBlock);
@@ -3911,9 +4165,9 @@ export default function LearnPage() {
         </div>
 
         {/* Mode tabs */}
-        {(["canvas", "curriculum", "builder"] as Mode[]).map((m, i) => {
-          const labels: Record<Mode, string> = { canvas: "🧩 LEGO Canvas", curriculum: "📚 Curriculum", builder: "🔨 Builder" };
-          const colors: Record<Mode, string> = { canvas: "#f59e0b", curriculum: "#a78bfa", builder: "#34d399" };
+        {(["canvas", "curriculum", "builder", "scenarios"] as Mode[]).map((m, i) => {
+          const labels: Record<Mode, string> = { canvas: "🧩 LEGO Canvas", curriculum: "📚 Curriculum", builder: "🔨 Builder", scenarios: "🎯 DoD Scenarios" };
+          const colors: Record<Mode, string> = { canvas: "#f59e0b", curriculum: "#a78bfa", builder: "#34d399", scenarios: "#f87171" };
           return (
             <button key={m} onClick={() => setMode(m)} style={{
               padding: "5px 14px", borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: "pointer",
@@ -3930,8 +4184,20 @@ export default function LearnPage() {
         {mode === "canvas" && (
           <>
             {connectingFrom && (
-              <div style={{ fontSize: 11, padding: "4px 10px", borderRadius: 6, background: "rgba(56,189,248,0.12)", border: "1px solid rgba(56,189,248,0.35)", color: "#38bdf8" }}>
-                🔗 Click an input port to connect from <strong>{connectingBlock?.label}</strong>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: 8, background: "rgba(56,189,248,0.10)", border: "1px solid rgba(56,189,248,0.40)" }}>
+                <span style={{ fontSize: 13 }}>🔗</span>
+                <div style={{ fontSize: 11, color: "#38bdf8" }}>
+                  <span style={{ opacity: 0.7 }}>Step 1 done — output port clicked on </span>
+                  <strong style={{ color: "#fff" }}>{connectingBlock?.label}</strong>
+                  <span style={{ opacity: 0.7 }}>. Now: </span>
+                  <span style={{ fontWeight: 800 }}>click the </span>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 2, background: "rgba(56,189,248,0.18)", border: "1px solid #38bdf8", borderRadius: 8, padding: "1px 7px", fontWeight: 800 }}>◀ left dot</span>
+                  <span style={{ fontWeight: 800 }}> on the target block</span>
+                </div>
+                <button onClick={() => setConnectingFrom(null)}
+                  style={{ marginLeft: 4, padding: "2px 9px", borderRadius: 5, fontSize: 10, fontWeight: 700, cursor: "pointer", background: "rgba(248,113,113,0.12)", border: "1px solid rgba(248,113,113,0.35)", color: "#f87171" }}>
+                  Cancel
+                </button>
               </div>
             )}
             <button onClick={() => { setCanvasBlocks([]); setConnections([]); setSelectedBlock(null); setConnectingFrom(null); }}
@@ -3955,7 +4221,13 @@ export default function LearnPage() {
 
           {/* Palette sidebar */}
           <div style={{ width: 220, flexShrink: 0, borderRight: "1px solid #1a1d2e", overflowY: "auto", background: "#0a0c15" }}>
-            <div style={{ padding: "10px 12px 6px", fontSize: 10, fontWeight: 800, color: "#3d4460", letterSpacing: "0.1em" }}>DRAG BLOCKS TO CANVAS</div>
+            <div style={{ padding: "10px 12px 4px", fontSize: 10, fontWeight: 800, color: "#3d4460", letterSpacing: "0.1em" }}>DRAG BLOCKS TO CANVAS</div>
+            <div style={{ margin: "0 8px 8px", padding: "8px 10px", borderRadius: 7, background: "rgba(245,158,11,0.05)", border: "1px solid rgba(245,158,11,0.15)" }}>
+              <div style={{ fontSize: 9.5, color: "#5c6480", lineHeight: 1.55 }}>
+                <span style={{ color: "#f59e0b", fontWeight: 700 }}>◀ Left dot</span> = input &nbsp;·&nbsp; <span style={{ color: "#f59e0b", fontWeight: 700 }}>Right dot ▶</span> = output<br />
+                Click <strong>right dot</strong> first → then <strong>left dot</strong> of target
+              </div>
+            </div>
             {BLOCK_PALETTE.map(cat => (
               <div key={cat.cat}>
                 <button onClick={() => setCollapsedCats(prev => { const next = new Set(prev); next.has(cat.cat) ? next.delete(cat.cat) : next.add(cat.cat); return next; })}
@@ -3990,10 +4262,28 @@ export default function LearnPage() {
               backgroundSize: "28px 28px", cursor: "default" }}>
 
             {canvasBlocks.length === 0 && (
-              <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, pointerEvents: "none" }}>
+              <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14, pointerEvents: "none" }}>
                 <div style={{ fontSize: 48, opacity: 0.15 }}>🧩</div>
-                <div style={{ fontSize: 14, color: "#3d4460", fontWeight: 600 }}>Drag blocks here to build your agent</div>
-                <div style={{ fontSize: 12, color: "#2a2e46" }}>Connect blocks with ports → Generate production code</div>
+                <div style={{ fontSize: 15, color: "#3d4460", fontWeight: 700 }}>Drag blocks from the left panel to build your agent</div>
+                <div style={{ fontSize: 12, color: "#2a2e46", marginBottom: 4 }}>Or use 🎯 DoD Scenarios to load a pre-built architecture</div>
+                {/* Port guide */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "14px 20px", borderRadius: 10, background: "rgba(255,255,255,0.02)", border: "1px solid #1a1d2e" }}>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: "#3d4460", letterSpacing: "0.08em", marginBottom: 2 }}>HOW TO CONNECT BLOCKS</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 11, color: "#3d4460" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#1a1d2e", border: "2px solid #4f8ef7" }} />
+                      <span>◀ <strong style={{ color: "#4f8ef7" }}>Left dot</strong> = Input port (receives data)</span>
+                    </div>
+                    <span style={{ opacity: 0.3 }}>│</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#1a1d2e", border: "2px solid #4f8ef7" }} />
+                      <span><strong style={{ color: "#4f8ef7" }}>Right dot</strong> ▶ = Output port (click first)</span>
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 11, color: "#2a2e46" }}>
+                    <strong style={{ color: "#3d4460" }}>Steps:</strong> 1) Drop 2 blocks · 2) Click RIGHT dot of Block A · 3) Click LEFT dot of Block B · 4) Connection drawn ✓
+                  </div>
+                </div>
               </div>
             )}
 
@@ -4036,18 +4326,33 @@ export default function LearnPage() {
                     cursor: "move", userSelect: "none", transition: "border-color 0.1s, box-shadow 0.1s",
                     display: "flex", alignItems: "center", padding: "0 12px", gap: 8,
                   }}>
-                  {/* Input port */}
+                  {/* Input port — ◀ left dot, click here to receive a connection */}
                   <div onClick={e => handlePortClick(e, block.id, "in")}
-                    style={{ position: "absolute", left: -7, top: "50%", transform: "translateY(-50%)", width: 14, height: 14, borderRadius: "50%", background: connectingFrom && connectingFrom !== block.id ? block.color : "#1a1d2e", border: `2px solid ${block.color}`, cursor: "pointer", zIndex: 3, transition: "background 0.15s" }} />
+                    title="◀ Input port — click here when connecting from another block"
+                    style={{
+                      position: "absolute",
+                      left: connectingFrom && connectingFrom !== block.id ? -11 : -7,
+                      top: "50%", transform: "translateY(-50%)",
+                      width: connectingFrom && connectingFrom !== block.id ? 22 : 14,
+                      height: connectingFrom && connectingFrom !== block.id ? 22 : 14,
+                      borderRadius: "50%",
+                      background: connectingFrom && connectingFrom !== block.id ? block.color : "#1a1d2e",
+                      border: `2px solid ${block.color}`,
+                      cursor: connectingFrom && connectingFrom !== block.id ? "crosshair" : "pointer",
+                      zIndex: 3,
+                      transition: "all 0.15s",
+                      boxShadow: connectingFrom && connectingFrom !== block.id ? `0 0 10px ${block.color}90, 0 0 20px ${block.color}40` : "none",
+                    }} />
                   {/* Block content */}
                   <span style={{ fontSize: 18, flexShrink: 0 }}>{block.icon}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 11, fontWeight: 800, color: block.color, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{block.label}</div>
                     <div style={{ fontSize: 9, color: "#5c6480", marginTop: 1 }}>{block.catId.toUpperCase()}</div>
                   </div>
-                  {/* Output port */}
+                  {/* Output port — ▶ right dot, click first to start a connection */}
                   <div onClick={e => handlePortClick(e, block.id, "out")}
-                    style={{ position: "absolute", right: -7, top: "50%", transform: "translateY(-50%)", width: 14, height: 14, borderRadius: "50%", background: isConnFrom ? block.color : "#1a1d2e", border: `2px solid ${block.color}`, cursor: "pointer", zIndex: 3, transition: "background 0.15s" }} />
+                    title="▶ Output port — click here first to start a connection"
+                    style={{ position: "absolute", right: -7, top: "50%", transform: "translateY(-50%)", width: 14, height: 14, borderRadius: "50%", background: isConnFrom ? block.color : "#1a1d2e", border: `2px solid ${block.color}`, cursor: "pointer", zIndex: 3, transition: "all 0.15s", boxShadow: isConnFrom ? `0 0 8px ${block.color}80` : "none" }} />
                   {/* Delete button */}
                   <button onClick={e => { e.stopPropagation(); setCanvasBlocks(prev => prev.filter(b => b.id !== block.id)); setConnections(prev => prev.filter(c => c.fromId !== block.id && c.toId !== block.id)); if (selectedBlock === block.id) setSelectedBlock(null); }}
                     style={{ position: "absolute", top: -7, right: -7, width: 16, height: 16, borderRadius: "50%", background: "#f87171", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 4, opacity: isSelected ? 1 : 0, transition: "opacity 0.15s" }}>
@@ -4109,11 +4414,32 @@ export default function LearnPage() {
                 </button>
               </>
             ) : (
-              <div style={{ textAlign: "center", padding: "40px 0" }}>
-                <div style={{ fontSize: 28, marginBottom: 8, opacity: 0.3 }}>🎛️</div>
-                <div style={{ fontSize: 12, color: "#3d4460" }}>Click a block to see its config</div>
-                <div style={{ fontSize: 10, color: "#2a2e46", marginTop: 6 }}>
-                  {canvasBlocks.length} block{canvasBlocks.length !== 1 ? "s" : ""} · {connections.length} connection{connections.length !== 1 ? "s" : ""}
+              <div style={{ padding: "20px 0" }}>
+                <div style={{ textAlign: "center", marginBottom: 20 }}>
+                  <div style={{ fontSize: 28, marginBottom: 8, opacity: 0.3 }}>🎛️</div>
+                  <div style={{ fontSize: 12, color: "#3d4460" }}>Click a block to see its config</div>
+                  <div style={{ fontSize: 10, color: "#2a2e46", marginTop: 4 }}>
+                    {canvasBlocks.length} block{canvasBlocks.length !== 1 ? "s" : ""} · {connections.length} connection{connections.length !== 1 ? "s" : ""}
+                  </div>
+                </div>
+                {/* Connection guide */}
+                <div style={{ padding: "14px", borderRadius: 9, background: "rgba(56,189,248,0.05)", border: "1px solid rgba(56,189,248,0.18)" }}>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: "#38bdf8", letterSpacing: "0.08em", marginBottom: 10 }}>🔗 HOW TO CONNECT BLOCKS</div>
+                  {[
+                    { step: "1", icon: "▶", text: "Click the RIGHT dot on Block A — it glows to show it's active" },
+                    { step: "2", icon: "◀", text: "Click the LEFT dot on Block B — connection is drawn automatically" },
+                    { step: "3", icon: "✓", text: "A curved line appears. Repeat for more connections." },
+                  ].map(({ step, icon, text }) => (
+                    <div key={step} style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 8 }}>
+                      <div style={{ width: 18, height: 18, borderRadius: 5, flexShrink: 0, background: "rgba(56,189,248,0.15)", border: "1px solid rgba(56,189,248,0.3)", color: "#38bdf8", fontSize: 9, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>{step}</div>
+                      <div style={{ fontSize: 10.5, color: "#5c7080", lineHeight: 1.5 }}>
+                        <span style={{ color: "#38bdf8", fontWeight: 800 }}>{icon} </span>{text}
+                      </div>
+                    </div>
+                  ))}
+                  <div style={{ marginTop: 8, fontSize: 10, color: "#3d4460", padding: "6px 8px", borderRadius: 6, background: "rgba(255,255,255,0.02)" }}>
+                    💡 Or select a block and click "Start connection from this block"
+                  </div>
                 </div>
               </div>
             )}
@@ -4141,6 +4467,9 @@ export default function LearnPage() {
 
       {/* ── BUILDER ── */}
       {mode === "builder" && <BuilderView />}
+
+      {/* ── SCENARIOS ── */}
+      {mode === "scenarios" && <ScenariosView onLoad={handleLoadScenario} />}
 
       {/* ── GENERATED CODE MODAL ── */}
       {showCodeModal && (
